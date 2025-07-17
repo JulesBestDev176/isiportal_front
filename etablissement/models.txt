@@ -1,0 +1,165 @@
+// -------------------
+// etablissement/src/models/Eleve.ts
+// -------------------
+import { Utilisateur } from "./Utilisateur";
+
+export interface Eleve extends Utilisateur {
+  dateNaissance: string;
+  classeId: string;
+  parentsIds: string[];
+  dossierScolaire?: string;
+  notes?: Record<string, number>;
+  absences?: Array<{ date: string; motif: string }>;
+}
+
+// -------------------
+// etablissement/src/models/Classe.ts
+// -------------------
+// Modèle Classe pour la gestion des classes
+
+export interface ProfMatiere {
+  matiere: string;
+  professeurId: string;
+}
+
+export interface Classe {
+  id: string;
+  nom: string;
+  niveau: string; // ex: CP, CE1, 6ème, 2nde
+  anneeScolaire: string;
+  effectif: number;
+  etablissementId: string;
+  // Pour primaire/élémentaire : un prof principal
+  professeurPrincipalId?: string;
+  // Pour collège/lycée : liste des profs par matière
+  profsMatieres?: ProfMatiere[];
+}
+
+// -------------------
+// etablissement/src/models/Parent.ts
+// -------------------
+import { Utilisateur } from "./Utilisateur";
+
+export interface Parent extends Utilisateur {
+  enfantsIds: string[];
+  telephoneSecondaire?: string;
+  adresseSecondaire?: string;
+}
+
+// -------------------
+// etablissement/src/models/Message.ts
+// -------------------
+// Modèle Message pour la messagerie interne
+
+export interface Message {
+  id: string;
+  expediteurId: string;
+  destinataireId: string;
+  contenu: string;
+  dateEnvoi: string;
+  lu: boolean;
+  type: "texte" | "fichier" | "notification";
+}
+
+// -------------------
+// etablissement/src/models/AdminEcole.ts
+// -------------------
+import { Utilisateur } from "./Utilisateur";
+
+export interface AdminEcole extends Utilisateur {
+  privileges?: string[];
+  historiqueConnexions?: Array<{ date: string; ip: string }>;
+}
+
+// -------------------
+// etablissement/src/models/Professeur.ts
+// -------------------
+import { Utilisateur } from "./Utilisateur";
+
+export interface Professeur extends Utilisateur {
+  matieres: string[];
+  classesIds: string[];
+  telephonePro?: string;
+  emailPro?: string;
+}
+
+// -------------------
+// etablissement/src/models/Utilisateur.ts
+// -------------------
+// Modèle Utilisateur pour tous les rôles (hors superAdmin)
+
+export type RoleUtilisateur =
+  | "adminEcole"
+  | "gestionnaire"
+  | "professeur"
+  | "eleve"
+  | "parent";
+
+export interface Utilisateur {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  role: RoleUtilisateur;
+  idTenant: string;
+  actif: boolean;
+  dateCreation: string;
+  // Champs spécifiques pour les élèves
+  dateNaissance?: string;
+  classeId?: string;
+  parentsIds?: string[];
+  // Champs spécifiques pour les parents
+  enfantsIds?: string[];
+  // Champs spécifiques pour les professeurs
+  matieres?: string[];
+  // Champs spécifiques pour tous
+  telephone?: string;
+  adresse?: string;
+}
+
+// -------------------
+// etablissement/src/models/Gestionnaire.ts
+// -------------------
+import { Utilisateur } from "./Utilisateur";
+
+export interface Gestionnaire extends Utilisateur {
+  departement?: string;
+  responsabilites?: string[];
+}
+
+// -------------------
+// etablissement/src/models/Notification.ts
+// -------------------
+// Modèle Notification pour le système de notifications
+
+export interface Notification {
+  id: string;
+  utilisateurId: string;
+  titre: string;
+  message: string;
+  date: string;
+  lu: boolean;
+  type: "info" | "alerte" | "urgence";
+}
+
+// -------------------
+// etablissement/src/models/Etablissement.ts
+// -------------------
+// Modèle Etablissement (tenant)
+
+export interface Etablissement {
+  id: string;
+  nom: string;
+  sousDomaine: string;
+  domainePersonnalise?: string;
+  logo: string;
+  couleurs: {
+    primaire: string;
+    secondaire: string;
+    fond: string;
+    texte: string;
+  };
+  emailContact: string;
+  actif: boolean;
+  dateCreation: string;
+} 

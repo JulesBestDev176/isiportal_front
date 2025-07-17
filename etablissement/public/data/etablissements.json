@@ -1,0 +1,32 @@
+[
+  {
+    "id": "ecole-1",
+    "nom": "Collège Jean Moulin",
+    "sousDomaine": "jeanmoulin",
+    "logo": "https://via.placeholder.com/40x40",
+    "couleurs": {
+      "primaire": "#3c5fa0",
+      "secondaire": "#7fa3e0",
+      "fond": "#f7f7f7",
+      "texte": "#222"
+    },
+    "emailContact": "contact@jeanmoulin.fr",
+    "actif": true,
+    "dateCreation": "2024-06-01"
+  },
+  {
+    "id": "ecole-2",
+    "nom": "Lycée Victor Hugo",
+    "sousDomaine": "victorhugo",
+    "logo": "https://via.placeholder.com/40x40",
+    "couleurs": {
+      "primaire": "#5178c0",
+      "secondaire": "#a6c1f0",
+      "fond": "#eeeeee",
+      "texte": "#222"
+    },
+    "emailContact": "contact@victorhugo.fr",
+    "actif": true,
+    "dateCreation": "2024-06-01"
+  }
+] 

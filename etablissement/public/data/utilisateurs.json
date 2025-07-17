@@ -1,0 +1,75 @@
+[
+  {
+    "id": "1",
+    "nom": "Martin",
+    "prenom": "Alice",
+    "email": "alice.martin@ecole.fr",
+    "role": "adminEcole",
+    "idTenant": "ecole-1",
+    "actif": true,
+    "dateCreation": "2024-06-01",
+    "telephone": "0601020304",
+    "adresse": "1 rue de l'École, Paris",
+    "privileges": ["gestion_utilisateurs", "gestion_classes"],
+    "historiqueConnexions": [
+      { "date": "2024-06-01T08:00:00Z", "ip": "192.168.1.10" }
+    ]
+  },
+  {
+    "id": "2",
+    "nom": "Durand",
+    "prenom": "Paul",
+    "email": "paul.durand@ecole.fr",
+    "role": "professeur",
+    "idTenant": "ecole-1",
+    "actif": true,
+    "dateCreation": "2024-06-01",
+    "matieres": ["Mathématiques", "Physique"],
+    "classesIds": ["1", "2"],
+    "telephonePro": "0605060708",
+    "emailPro": "paul.durand@profs.ecole.fr"
+  },
+  {
+    "id": "3",
+    "nom": "Lefevre",
+    "prenom": "Emma",
+    "email": "emma.lefevre@ecole.fr",
+    "role": "eleve",
+    "idTenant": "ecole-1",
+    "actif": true,
+    "dateCreation": "2024-06-01",
+    "dateNaissance": "2010-09-15",
+    "classeId": "1",
+    "parentsIds": ["4"],
+    "dossierScolaire": "dossier_2024.pdf",
+    "notes": { "Mathématiques": 16, "Physique": 15 },
+    "absences": [
+      { "date": "2024-06-10", "motif": "Maladie" }
+    ]
+  },
+  {
+    "id": "4",
+    "nom": "Lefevre",
+    "prenom": "Sophie",
+    "email": "sophie.lefevre@famille.fr",
+    "role": "parent",
+    "idTenant": "ecole-1",
+    "actif": true,
+    "dateCreation": "2024-06-01",
+    "enfantsIds": ["3"],
+    "telephoneSecondaire": "0600000000",
+    "adresseSecondaire": "2 rue des Parents, Paris"
+  },
+  {
+    "id": "5",
+    "nom": "Petit",
+    "prenom": "Luc",
+    "email": "luc.petit@ecole.fr",
+    "role": "gestionnaire",
+    "idTenant": "ecole-1",
+    "actif": true,
+    "dateCreation": "2024-06-01",
+    "departement": "Vie scolaire",
+    "responsabilites": ["gestion_absences", "organisation_evenements"]
+  }
+] 

@@ -1,0 +1,264 @@
+import React, { useState, useRef, useEffect } from "react";
+import {
+  Bell, User, ChevronDown, Search, HelpCircle, LogOut, 
+  Settings, Menu, X, GraduationCap, ChevronLeft, ChevronRight
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+interface Notification {
+  id: number;
+  titre: string;
+  message: string;
+  lu: boolean;
+  type: "info" | "alerte" | "urgence";
+  date: string;
+}
+
+interface HeaderProps {
+  utilisateur: any;
+  tenant: any;
+  libellesRole: Record<string, string>;
+  notifications: Notification[];
+  onMenuToggle: () => void;
+  showMobileMenu: boolean;
+  deconnexion: () => void;
+  sidebarRéduite: boolean;
+  onToggleSidebar: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({
+  utilisateur,
+  tenant,
+  libellesRole,
+  notifications,
+  onMenuToggle,
+  showMobileMenu,
+  deconnexion,
+  sidebarRéduite,
+  onToggleSidebar
+}) => {
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const unreadCount = notifications.filter(n => !n.lu).length;
+
+  const handleMarkAllAsRead = () => {
+    // Logique pour marquer toutes les notifications comme lues
+    setShowNotifications(false);
+  };
+
+  const handleNotificationClick = (notificationId: number) => {
+    // Logique pour marquer une notification comme lue
+    console.log(`Notification ${notificationId} clicked`);
+  };
+
+  return (
+    <header className="bg-white border-b border-neutral-200 sticky top-0 z-40">
+      <div className="flex items-center justify-between px-4 py-3 lg:px-6">
+        {/* Bouton de réduction du sidebar à gauche */}
+        <button
+          className="p-2 rounded-md hover:bg-fond transition-colors mr-2"
+          onClick={onToggleSidebar}
+          aria-label={sidebarRéduite ? "Agrandir le menu" : "Réduire le menu"}
+        >
+          {sidebarRéduite ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+        </button>
+        {/* Logo et titre */}
+        {/* <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+            <GraduationCap className="w-5 h-5 text-white" />
+          </div>
+          <div className="hidden sm:block">
+            <h1 className="font-bold text-lg text-neutral-900 truncate max-w-48">
+              {tenant.nom || tenant.idEcole || tenant.sousDomaine}
+            </h1>
+            <p className="text-xs text-neutral-500 -mt-1">
+              {libellesRole[utilisateur.role] || utilisateur.role}
+            </p>
+          </div>
+        </div> */}
+        {/* Actions utilisateur à droite */}
+        <div className="ml-auto flex items-center gap-3">
+          {/* Bouton recherche mobile */}
+          <button 
+            className="p-2 rounded-lg hover:bg-fond transition-colors md:hidden"
+            aria-label="Search"
+          >
+            <Search className="w-5 h-5 text-texte" />
+          </button>
+          {/* Notifications */}
+          <div className="relative" ref={notificationsRef}>
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="relative p-2 rounded-lg hover:bg-fond transition-colors"
+              aria-haspopup="true"
+              aria-expanded={showNotifications}
+              aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} non lues)` : ''}`}
+            >
+              <Bell className="w-5 h-5 text-texte" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {showNotifications && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-neutral-200 overflow-hidden"
+                >
+                  <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
+                    <h3 className="font-semibold text-neutral-900">Notifications</h3>
+                    <p className="text-sm text-neutral-500">
+                      {unreadCount} non lue{unreadCount > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-neutral-500 text-sm">
+                        Aucune notification
+                      </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          onClick={() => handleNotificationClick(notification.id)}
+                          className={`px-4 py-3 hover:bg-neutral-50 cursor-pointer border-l-4 transition-colors ${
+                            !notification.lu ? 'border-l-primaire bg-primaire-50' : 'border-l-transparent'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                              notification.type === 'urgence' ? 'bg-red-500' :
+                              notification.type === 'alerte' ? 'bg-orange-500' : 'bg-blue-500'
+                            }`} />
+                            <div className="flex-1 min-w-0">
+                              <h4 className={`text-sm font-medium truncate ${
+                                !notification.lu ? 'text-neutral-900' : 'text-neutral-700'
+                              }`}>
+                                {notification.titre}
+                              </h4>
+                              <p className="text-sm text-neutral-600 mt-1 line-clamp-2">
+                                {notification.message}
+                              </p>
+                              <p className="text-xs text-neutral-500 mt-1">
+                                {notification.date}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  
+                  {notifications.some(n => !n.lu) && (
+                    <div className="px-4 py-3 bg-neutral-50 border-t border-neutral-200">
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="w-full text-sm text-primaire-600 font-medium hover:text-primaire-700 transition-colors"
+                      >
+                        Marquer toutes comme lues
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          {/* Profil utilisateur (menu) */}
+          <div className="relative" ref={profileMenuRef}>
+            <button
+              onClick={() => setShowProfileMenu(!showProfileMenu)}
+              className="flex items-center gap-2 p-2 rounded-lg hover:bg-fond transition-colors"
+              aria-haspopup="true"
+              aria-expanded={showProfileMenu}
+              aria-label="Menu utilisateur"
+            >
+              <div className="w-8 h-8 bg-primaire rounded-lg flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div className="hidden sm:block text-left">
+                <p className="text-sm font-medium text-neutral-900 truncate max-w-32">
+                  {utilisateur.prenom} {utilisateur.nom}
+                </p>
+                <p className="text-xs text-neutral-500 truncate max-w-32">
+                  {utilisateur.email}
+                </p>
+              </div>
+              <ChevronDown className="w-4 h-4 text-neutral-500 hidden sm:block" />
+            </button>
+
+            <AnimatePresence>
+              {showProfileMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-neutral-200 overflow-hidden"
+                >
+                  <div className="px-3 py-2 bg-neutral-50 border-b border-neutral-200">
+                    <p className="text-sm font-medium text-neutral-900 truncate">
+                      {utilisateur.prenom} {utilisateur.nom}
+                    </p>
+                    <p className="text-xs text-neutral-500 truncate">
+                      {libellesRole[utilisateur.role] || utilisateur.role}
+                    </p>
+                  </div>
+                  
+                  <div className="py-1">
+                    <button className="w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 transition-colors">
+                      <User className="w-4 h-4" />
+                      Mon profil
+                    </button>
+                    <button className="w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 transition-colors">
+                      <Settings className="w-4 h-4" />
+                      Paramètres
+                    </button>
+                    <button className="w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 transition-colors">
+                      <HelpCircle className="w-4 h-4" />
+                      Aide
+                    </button>
+                    <hr className="my-1 border-neutral-200" />
+                    <button 
+                      onClick={deconnexion}
+                      className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Déconnexion
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default Header;

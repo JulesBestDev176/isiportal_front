@@ -1,0 +1,41 @@
+[
+  {
+    "id": "5",
+    "nom": "Petit",
+    "prenom": "Luc",
+    "email": "gest@gmail.com",
+    "motDePasse": "gest123",
+    "role": "gestionnaire",
+    "idTenant": "ecole-1",
+    "actif": true,
+    "dateCreation": "2024-06-01",
+    "departement": "Vie scolaire",
+    "responsabilites": ["gestion_absences", "organisation_evenements"]
+  },
+  {
+    "id": "24",
+    "nom": "Renaud",
+    "prenom": "Sophie",
+    "email": "sophie.renaud@ecole.fr",
+    "motDePasse": "gest456",
+    "role": "gestionnaire",
+    "idTenant": "ecole-2",
+    "actif": true,
+    "dateCreation": "2024-06-01",
+    "departement": "Administration",
+    "responsabilites": ["gestion_inscriptions", "gestion_dossiers"]
+  },
+  {
+    "id": "25",
+    "nom": "Garcia",
+    "prenom": "Antoine",
+    "email": "antoine.garcia@ecole.fr",
+    "motDePasse": "gest789",
+    "role": "gestionnaire",
+    "idTenant": "ecole-1",
+    "actif": true,
+    "dateCreation": "2024-06-01",
+    "departement": "Comptabilité",
+    "responsabilites": ["gestion_budget", "suivi_factures"]
+  }
+] 

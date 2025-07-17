@@ -1,0 +1,37 @@
+[
+  {
+    "id": "1",
+    "nom": "Martin",
+    "prenom": "Alice",
+    "email": "admin@gmail.com",
+    "motDePasse": "admin123",
+    "role": "adminEcole",
+    "idTenant": "ecole-1",
+    "actif": true,
+    "dateCreation": "2024-06-01",
+    "telephone": "0601020304",
+    "adresse": "1 rue de l'École, Paris",
+    "privileges": ["gestion_utilisateurs", "gestion_classes"],
+    "historiqueConnexions": [
+      { "date": "2024-06-01T08:00:00Z", "ip": "192.168.1.10" },
+      { "date": "2024-06-15T09:30:00Z", "ip": "192.168.1.11" }
+    ]
+  },
+  {
+    "id": "26",
+    "nom": "Dupont",
+    "prenom": "Marc",
+    "email": "marc.dupont@ecole.fr",
+    "motDePasse": "admin456",
+    "role": "adminEcole",
+    "idTenant": "ecole-2",
+    "actif": true,
+    "dateCreation": "2024-06-01",
+    "telephone": "0601020326",
+    "adresse": "2 rue de l'École, Lyon",
+    "privileges": ["gestion_utilisateurs", "gestion_abonnements", "gestion_analytics"],
+    "historiqueConnexions": [
+      { "date": "2024-06-10T10:00:00Z", "ip": "192.168.2.10" }
+    ]
+  }
+] 
