@@ -1,100 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Search, Filter, Edit3, Trash2, Eye, X, AlertCircle, BookOpen, Users, Calendar, School } from 'lucide-react';
 import { Classe, ClasseAnneeScolaire, ProfMatiere } from '../../models/classe.model';
 import { Utilisateur } from '../../models/utilisateur.model';
+import { useAuth } from '../../contexts/ContexteAuth';
+import { 
+  Users, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Search, 
+  Filter,
+  Calendar,
+  GraduationCap,
+  ArrowRight,
+  Settings,
+  Eye,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  UserCheck,
+  UserX,
+  Edit3,
+  X,
+  BookOpen
+} from 'lucide-react';
 
 type Professeur = Utilisateur;
-
-// Données mock
-const classesMock: Classe[] = [
-  {
-    id: 1,
-    nom: "6ème A",
-    niveauId: 1,
-    niveauNom: "6ème",
-    anneesScolaires: [{
-      id: 1,
-      classeId: 1,
-      anneeScolaireId: 1,
-      anneeScolaireNom: "2023-2024",
-      elevesIds: [1, 2, 3],
-      effectif: 28,
-      effectifMax: 30,
-      professeurPrincipalId: 1,
-      professeurPrincipalNom: "M. Fall",
-      profsMatieres: [
-        { matiere: "Mathématiques", professeurId: 1, professeurNom: "M. Fall", heuresParSemaine: 6 },
-        { matiere: "Français", professeurId: 2, professeurNom: "Mme Ndiaye", heuresParSemaine: 5 }
-      ],
-      description: "Classe de 6ème section A",
-      statut: "active",
-      dateCreation: "2024-01-01"
-    }],
-    description: "Classe de 6ème section A",
-    dateCreation: "2024-01-01",
-    dateModification: "2024-01-01",
-    statut: "active"
-  },
-  {
-    id: 2,
-    nom: "5ème B",
-    niveauId: 2,
-    niveauNom: "5ème",
-    anneesScolaires: [{
-      id: 2,
-      classeId: 2,
-      anneeScolaireId: 1,
-      anneeScolaireNom: "2023-2024",
-      elevesIds: [4, 5],
-      effectif: 25,
-      effectifMax: 30,
-      professeurPrincipalId: 2,
-      professeurPrincipalNom: "Mme Ndiaye",
-      profsMatieres: [
-        { matiere: "Mathématiques", professeurId: 1, professeurNom: "M. Fall", heuresParSemaine: 5 },
-        { matiere: "Histoire-Géo", professeurId: 3, professeurNom: "M. Diouf", heuresParSemaine: 4 }
-      ],
-      description: "Classe de 5ème section B",
-      statut: "active",
-      dateCreation: "2024-01-01"
-    }],
-    description: "Classe de 5ème section B",
-    dateCreation: "2024-01-01",
-    dateModification: "2024-01-01",
-    statut: "active"
-  }
-];
-
-const professeursMock: Professeur[] = [
-  { 
-    id: 1, 
-    nom: "Fall", 
-    prenom: "Moussa", 
-    email: "m.fall@ecole.sn", 
-    role: "professeur",
-    dateCreation: "2024-01-01",
-    actif: true
-  },
-  { 
-    id: 2, 
-    nom: "Ndiaye", 
-    prenom: "Fatou", 
-    email: "f.ndiaye@ecole.sn", 
-    role: "professeur",
-    dateCreation: "2024-01-01",
-    actif: true
-  },
-  { 
-    id: 3, 
-    nom: "Diouf", 
-    prenom: "Omar", 
-    email: "o.diouf@ecole.sn", 
-    role: "professeur",
-    dateCreation: "2024-01-01",
-    actif: true
-  }
-];
 
 // Composant Carte de Classe
 const CarteClasse: React.FC<{
@@ -385,8 +316,8 @@ const FormulaireClasse: React.FC<{
 
 // Composant principal
 const ClasseGestionnaire: React.FC = () => {
-  const [classes, setClasses] = useState<Classe[]>(classesMock);
-  const [professeurs, setProfesseurs] = useState<Professeur[]>(professeursMock);
+  const [classes, setClasses] = useState<Classe[]>([]);
+  const [professeurs, setProfesseurs] = useState<Professeur[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [classeAModifier, setClasseAModifier] = useState<Classe | null>(null);
   const [searchTerm, setSearchTerm] = useState("");

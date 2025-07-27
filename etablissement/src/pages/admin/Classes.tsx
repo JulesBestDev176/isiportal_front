@@ -4,7 +4,11 @@ import {
   Plus, Search, Filter, Edit3, Trash2, Users, User, 
   School, Mail, Phone, MapPin, Calendar, GraduationCap,
   UserCheck, AlertCircle, CheckCircle, UserPlus, List, X,
-  Baby, Heart, FileText, Eye, ChevronDown, BookOpen, Settings
+  Baby, Heart, FileText, Eye, ChevronDown, BookOpen, Settings,
+  Clock, Target, PlayCircle, Video, Volume2, Image, Link, File, Check, CalendarDays,
+  Info, BarChart3, Users2, Clock3, BookOpenCheck, CalendarCheck,
+  ArrowRight, ArrowLeft, RefreshCw, Download, Upload, EyeOff,
+  UserX
 } from "lucide-react";
 
 // Interfaces TypeScript
@@ -12,459 +16,80 @@ import { Classe, ClasseAnneeScolaire, ProfMatiere } from '../../models/classe.mo
 import { AnneeScolaire } from '../../models/annee-scolaire.model';
 import { EleveClasse } from '../../models/eleve.model';
 import { ReglesTransfert, NIVEAUX_SUPERIEURS, reglesTransfertDefaut, getNiveauSuperieur, estEligibleTransfert, getClasseDestination } from '../../models/regles-transfert.model';
+import { adminService } from '../../services/adminService';
+import { eleveService } from '../../services/eleveService';
+import { notificationService } from '../../services/notificationService';
+import { useAuth } from '../../contexts/ContexteAuth';
+import { bulletinService } from '../../services/bulletinService';
+import { historiqueElevesService } from '../../services/historiqueElevesService';
 
-interface FormDataClasse {
-  nom: string;
-  niveauId: string;
-  effectifMax: number;
-  description: string;
-  professeurPrincipalId: string;
-  statut: string;
-}
+import { FormDataClasse, ClasseErrors as Errors, MatiereBulletin, BulletinSemestre } from '../../models/classe.model';
 
-interface Errors {
-  nom?: string;
-  niveauId?: string;
-  effectifMax?: string;
-}
-
-// Mock data - remplacez par vos vrais modèles
-const anneesScolairesMock: AnneeScolaire[] = [
-  {
-    id: 1,
-    nom: "2023-2024",
-    anneeDebut: 2023,
-    anneeFin: 2024,
-    dateDebut: "2023-09-01",
-    dateFin: "2024-07-31",
-    statut: "active",
-    description: "Année scolaire 2023-2024",
-    dateCreation: "2023-06-01",
-    dateModification: "2023-09-01"
-  },
-  {
-    id: 2,
-    nom: "2022-2023",
-    anneeDebut: 2022,
-    anneeFin: 2023,
-    dateDebut: "2022-09-01",
-    dateFin: "2023-07-31",
-    statut: "terminee",
-    description: "Année scolaire 2022-2023",
-    dateCreation: "2022-06-01",
-    dateModification: "2023-07-31"
-  },
-  {
-    id: 3,
-    nom: "2024-2025",
-    anneeDebut: 2024,
-    anneeFin: 2025,
-    dateDebut: "2024-09-01",
-    dateFin: "2025-07-31",
-    statut: "planifiee",
-    description: "Année scolaire 2024-2025",
-    dateCreation: "2024-06-01"
-  },
-  {
-    id: 4,
-    nom: "2025-2026",
-    anneeDebut: 2025,
-    anneeFin: 2026,
-    dateDebut: "2025-09-01",
-    dateFin: "2026-07-31",
-    statut: "planifiee",
-    description: "Année scolaire 2025-2026",
-    dateCreation: "2025-06-01"
-  },
-  {
-    id: 5,
-    nom: "2026-2027",
-    anneeDebut: 2026,
-    anneeFin: 2027,
-    dateDebut: "2026-09-01",
-    dateFin: "2027-07-31",
-    statut: "planifiee",
-    description: "Année scolaire 2026-2027",
-    dateCreation: "2026-06-01"
-  },
-  {
-    id: 6,
-    nom: "2027-2028",
-    anneeDebut: 2027,
-    anneeFin: 2028,
-    dateDebut: "2027-09-01",
-    dateFin: "2028-07-31",
-    statut: "planifiee",
-    description: "Année scolaire 2027-2028",
-    dateCreation: "2027-06-01"
-  },
-  {
-    id: 7,
-    nom: "2028-2029",
-    anneeDebut: 2028,
-    anneeFin: 2029,
-    dateDebut: "2028-09-01",
-    dateFin: "2029-07-31",
-    statut: "planifiee",
-    description: "Année scolaire 2028-2029",
-    dateCreation: "2028-06-01"
-  },
-  {
-    id: 8,
-    nom: "2029-2030",
-    anneeDebut: 2029,
-    anneeFin: 2030,
-    dateDebut: "2029-09-01",
-    dateFin: "2030-07-31",
-    statut: "planifiee",
-    description: "Année scolaire 2029-2030",
-    dateCreation: "2029-06-01"
-  },
-  {
-    id: 9,
-    nom: "2030-2031",
-    anneeDebut: 2030,
-    anneeFin: 2031,
-    dateDebut: "2030-09-01",
-    dateFin: "2031-07-31",
-    statut: "planifiee",
-    description: "Année scolaire 2030-2031",
-    dateCreation: "2030-06-01"
-  },
-  {
-    id: 10,
-    nom: "2031-2032",
-    anneeDebut: 2031,
-    anneeFin: 2032,
-    dateDebut: "2031-09-01",
-    dateFin: "2032-07-31",
-    statut: "planifiee",
-    description: "Année scolaire 2031-2032",
-    dateCreation: "2031-06-01"
-  },
-  {
-    id: 11,
-    nom: "2032-2033",
-    anneeDebut: 2032,
-    anneeFin: 2033,
-    dateDebut: "2032-09-01",
-    dateFin: "2033-07-31",
-    statut: "planifiee",
-    description: "Année scolaire 2032-2033",
-    dateCreation: "2032-06-01"
+// Fonction pour charger les années scolaires
+const loadAnneesScolaires = async () => {
+  try {
+    const response = await adminService.getAnneesScolaires();
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return [];
+  } catch (error) {
+    console.error('Erreur lors du chargement des années scolaires:', error);
+    return [];
   }
-];
+};
 
-const classesMock: Classe[] = [
-  {
-    id: 1,
-    nom: "6ème A",
-    niveauId: 1,
-    niveauNom: "6ème",
-    anneesScolaires: [
-      {
-        id: 1,
-        classeId: 1,
-        anneeScolaireId: 1,
-        anneeScolaireNom: "2023-2024",
-        elevesIds: [1, 2, 3, 4, 5],
-        effectif: 25,
-        effectifMax: 30,
-        professeurPrincipalId: 1,
-        professeurPrincipalNom: "Mme Diallo",
-        profsMatieres: [
-          { matiere: "Mathématiques", professeurId: 1, professeurNom: "M. Fall", heuresParSemaine: 6 },
-          { matiere: "Français", professeurId: 2, professeurNom: "Mme Ndiaye", heuresParSemaine: 5 },
-          { matiere: "Histoire-Géo", professeurId: 3, professeurNom: "M. Sow", heuresParSemaine: 4 }
-        ],
-        description: "Classe de 6ème section générale",
-        statut: "active",
-        dateCreation: "2024-09-01"
-      },
-      {
-        id: 2,
-        classeId: 1,
-        anneeScolaireId: 2,
-        anneeScolaireNom: "2022-2023",
-        elevesIds: [11, 12, 13, 14, 15, 16],
-        effectif: 28,
-        effectifMax: 30,
-        professeurPrincipalId: 1,
-        professeurPrincipalNom: "Mme Diallo",
-        profsMatieres: [
-          { matiere: "Mathématiques", professeurId: 1, professeurNom: "M. Fall", heuresParSemaine: 6 },
-          { matiere: "Français", professeurId: 2, professeurNom: "Mme Ndiaye", heuresParSemaine: 5 },
-          { matiere: "Histoire-Géo", professeurId: 3, professeurNom: "M. Sow", heuresParSemaine: 4 }
-        ],
-        description: "Classe de 6ème section générale",
-        statut: "inactive",
-        dateCreation: "2022-09-01"
-      }
-    ],
-    description: "Classe de 6ème section générale",
-    dateCreation: "2024-09-01",
-    statut: "active"
-  },
-  {
-    id: 2,
-    nom: "5ème B",
-    niveauId: 2,
-    niveauNom: "5ème",
-    anneesScolaires: [
-      {
-        id: 2,
-        classeId: 2,
-    anneeScolaireId: 1,
-        anneeScolaireNom: "2023-2024",
-    elevesIds: [6, 7, 8, 9, 10, 11, 12],
-    effectif: 28,
-    effectifMax: 30,
-    professeurPrincipalId: 2,
-    professeurPrincipalNom: "M. Sarr",
-    profsMatieres: [
-      { matiere: "Mathématiques", professeurId: 1, professeurNom: "M. Fall", heuresParSemaine: 5 },
-      { matiere: "Physique-Chimie", professeurId: 4, professeurNom: "Mme Ba", heuresParSemaine: 3 },
-      { matiere: "SVT", professeurId: 5, professeurNom: "M. Diouf", heuresParSemaine: 3 }
-        ],
-        description: "Classe de 5ème section scientifique",
-        statut: "active",
-        dateCreation: "2024-09-01"
-      }
-    ],
-    description: "Classe de 5ème section scientifique",
-    dateCreation: "2024-09-01",
-    statut: "active"
-  },
-  {
-    id: 3,
-    nom: "3ème C",
-    niveauId: 4,
-    niveauNom: "3ème",
-    anneesScolaires: [
-      {
-        id: 3,
-        classeId: 3,
-    anneeScolaireId: 1,
-        anneeScolaireNom: "2023-2024",
-    elevesIds: [13, 14, 15],
-    effectif: 15,
-    effectifMax: 25,
-    professeurPrincipalId: 3,
-    professeurPrincipalNom: "Mme Cissé",
-    profsMatieres: [
-      { matiere: "Mathématiques", professeurId: 1, professeurNom: "M. Fall", heuresParSemaine: 4 },
-      { matiere: "Français", professeurId: 2, professeurNom: "Mme Ndiaye", heuresParSemaine: 4 }
-        ],
-        description: "Classe de 3ème préparation BFEM",
-        statut: "inactive",
-        dateCreation: "2024-09-01"
-      }
-    ],
-    description: "Classe de 3ème préparation BFEM",
-    dateCreation: "2024-09-01",
-    statut: "inactive"
-  },
-  {
-    id: 4,
-    nom: "2nde A",
-    niveauId: 5,
-    niveauNom: "2nde",
-    anneesScolaires: [
-      {
-        id: 4,
-        classeId: 4,
-        anneeScolaireId: 1,
-        anneeScolaireNom: "2023-2024",
-        elevesIds: [],
-        effectif: 0,
-        effectifMax: 35,
-        professeurPrincipalId: 4,
-        professeurPrincipalNom: "M. Traoré",
-        profsMatieres: [
-          { matiere: "Mathématiques", professeurId: 1, professeurNom: "M. Fall", heuresParSemaine: 4 },
-          { matiere: "Français", professeurId: 2, professeurNom: "Mme Ndiaye", heuresParSemaine: 4 },
-          { matiere: "Histoire-Géo", professeurId: 3, professeurNom: "M. Sow", heuresParSemaine: 3 }
-        ],
-        description: "Classe de 2nde générale",
-        statut: "active",
-        dateCreation: "2024-09-01"
-      }
-    ],
-    description: "Classe de 2nde générale",
-    dateCreation: "2024-09-01",
-    statut: "active"
+// Fonction pour charger les classes
+const loadClasses = async () => {
+  try {
+    const response = await adminService.getClasses();
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return [];
+  } catch (error) {
+    console.error('Erreur lors du chargement des classes:', error);
+    return [];
   }
-];
+};
+
+// Fonction pour charger l'historique des élèves
+const loadHistoriqueEleves = async (classeId: number) => {
+  try {
+    const response = await historiqueElevesService.getHistoriqueClasse(classeId, "2024-2025");
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return [];
+  } catch (error) {
+    console.error('Erreur lors du chargement de l\'historique des élèves:', error);
+    return [];
+  }
+};
+
+// Fonction pour charger les bulletins des élèves
+const loadBulletinsEleve = async (eleveId: number) => {
+  try {
+    const response = await bulletinService.getBulletinsEleve(eleveId);
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return [];
+  } catch (error) {
+    console.error('Erreur lors du chargement des bulletins:', error);
+    return [];
+  }
+};
+
+// Suppression des mocks - remplacés par des appels aux services
 
 // Données mock pour l'historique des élèves (années précédentes)
-const historiqueElevesMock: { [classeId: number]: { [anneeScolaireId: number]: EleveClasse[] } } = {
-  1: { // Classe 6ème A
-    1: [ // 2023-2024 (année actuelle)
-      { id: 1, nom: "Diop", prenom: "Fatou", moyenneAnnuelle: 14.5, statut: "inscrit", dateInscription: "2023-09-01" },
-      { id: 2, nom: "Sow", prenom: "Moussa", moyenneAnnuelle: 12.8, statut: "inscrit", dateInscription: "2023-09-01" },
-      { id: 3, nom: "Ndiaye", prenom: "Aissatou", moyenneAnnuelle: 16.2, statut: "inscrit", dateInscription: "2023-09-01" },
-      { id: 4, nom: "Fall", prenom: "Omar", moyenneAnnuelle: 7.5, statut: "inscrit", dateInscription: "2023-09-01" },
-      { id: 5, nom: "Diallo", prenom: "Mariama", moyenneAnnuelle: 9.3, statut: "inscrit", dateInscription: "2023-09-01" }
-    ],
-    2: [ // 2022-2023 (année précédente)
-      { id: 11, nom: "Camara", prenom: "Aissatou", moyenneAnnuelle: 15.2, statut: "transfere", dateInscription: "2022-09-01", dateSortie: "2023-07-31", motifSortie: "Passage en 5ème" },
-      { id: 12, nom: "Diagne", prenom: "Moussa", moyenneAnnuelle: 13.8, statut: "transfere", dateInscription: "2022-09-01", dateSortie: "2023-07-31", motifSortie: "Passage en 5ème" },
-      { id: 13, nom: "Faye", prenom: "Omar", moyenneAnnuelle: 8.5, statut: "transfere", dateInscription: "2022-09-01", dateSortie: "2023-07-31", motifSortie: "Passage en 5ème" },
-      { id: 14, nom: "Gueye", prenom: "Fatou", moyenneAnnuelle: 11.7, statut: "transfere", dateInscription: "2022-09-01", dateSortie: "2023-07-31", motifSortie: "Passage en 5ème" },
-      { id: 15, nom: "Kane", prenom: "Ibrahim", moyenneAnnuelle: 9.8, statut: "transfere", dateInscription: "2022-09-01", dateSortie: "2023-07-31", motifSortie: "Passage en 5ème" },
-      { id: 16, nom: "Mbaye", prenom: "Aminata", moyenneAnnuelle: 12.3, statut: "transfere", dateInscription: "2022-09-01", dateSortie: "2023-07-31", motifSortie: "Passage en 5ème" }
-    ]
-  },
-  2: { // Classe 5ème B
-    1: [ // 2023-2024 (année actuelle)
-      { id: 6, nom: "Ba", prenom: "Aminata", moyenneAnnuelle: 8.5, statut: "inscrit", dateInscription: "2023-09-01" },
-      { id: 7, nom: "Cissé", prenom: "Ibrahim", moyenneAnnuelle: 11.2, statut: "inscrit", dateInscription: "2023-09-01" },
-      { id: 8, nom: "Traoré", prenom: "Fatoumata", moyenneAnnuelle: 13.7, statut: "inscrit", dateInscription: "2023-09-01" },
-      { id: 9, nom: "Koné", prenom: "Mamadou", moyenneAnnuelle: 6.8, statut: "inscrit", dateInscription: "2023-09-01" },
-      { id: 10, nom: "Sy", prenom: "Awa", moyenneAnnuelle: 15.1, statut: "inscrit", dateInscription: "2023-09-01" }
-    ]
-  }
-};
+// TODO: Remplacer par des appels au service historiqueElevesService
 
 // Données mock pour les bulletins des élèves
-interface MatiereBulletin {
-  nom: string;
-  note1?: number;
-  note2?: number;
-  composition?: number;
-  coefficient: number;
-  moyenne: number;
-  appreciation: string;
-}
+// Interfaces maintenant importées depuis les modèles
 
-interface BulletinSemestre {
-  moyenne: number;
-  matieres: MatiereBulletin[];
-}
-
-const bulletinsMock: { [eleveId: number]: { [anneeScolaireId: number]: { [semestre: string]: BulletinSemestre } } } = {
-  1: { // Élève Fatou Diop
-    1: { // Année 2023-2024
-      "Semestre 1": {
-        moyenne: 14.5,
-        matieres: [
-          { nom: "Mathématiques", note1: 15, note2: 16, composition: 14, coefficient: 4, moyenne: 15.0, appreciation: "Très bon travail" },
-          { nom: "Français", note1: 13, note2: 14, composition: 12, coefficient: 3, moyenne: 13.0, appreciation: "Bon niveau" },
-          { nom: "Histoire-Géo", note1: 16, note2: 15, composition: 17, coefficient: 2, moyenne: 16.0, appreciation: "Excellent" },
-          { nom: "Anglais", note1: 14, note2: 15, composition: 13, coefficient: 2, moyenne: 14.0, appreciation: "Bon niveau" },
-          { nom: "SVT", note1: 15, note2: 16, composition: 14, coefficient: 2, moyenne: 15.0, appreciation: "Très bien" }
-        ]
-      },
-      "Semestre 2": {
-        moyenne: 14.8,
-        matieres: [
-          { nom: "Mathématiques", note1: 16, note2: 15, composition: 17, coefficient: 4, moyenne: 16.0, appreciation: "Excellent travail" },
-          { nom: "Français", note1: 14, note2: 15, composition: 13, coefficient: 3, moyenne: 14.0, appreciation: "Bon niveau" },
-          { nom: "Histoire-Géo", note1: 15, note2: 16, composition: 14, coefficient: 2, moyenne: 15.0, appreciation: "Très bien" },
-          { nom: "Anglais", note1: 15, note2: 14, composition: 16, coefficient: 2, moyenne: 15.0, appreciation: "Bon niveau" },
-          { nom: "SVT", note1: 16, note2: 15, composition: 17, coefficient: 2, moyenne: 16.0, appreciation: "Excellent" }
-        ]
-      }
-    }
-  },
-  2: { // Élève Moussa Sow
-    1: { // Année 2023-2024
-      "Semestre 1": {
-        moyenne: 12.8,
-        matieres: [
-          { nom: "Mathématiques", note1: 12, note2: 13, composition: 11, coefficient: 4, moyenne: 12.0, appreciation: "Bon travail" },
-          { nom: "Français", note1: 13, note2: 12, composition: 14, coefficient: 3, moyenne: 13.0, appreciation: "Niveau correct" },
-          { nom: "Histoire-Géo", note1: 14, note2: 13, composition: 15, coefficient: 2, moyenne: 14.0, appreciation: "Bon niveau" },
-          { nom: "Anglais", note1: 11, note2: 12, composition: 13, coefficient: 2, moyenne: 12.0, appreciation: "Peut mieux faire" },
-          { nom: "SVT", note1: 13, note2: 14, composition: 12, coefficient: 2, moyenne: 13.0, appreciation: "Bon travail" }
-        ]
-      },
-      "Semestre 2": {
-        moyenne: 13.2,
-        matieres: [
-          { nom: "Mathématiques", note1: 13, note2: 14, composition: 12, coefficient: 4, moyenne: 13.0, appreciation: "Progrès notables" },
-          { nom: "Français", note1: 14, note2: 13, composition: 15, coefficient: 3, moyenne: 14.0, appreciation: "Bon niveau" },
-          { nom: "Histoire-Géo", note1: 13, note2: 14, composition: 12, coefficient: 2, moyenne: 13.0, appreciation: "Niveau correct" },
-          { nom: "Anglais", note1: 12, note2: 13, composition: 14, coefficient: 2, moyenne: 13.0, appreciation: "Amélioration" },
-          { nom: "SVT", note1: 14, note2: 13, composition: 15, coefficient: 2, moyenne: 14.0, appreciation: "Bon travail" }
-        ]
-      }
-    }
-  },
-  // Bulletins pour les élèves de l'historique (2022-2023)
-  11: { // Élève Aissatou Camara (historique)
-    2: { // Année 2022-2023
-      "Semestre 1": {
-        moyenne: 15.2,
-        matieres: [
-          { nom: "Mathématiques", note1: 16, note2: 15, composition: 17, coefficient: 4, moyenne: 16.0, appreciation: "Excellent travail" },
-          { nom: "Français", note1: 14, note2: 15, composition: 13, coefficient: 3, moyenne: 14.0, appreciation: "Très bon niveau" },
-          { nom: "Histoire-Géo", note1: 17, note2: 16, composition: 18, coefficient: 2, moyenne: 17.0, appreciation: "Excellent" },
-          { nom: "Anglais", note1: 15, note2: 16, composition: 14, coefficient: 2, moyenne: 15.0, appreciation: "Très bien" },
-          { nom: "SVT", note1: 16, note2: 15, composition: 17, coefficient: 2, moyenne: 16.0, appreciation: "Excellent" }
-        ]
-      },
-      "Semestre 2": {
-        moyenne: 15.8,
-        matieres: [
-          { nom: "Mathématiques", note1: 17, note2: 16, composition: 18, coefficient: 4, moyenne: 17.0, appreciation: "Excellent travail" },
-          { nom: "Français", note1: 15, note2: 16, composition: 14, coefficient: 3, moyenne: 15.0, appreciation: "Très bon niveau" },
-          { nom: "Histoire-Géo", note1: 16, note2: 17, composition: 15, coefficient: 2, moyenne: 16.0, appreciation: "Excellent" },
-          { nom: "Anglais", note1: 16, note2: 15, composition: 17, coefficient: 2, moyenne: 16.0, appreciation: "Très bien" },
-          { nom: "SVT", note1: 17, note2: 16, composition: 18, coefficient: 2, moyenne: 17.0, appreciation: "Excellent" }
-        ]
-      }
-    }
-  },
-  12: { // Élève Moussa Diagne (historique)
-    2: { // Année 2022-2023
-      "Semestre 1": {
-        moyenne: 13.8,
-        matieres: [
-          { nom: "Mathématiques", note1: 14, note2: 13, composition: 15, coefficient: 4, moyenne: 14.0, appreciation: "Bon travail" },
-          { nom: "Français", note1: 13, note2: 14, composition: 12, coefficient: 3, moyenne: 13.0, appreciation: "Niveau correct" },
-          { nom: "Histoire-Géo", note1: 15, note2: 14, composition: 16, coefficient: 2, moyenne: 15.0, appreciation: "Très bien" },
-          { nom: "Anglais", note1: 12, note2: 13, composition: 14, coefficient: 2, moyenne: 13.0, appreciation: "Bon niveau" },
-          { nom: "SVT", note1: 14, note2: 15, composition: 13, coefficient: 2, moyenne: 14.0, appreciation: "Bon travail" }
-        ]
-      },
-      "Semestre 2": {
-        moyenne: 14.2,
-        matieres: [
-          { nom: "Mathématiques", note1: 15, note2: 14, composition: 16, coefficient: 4, moyenne: 15.0, appreciation: "Progrès notables" },
-          { nom: "Français", note1: 14, note2: 15, composition: 13, coefficient: 3, moyenne: 14.0, appreciation: "Bon niveau" },
-          { nom: "Histoire-Géo", note1: 14, note2: 15, composition: 13, coefficient: 2, moyenne: 14.0, appreciation: "Très bien" },
-          { nom: "Anglais", note1: 13, note2: 14, composition: 15, coefficient: 2, moyenne: 14.0, appreciation: "Amélioration" },
-          { nom: "SVT", note1: 15, note2: 14, composition: 16, coefficient: 2, moyenne: 15.0, appreciation: "Bon travail" }
-        ]
-      }
-    }
-  },
-  13: { // Élève Omar Faye (historique)
-    2: { // Année 2022-2023
-      "Semestre 1": {
-        moyenne: 8.5,
-        matieres: [
-          { nom: "Mathématiques", note1: 7, note2: 8, composition: 6, coefficient: 4, moyenne: 7.0, appreciation: "Doit travailler davantage" },
-          { nom: "Français", note1: 9, note2: 8, composition: 10, coefficient: 3, moyenne: 9.0, appreciation: "Niveau fragile" },
-          { nom: "Histoire-Géo", note1: 10, note2: 9, composition: 11, coefficient: 2, moyenne: 10.0, appreciation: "Peut mieux faire" },
-          { nom: "Anglais", note1: 8, note2: 9, composition: 7, coefficient: 2, moyenne: 8.0, appreciation: "Doit s'améliorer" },
-          { nom: "SVT", note1: 9, note2: 8, composition: 10, coefficient: 2, moyenne: 9.0, appreciation: "Niveau fragile" }
-        ]
-      },
-      "Semestre 2": {
-        moyenne: 9.2,
-        matieres: [
-          { nom: "Mathématiques", note1: 8, note2: 9, composition: 7, coefficient: 4, moyenne: 8.0, appreciation: "Légère amélioration" },
-          { nom: "Français", note1: 10, note2: 9, composition: 11, coefficient: 3, moyenne: 10.0, appreciation: "Progrès" },
-          { nom: "Histoire-Géo", note1: 9, note2: 10, composition: 8, coefficient: 2, moyenne: 9.0, appreciation: "Peut mieux faire" },
-          { nom: "Anglais", note1: 9, note2: 8, composition: 10, coefficient: 2, moyenne: 9.0, appreciation: "Amélioration" },
-          { nom: "SVT", note1: 10, note2: 9, composition: 11, coefficient: 2, moyenne: 10.0, appreciation: "Progrès" }
-        ]
-      }
-    }
-  }
-};
+// TODO: Remplacer par des appels au service bulletinService
 
 const STATUTS_CLASSE = [
   { value: "active", label: "Active", couleur: "green" },
@@ -741,315 +366,91 @@ const FormulaireClasse: React.FC<{
   );
 };
 
-const Classes = () => {
-  const [classes, setClasses] = useState(classesMock);
-  const [filteredClasses, setFilteredClasses] = useState(classesMock);
+const Classes: React.FC = () => {
+  const { utilisateur } = useAuth();
+  const [classes, setClasses] = useState<Classe[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatut, setFilterStatut] = useState("all");
-  const [activeTab, setActiveTab] = useState<"liste" | "ajout">("liste");
-  const [modeEdition, setModeEdition] = useState(false);
+  const [filterStatut, setFilterStatut] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<"liste" | "ajouter">("liste");
+  const [showModalAjout, setShowModalAjout] = useState(false);
   const [classeAModifier, setClasseAModifier] = useState<Classe | null>(null);
+  const [showModalModification, setShowModalModification] = useState(false);
+  const [showModalDetails, setShowModalDetails] = useState(false);
+  const [classeSelectionnee, setClasseSelectionnee] = useState<Classe | null>(null);
+  const [eleves, setEleves] = useState<EleveClasse[]>([]);
+  const [anneesScolaires, setAnneesScolaires] = useState<AnneeScolaire[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [modeEdition, setModeEdition] = useState(false);
   const [classeDetails, setClasseDetails] = useState<Classe | null>(null);
-
-  // Données mock pour les élèves
-  const elevesMock: EleveClasse[] = [
-    {
-      id: 1,
-      nom: "Diop",
-      prenom: "Fatou",
-      moyenneAnnuelle: 14.5,
-      statut: "inscrit",
-      dateInscription: "2023-09-01"
-    },
-    {
-      id: 2,
-      nom: "Sow",
-      prenom: "Moussa",
-      moyenneAnnuelle: 12.8,
-      statut: "inscrit",
-      dateInscription: "2023-09-01"
-    },
-    {
-      id: 3,
-      nom: "Ndiaye",
-      prenom: "Aissatou",
-      moyenneAnnuelle: 16.2,
-      statut: "inscrit",
-      dateInscription: "2023-09-01"
-    },
-    {
-      id: 4,
-      nom: "Fall",
-      prenom: "Omar",
-      moyenneAnnuelle: 7.5,
-      statut: "inscrit",
-      dateInscription: "2023-09-01"
-    },
-    {
-      id: 5,
-      nom: "Diallo",
-      prenom: "Mariama",
-      moyenneAnnuelle: 9.3,
-      statut: "inscrit",
-      dateInscription: "2023-09-01"
-    },
-    {
-      id: 6,
-      nom: "Ba",
-      prenom: "Aminata",
-      moyenneAnnuelle: 8.5,
-      statut: "inscrit",
-      dateInscription: "2023-09-01"
-    },
-    {
-      id: 7,
-      nom: "Cissé",
-      prenom: "Ibrahim",
-      moyenneAnnuelle: 11.2,
-      statut: "inscrit",
-      dateInscription: "2023-09-01"
-    },
-    {
-      id: 8,
-      nom: "Traoré",
-      prenom: "Fatoumata",
-      moyenneAnnuelle: 13.7,
-      statut: "inscrit",
-      dateInscription: "2023-09-01"
-    },
-    {
-      id: 9,
-      nom: "Koné",
-      prenom: "Mamadou",
-      moyenneAnnuelle: 6.8,
-      statut: "inscrit",
-      dateInscription: "2023-09-01"
-    },
-    {
-      id: 10,
-      nom: "Sy",
-      prenom: "Awa",
-      moyenneAnnuelle: 15.1,
-      statut: "inscrit",
-      dateInscription: "2023-09-01"
-    }
-  ];
-
-  const [elevesATransferer, setElevesATransferer] = useState<EleveClasse[]>([]);
-  const [classeSource, setClasseSource] = useState<Classe | null>(null);
-
-  // Fonctions utilitaires pour accéder aux données du nouveau modèle
-  const getClasseAnneeActuelle = (classe: Classe) => {
-    return classe.anneesScolaires.find(annee => annee.anneeScolaireId === 1); // Année actuelle
-  };
-
-  const getEffectifClasse = (classe: Classe) => {
-    const anneeActuelle = getClasseAnneeActuelle(classe);
-    return anneeActuelle?.effectif || 0;
-  };
-
-  const getEffectifMaxClasse = (classe: Classe) => {
-    const anneeActuelle = getClasseAnneeActuelle(classe);
-    return anneeActuelle?.effectifMax || 30;
-  };
-
-  const getProfesseurPrincipalClasse = (classe: Classe) => {
-    const anneeActuelle = getClasseAnneeActuelle(classe);
-    return anneeActuelle?.professeurPrincipalNom;
-  };
-
-  const getProfsMatieresClasse = (classe: Classe) => {
-    const anneeActuelle = getClasseAnneeActuelle(classe);
-    return anneeActuelle?.profsMatieres || [];
-  };
-
-  useEffect(() => {
-    let filtered = classes;
-
-    if (searchTerm) {
-      filtered = filtered.filter(classe => 
-        classe.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        classe.niveauNom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getProfesseurPrincipalClasse(classe)?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (filterStatut !== "all") {
-      filtered = filtered.filter(classe => classe.statut === filterStatut);
-    }
-
-    setFilteredClasses(filtered);
-  }, [classes, searchTerm, filterStatut]);
-
-  const ajouterClasse = (nouvelleClasse: any) => {
-    if (modeEdition) {
-      setClasses(prev => prev.map(c => c.id === nouvelleClasse.id ? nouvelleClasse : c));
-    } else {
-      setClasses(prev => [...prev, nouvelleClasse]);
-    }
-    setActiveTab("liste");
-    setModeEdition(false);
-    setClasseAModifier(null);
-  };
-
-  const ajouterAnneeScolaire = (classeId: number, anneeScolaire: AnneeScolaire) => {
-    setClasses(prev => prev.map(classe => {
-      if (classe.id === classeId) {
-        const nouvelleAnnee: ClasseAnneeScolaire = {
-          id: Date.now(),
-          classeId: classeId,
-          anneeScolaireId: anneeScolaire.id,
-          anneeScolaireNom: anneeScolaire.nom,
-          elevesIds: [],
-          effectif: 0,
-          effectifMax: 30,
-          profsMatieres: [],
-          description: `Année scolaire ${anneeScolaire.nom}`,
-          statut: "inactive",
-          dateCreation: new Date().toISOString().split('T')[0]
-        };
-        
-        return {
-          ...classe,
-          anneesScolaires: [...classe.anneesScolaires, nouvelleAnnee]
-        };
-      }
-      return classe;
-    }));
-  };
-
-  // Données mock pour les niveaux supérieurs
-  const niveauxSuperieurs = NIVEAUX_SUPERIEURS;
-
-  // Règles de transfert configurables (seulement pour admin)
-  const [reglesTransfert, setReglesTransfert] = useState<ReglesTransfert>(reglesTransfertDefaut);
-
-  // États pour les modals
+  const [classeASupprimer, setClasseASupprimer] = useState<Classe | null>(null);
+  const [modalSuppressionClasse, setModalSuppressionClasse] = useState(false);
   const [modalTransfert, setModalTransfert] = useState(false);
   const [modalReglesTransfert, setModalReglesTransfert] = useState(false);
   const [modalDetailsEleve, setModalDetailsEleve] = useState(false);
   const [eleveSelectionne, setEleveSelectionne] = useState<EleveClasse | null>(null);
-  
-  // États pour la suppression de classe
-  const [modalSuppressionClasse, setModalSuppressionClasse] = useState(false);
-  const [classeASupprimer, setClasseASupprimer] = useState<Classe | null>(null);
+  const [elevesATransferer, setElevesATransferer] = useState<EleveClasse[]>([]);
+  const [classeSource, setClasseSource] = useState<Classe | null>(null);
+  const [reglesTransfert, setReglesTransfert] = useState<ReglesTransfert>(reglesTransfertDefaut);
+  const [niveauxSuperieurs] = useState(NIVEAUX_SUPERIEURS);
+
+  // Fonctions utilitaires
+  const getEffectifClasse = (classe: Classe) => {
+    // Pour l'instant, on utilise une logique simplifiée
+    // TODO: Implémenter la vraie logique avec les services
+    return eleves.filter(eleve => eleve.statut === "inscrit").length;
+  };
+
+  const getEffectifMaxClasse = (classe: Classe) => {
+    // Utiliser l'effectif max de l'année scolaire active
+    const anneeActive = classe.anneesScolaires?.find(a => a.statut === "active");
+    return anneeActive?.effectifMax || 30;
+  };
+
+  const getEffectifBadge = (effectif: number, max: number) => {
+    const pourcentage = (effectif / max) * 100;
+    let color = "bg-green-100 text-green-800";
+    if (pourcentage >= 90) color = "bg-red-100 text-red-800";
+    else if (pourcentage >= 75) color = "bg-orange-100 text-orange-800";
+    
+    return (
+      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${color}`}>
+        {effectif}/{max}
+      </span>
+    );
+  };
+
+  const getProfesseurPrincipalClasse = (classe: Classe) => {
+    // Trouver l'année scolaire active
+    const anneeActive = classe.anneesScolaires?.find(a => a.statut === "active");
+    return anneeActive?.professeurPrincipalNom || "Non assigné";
+  };
+
+  const getStatutBadge = (statut: string) => {
+    const colors = {
+      active: "bg-green-100 text-green-800",
+      inactive: "bg-gray-100 text-gray-800",
+      archived: "bg-red-100 text-red-800"
+    };
+    
+    return (
+      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${colors[statut as keyof typeof colors] || colors.inactive}`}>
+        {statut === "active" ? "Active" : statut === "inactive" ? "Inactive" : "Archivée"}
+      </span>
+    );
+  };
+
+  // Fonctions de gestion
+  const ajouterAnneeScolaire = (classeId: number, anneeScolaire: AnneeScolaire) => {
+    console.log('Ajouter année scolaire:', classeId, anneeScolaire);
+  };
 
   const transfererEleve = (eleveId: number, classeDestination: string) => {
-    // Mise à jour du statut de l'élève
-    setClasses(prev => prev.map(classe => {
-      // Retirer l'élève de la classe actuelle
-      const classeModifiee = {
-        ...classe,
-        anneesScolaires: classe.anneesScolaires.map(annee => ({
-          ...annee,
-          elevesIds: annee.elevesIds.filter(id => id !== eleveId),
-          effectif: annee.elevesIds.filter(id => id !== eleveId).length
-        }))
-      };
-
-      // Ajouter l'élève à la classe de destination
-      if (classe.nom === classeDestination) {
-        return {
-          ...classeModifiee,
-          anneesScolaires: classeModifiee.anneesScolaires.map(annee => ({
-            ...annee,
-            elevesIds: [...annee.elevesIds, eleveId],
-            effectif: annee.elevesIds.length + 1
-          }))
-        };
-      }
-
-      return classeModifiee;
-    }));
-
-    console.log(`Transfert de l'élève ${eleveId} vers ${classeDestination}`);
+    console.log('Transférer élève:', eleveId, classeDestination);
   };
 
   const transfererElevesAutomatiquement = (classeId: number) => {
-    const classe = classes.find(c => c.id === classeId);
-    if (!classe) return;
-
-    const niveauSuperieur = getNiveauSuperieur(classe.niveauNom);
-    if (!niveauSuperieur) {
-      alert("Pas de niveau supérieur disponible pour ce niveau");
-      return;
-    }
-
-    // Trouver les classes du niveau supérieur
-    const classesNiveauSuperieur = classes.filter(c => c.niveauNom === niveauSuperieur);
-    if (classesNiveauSuperieur.length === 0) {
-      alert("Aucune classe du niveau supérieur disponible");
-      return;
-    }
-
-    // Trouver les élèves éligibles selon les règles configurées
-    const anneeActuelle = classe.anneesScolaires.find(annee => annee.statut === "active");
-    if (!anneeActuelle) {
-      alert("Aucune année scolaire active trouvée");
-      return;
-    }
-
-    const elevesEligibles = elevesMock.filter(eleve => 
-      anneeActuelle.elevesIds.includes(eleve.id) && 
-      estEligibleTransfert(eleve, reglesTransfert)
-    );
-
-    if (elevesEligibles.length === 0) {
-      alert(`Aucun élève éligible pour le transfert (moyenne >= ${reglesTransfert.moyenneMinimale}/20)`);
-      return;
-    }
-
-    // Préparer les données pour le modal de confirmation
-    setElevesATransferer(elevesEligibles);
-    setClasseSource(classe);
-    setModalTransfert(true);
-  };
-
-  const confirmerTransfertAutomatique = () => {
-    if (!classeSource || elevesATransferer.length === 0) return;
-
-    const niveauSuperieur = getNiveauSuperieur(classeSource.niveauNom);
-    const classesNiveauSuperieur = classes.filter(c => c.niveauNom === niveauSuperieur);
-
-    // Logique de transfert selon les règles
-    elevesATransferer.forEach((eleve) => {
-      const classeDestination = getClasseDestination(classeSource, classesNiveauSuperieur, reglesTransfert.transfertDirect);
-      if (classeDestination) {
-        transfererEleve(eleve.id, classeDestination.nom);
-      }
-    });
-
-    // Désactiver l'année scolaire si configuré
-    if (reglesTransfert.desactiverAnneeApresTransfert) {
-      setClasses(prev => prev.map(classe => {
-        if (classe.id === classeSource.id) {
-          return {
-            ...classe,
-            anneesScolaires: classe.anneesScolaires.map(annee => ({
-              ...annee,
-              statut: annee.statut === "active" ? "inactive" : annee.statut
-            }))
-          };
-        }
-        return classe;
-      }));
-    }
-
-    setModalTransfert(false);
-    setElevesATransferer([]);
-    setClasseSource(null);
-  };
-
-  const ouvrirModalAjout = () => {
-    setActiveTab("ajout");
-    setModeEdition(false);
-    setClasseAModifier(null);
-  };
-
-  const ouvrirModalModification = (classe: Classe) => {
-    setClasseAModifier(classe);
-    setModeEdition(true);
-    setActiveTab("ajout");
+    console.log('Transférer élèves automatiquement:', classeId);
   };
 
   const ouvrirModalDetailsEleve = (eleve: EleveClasse) => {
@@ -1057,41 +458,153 @@ const Classes = () => {
     setModalDetailsEleve(true);
   };
 
-  const getStatutBadge = (statut: string) => {
-    const statutInfo = STATUTS_CLASSE.find(s => s.value === statut);
-    const colors: Record<string, string> = {
-      green: 'bg-green-100 text-green-800',
-      orange: 'bg-orange-100 text-orange-800',
-      gray: 'bg-gray-100 text-gray-800'
-    };
-    
-    return (
-      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${colors[statutInfo?.couleur || 'gray']}`}>
-        {statutInfo?.label || statut}
-      </span>
-    );
+  const confirmerTransfertAutomatique = () => {
+    console.log('Confirmer transfert automatique');
+    setModalTransfert(false);
+    setElevesATransferer([]);
+    setClasseSource(null);
   };
 
-  const getEffectifBadge = (effectif: number, effectifMax: number) => {
-    const pourcentage = (effectif / effectifMax) * 100;
-    let colorClass = 'bg-green-100 text-green-800';
-    
-    if (pourcentage >= 90) colorClass = 'bg-red-100 text-red-800';
-    else if (pourcentage >= 75) colorClass = 'bg-orange-100 text-orange-800';
-    
-    return (
-      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${colorClass}`}>
-        {effectif}/{effectifMax}
-      </span>
-    );
-  };
-
-  // Fonction de suppression de classe
   const supprimerClasse = () => {
     if (classeASupprimer) {
-      setClasses(prev => prev.filter(c => c.id !== classeASupprimer.id));
-      setClasseASupprimer(null);
+      handleDeleteClasse(classeASupprimer.id);
       setModalSuppressionClasse(false);
+      setClasseASupprimer(null);
+    }
+  };
+
+  // Filtrer les classes
+  const filteredClasses = classes.filter(classe => {
+    const matchesSearch = classe.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         classe.niveauNom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         getProfesseurPrincipalClasse(classe).toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatut === "" || filterStatut === "all" || classe.statut === filterStatut;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Charger les données au montage
+  useEffect(() => {
+    loadClasses();
+    loadEleves();
+    loadAnneesScolaires();
+    loadNotifications();
+  }, []);
+
+  const loadClasses = async () => {
+    setLoading(true);
+    try {
+      const response = await adminService.getClasses();
+      if (response.success && response.data) {
+        setClasses(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des classes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadEleves = async () => {
+    try {
+      const response = await eleveService.getEleves();
+      if (response.success && response.data) {
+        // Convertir les élèves en EleveClasse format
+        const elevesClasse = response.data.map(eleve => ({
+          id: eleve.id,
+          nom: eleve.nom,
+          prenom: eleve.prenom,
+          statut: eleve.statut,
+          moyenneAnnuelle: eleve.moyenneAnnuelle,
+          dateInscription: eleve.dateInscription
+        }));
+        setEleves(elevesClasse);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des élèves:', error);
+    }
+  };
+
+  const loadAnneesScolaires = async () => {
+    try {
+      const response = await adminService.getAnneesScolaires();
+      if (response.success && response.data) {
+        setAnneesScolaires(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des années scolaires:', error);
+    }
+  };
+
+  const loadNotifications = async () => {
+    if (utilisateur?.id) {
+      try {
+        const response = await notificationService.getNotifications(utilisateur.id);
+        if (response.success && response.data) {
+          setNotifications(response.data);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des notifications:', error);
+      }
+    }
+  };
+
+  const handleCreateClasse = async (classe: Omit<Classe, 'id' | 'dateCreation'>) => {
+    try {
+      const response = await adminService.createClasse(classe);
+      if (response.success) {
+        setShowModalAjout(false);
+        loadClasses(); // Recharger la liste
+        console.log('Classe créée avec succès');
+      } else {
+        console.error('Erreur lors de la création:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la création de la classe:', error);
+    }
+  };
+
+  const handleUpdateClasse = async (id: number, updates: Partial<Classe>) => {
+    try {
+      const response = await adminService.updateClasse(id, updates);
+      if (response.success) {
+        setShowModalModification(false);
+        setClasseAModifier(null);
+        loadClasses(); // Recharger la liste
+        console.log('Classe mise à jour avec succès');
+      } else {
+        console.error('Erreur lors de la mise à jour:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la classe:', error);
+    }
+  };
+
+  const handleDeleteClasse = async (id: number) => {
+    try {
+      const response = await adminService.deleteClasse(id);
+      if (response.success) {
+        loadClasses(); // Recharger la liste
+        console.log('Classe supprimée avec succès');
+      } else {
+        console.error('Erreur lors de la suppression:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la classe:', error);
+    }
+  };
+
+  const handleTransfererEleves = async (classeId: number, reglesTransfert: ReglesTransfert) => {
+    try {
+      const response = await adminService.transfererEleves(classeId, reglesTransfert);
+      if (response.success) {
+        loadClasses(); // Recharger la liste
+        loadEleves(); // Recharger les élèves
+        console.log('Transfert des élèves effectué avec succès');
+      } else {
+        console.error('Erreur lors du transfert:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors du transfert des élèves:', error);
     }
   };
 
@@ -1108,7 +621,7 @@ const Classes = () => {
         
         {/* Bouton règles de transfert (admin seulement) */}
         <button
-          onClick={() => setModalReglesTransfert(true)}
+          onClick={() => setShowModalDetails(true)}
           className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
           title="Gérer les règles de transfert automatique"
         >
@@ -1135,18 +648,18 @@ const Classes = () => {
               </div>
             </button>
             <button
-              onClick={() => setActiveTab("ajout")}
+              onClick={() => setActiveTab("ajouter")}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "ajout"
+                activeTab === "ajouter"
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               <div className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4" />
                 Ajouter/Modifier
               </div>
-            </button>
+        </button>
           </nav>
         </div>
       </div>
@@ -1154,48 +667,48 @@ const Classes = () => {
       {/* Contenu des onglets */}
       {activeTab === "liste" ? (
         <div>
-          {/* Filtres et recherche */}
+      {/* Filtres et recherche */}
           <div className="bg-white rounded-lg border border-neutral-200 p-4 mb-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher par nom de classe, niveau ou professeur..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <select
-                  value={filterStatut}
-                  onChange={(e) => setFilterStatut(e.target.value)}
-                  className="px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">Tous les statuts</option>
-                  {STATUTS_CLASSE.map(statut => (
-                    <option key={statut.value} value={statut.value}>{statut.label}</option>
-                  ))}
-                </select>
-              </div>
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+              <input
+                type="text"
+                placeholder="Rechercher par nom de classe, niveau ou professeur..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <select
+              value={filterStatut}
+              onChange={(e) => setFilterStatut(e.target.value)}
+              className="px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tous les statuts</option>
+              {STATUTS_CLASSE.map(statut => (
+                <option key={statut.value} value={statut.value}>{statut.label}</option>
+              ))}
+            </select>
+          </div>
 
               {/* Bouton Nouvelle Classe */}
               <button
-                onClick={ouvrirModalAjout}
+                onClick={() => setShowModalAjout(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Nouvelle Classe
               </button>
-            </div>
-          </div>
+        </div>
+      </div>
 
-          {/* Tableau des classes */}
-          <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+      {/* Tableau des classes */}
+      <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-neutral-50 border-b border-neutral-200">
@@ -1271,14 +784,14 @@ const Classes = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setClasseDetails(classe)}
+                        onClick={() => setClasseSelectionnee(classe)}
                         className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Voir détails"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => ouvrirModalModification(classe)}
+                        onClick={() => setShowModalModification(true)}
                         className="p-2 text-neutral-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
                         title="Modifier"
                       >
@@ -1369,16 +882,16 @@ const Classes = () => {
             <h2 className="text-lg font-semibold mb-4">
               {modeEdition ? "Modifier la classe" : "Ajouter une nouvelle classe"}
             </h2>
-            <FormulaireClasse
-              onSubmit={ajouterClasse}
-              onClose={() => {
+        <FormulaireClasse
+          onSubmit={handleCreateClasse}
+          onClose={() => {
                 setActiveTab("liste");
-                setClasseAModifier(null);
+            setClasseAModifier(null);
                 setModeEdition(false);
-              }}
+          }}
               classeAModifier={classeAModifier || undefined}
-              modeEdition={modeEdition}
-            />
+          modeEdition={modeEdition}
+        />
           </div>
         </div>
       )}
@@ -1389,8 +902,8 @@ const Classes = () => {
           isOpen={!!classeDetails}
           onClose={() => setClasseDetails(null)}
           classe={classeDetails}
-          anneesScolaires={anneesScolairesMock}
-          eleves={elevesMock}
+          anneesScolaires={anneesScolaires}
+          eleves={eleves}
           onAjouterAnnee={ajouterAnneeScolaire}
           onTransfererEleve={transfererEleve}
           onTransfererElevesAutomatiquement={transfererElevesAutomatiquement}
@@ -1632,14 +1145,15 @@ const Classes = () => {
                 // Déterminer l'année scolaire selon le statut de l'élève
                 const anneeScolaireId = eleveSelectionne.statut === "transfere" ? 2 : 1; // 2 = 2022-2023, 1 = 2023-2024
                 const anneeNom = anneeScolaireId === 2 ? "2022-2023" : "2023-2024";
-                const bulletin = bulletinsMock[eleveSelectionne.id]?.[anneeScolaireId]?.[semestre];
+                // TODO: Remplacer par les vraies données des services
+                const bulletin = null; // bulletinsMock[eleveSelectionne.id]?.[anneeScolaireId]?.[semestre];
                 if (!bulletin) return null;
                 
                 return (
-                  <div key={semestre} className="border border-gray-200 rounded-lg">
+                  <div key={semestre} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                     <div className="bg-blue-50 px-4 py-3 border-b border-gray-200">
                       <h4 className="font-semibold text-blue-900">{semestre} - {anneeNom}</h4>
-                      <p className="text-sm text-blue-700">Moyenne générale: {bulletin.moyenne}/20</p>
+                      <p className="text-sm text-blue-700">Moyenne générale: 14.5/20</p>
                     </div>
                     
                     <div className="p-4">
@@ -1647,49 +1161,26 @@ const Classes = () => {
                         <table className="min-w-full divide-y divide-gray-200">
                           <thead className="bg-gray-50">
                             <tr>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Matière
-                              </th>
-                              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Devoir 1
-                              </th>
-                              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Devoir 2
-                              </th>
-                              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Composition
-                              </th>
-                              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Coef.
-                              </th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Appréciation
-                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matière</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Devoir 1</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Devoir 2</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Composition</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coefficient</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Moyenne</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appréciation</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
-                            {bulletin.matieres.map((matiere: MatiereBulletin, index: number) => (
-                              <tr key={index} className="hover:bg-gray-50">
-                                <td className="px-3 py-2 text-sm font-medium text-gray-900">
-                                  {matiere.nom}
-                                </td>
-                                <td className="px-3 py-2 text-sm text-center text-gray-900">
-                                  {matiere.note1 || "—"}
-                                </td>
-                                <td className="px-3 py-2 text-sm text-center text-gray-900">
-                                  {matiere.note2 || "—"}
-                                </td>
-                                <td className="px-3 py-2 text-sm text-center text-gray-900">
-                                  {matiere.composition || "—"}
-                                </td>
-                                <td className="px-3 py-2 text-sm text-center text-gray-900">
-                                  {matiere.coefficient}
-                                </td>
-                                <td className="px-3 py-2 text-sm text-gray-900">
-                                  {matiere.appreciation}
-                                </td>
-                              </tr>
-                            ))}
+                            {/* TODO: Remplacer par les vraies données des services */}
+                            <tr className="hover:bg-gray-50">
+                              <td className="px-3 py-2 text-sm font-medium text-gray-900">Mathématiques</td>
+                              <td className="px-3 py-2 text-sm text-gray-900">15/20</td>
+                              <td className="px-3 py-2 text-sm text-gray-900">14/20</td>
+                              <td className="px-3 py-2 text-sm text-gray-900">16/20</td>
+                              <td className="px-3 py-2 text-sm text-gray-900">4</td>
+                              <td className="px-3 py-2 text-sm font-medium text-gray-900">15.0/20</td>
+                              <td className="px-3 py-2 text-sm text-gray-900">Bon travail, continuez ainsi</td>
+                            </tr>
                           </tbody>
                         </table>
                       </div>
@@ -1969,19 +1460,19 @@ const ModalDetailsClasse: React.FC<{
                   <div className="flex items-center justify-between">
                     <h5 className="font-medium">Élèves de cette année</h5>
                     <span className="text-sm text-gray-500">{elevesAnnee.length} élève(s)</span>
-                  </div>
+                        </div>
                   
                   <div className="space-y-2">
                     {elevesAnnee.map(eleve => (
                       <div key={eleve.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                         <div className="flex items-center gap-3">
-                          <div>
+                        <div>
                             <p className="font-medium">{eleve.prenom} {eleve.nom}</p>
                             <p className="text-sm text-gray-600">
                               Moyenne: {eleve.moyenneAnnuelle}/20
                             </p>
-                          </div>
                         </div>
+                      </div>
                         <div className="flex items-center gap-2">
                           <span className={`px-2 py-1 text-xs rounded-full ${
                             eleve.statut === "inscrit" ? "bg-green-100 text-green-800" :
@@ -1992,7 +1483,7 @@ const ModalDetailsClasse: React.FC<{
                             {eleve.statut === "inscrit" ? "Inscrit" :
                              eleve.statut === "transfere" ? "Transféré" :
                              eleve.statut === "desinscrit" ? "Désinscrit" : "Terminé"}
-                          </span>
+                        </span>
                           <button
                             onClick={() => onOuvrirModalDetailsEleve(eleve)}
                             className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
@@ -2000,10 +1491,10 @@ const ModalDetailsClasse: React.FC<{
                             Détails
                           </button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
+              </div>
 
                 {/* Historique des élèves des années précédentes */}
                 <div className="mt-6">
@@ -2013,12 +1504,12 @@ const ModalDetailsClasse: React.FC<{
                       .filter(annee => annee.statut !== "active")
                       .sort((a, b) => b.anneeScolaireId - a.anneeScolaireId)
                       .map(annee => {
-                        const elevesAnneeHistorique = historiqueElevesMock[classe.id]?.[annee.anneeScolaireId] || [];
+                        const elevesAnneeHistorique: EleveClasse[] = []; // TODO: Charger depuis le service historiqueElevesService
                         return (
                           <div key={annee.anneeScolaireId} className="border border-gray-200 rounded-lg">
-                            <button
+              <button
                               className="w-full px-4 py-3 text-left bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between"
-                              onClick={() => {
+                onClick={() => {
                                 const content = document.getElementById(`historique-${annee.anneeScolaireId}`);
                                 if (content) {
                                   content.classList.toggle('hidden');
@@ -2032,7 +1523,7 @@ const ModalDetailsClasse: React.FC<{
                                 </span>
                               </div>
                               <ChevronDown className="w-5 h-5 text-gray-600" />
-                            </button>
+              </button>
                             <div id={`historique-${annee.anneeScolaireId}`} className="hidden">
                               <div className="p-4 space-y-2">
                                 {elevesAnneeHistorique.length > 0 ? (
@@ -2055,23 +1546,23 @@ const ModalDetailsClasse: React.FC<{
                                            eleve.statut === "transfere" ? "Transféré" :
                                            eleve.statut === "desinscrit" ? "Désinscrit" : "Terminé"}
                                         </span>
-                                        <button
+              <button
                                           onClick={() => onOuvrirModalDetailsEleve(eleve)}
                                           className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                                        >
+              >
                                           Détails
-                                        </button>
-                                      </div>
-                                    </div>
+              </button>
+            </div>
+          </div>
                                   ))
                                 ) : (
                                   <div className="text-center py-4 text-gray-500">
                                     <p>Aucun élève enregistré pour cette année</p>
                                   </div>
                                 )}
-                              </div>
-                            </div>
-                          </div>
+          </div>
+        </div>
+    </div>
                         );
                       })}
                   </div>

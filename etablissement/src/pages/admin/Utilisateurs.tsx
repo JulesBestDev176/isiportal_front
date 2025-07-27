@@ -4,7 +4,10 @@ import {
   Plus, Search, Filter, Edit3, Trash2, Users, User, 
   School, Mail, Phone, MapPin, Calendar,
   UserCheck, AlertCircle, CheckCircle, UserPlus, List, X,
-  Baby, GraduationCap, Heart, FileText, Eye, ChevronDown
+  Baby, GraduationCap, Heart, FileText, Eye, ChevronDown,
+  BookOpen, Clock, Target, PlayCircle, Video, Volume2, Image, Link, File, Check, CalendarDays,
+  Info, Settings, BarChart3, Users2, Clock3, BookOpenCheck, CalendarCheck,
+  EyeOff, Eye as EyeIcon, Lock, Unlock, Shield, ShieldOff
 } from "lucide-react";
 import { 
   Utilisateur, 
@@ -17,6 +20,10 @@ import {
   MATIERES_LIST,
   CLASSES_LIST
 } from "../../models";
+import { adminService } from '../../services/adminService';
+import { notificationService } from '../../services/notificationService';
+import { useAuth } from '../../contexts/ContexteAuth';
+import { NoteDetails, SemestreNotes, AnneeNotes, NotesEleve } from '../../models/utilisateur.model';
 
 // Données de référence
 const sections: Array<{ value: "college" | "lycee"; label: string; description: string }> = [
@@ -24,203 +31,29 @@ const sections: Array<{ value: "college" | "lycee"; label: string; description: 
   { value: "lycee", label: "Lycée", description: "Classes de 2nde à Terminale" }
 ];
 
-// Types pour les notes
-interface NoteDetails {
-  note1?: number;
-  note2?: number;
-  composition?: number;
-  coefficient: number;
-  appreciation?: string;
-}
+// Suppression des interfaces locales - maintenant importées depuis les modèles
 
-interface SemestreNotes {
-  [matiere: string]: NoteDetails;
-}
-
-interface AnneeNotes {
-  [semestre: string]: SemestreNotes;
-}
-
-interface NotesEleve {
-  [annee: string]: AnneeNotes;
-}
-
-interface NotesMock {
-  [eleveId: number]: NotesEleve;
-}
-
-// Types pour les absences
-interface Absence {
-  id: number;
-  date: string;
-  motif?: string;
-  justifiee: boolean;
-  matiere?: string;
-  duree?: number; // en heures
-}
-
-interface AbsencesEleve {
-  [annee: string]: Absence[];
-}
-
-interface AbsencesMock {
-  [eleveId: number]: AbsencesEleve;
-}
-
-// Données simulées pour les notes
-const notesMock: NotesMock = {
-  3: { // ID de l'élève Omar Ndiaye
-    "2023-2024": {
-      "Semestre 1": {
-        "Mathématiques": { note1: 15, note2: 16, composition: 14, coefficient: 4, appreciation: "Très bon travail" },
-        "Français": { note1: 12, note2: 13, composition: 11, coefficient: 3, appreciation: "Peut mieux faire" },
-        "Histoire-Géographie": { note1: 14, note2: 15, composition: 13, coefficient: 2, appreciation: "Bon travail" },
-        "Anglais": { note1: 16, note2: 17, composition: 15, coefficient: 2, appreciation: "Excellent" },
-        "Physique-Chimie": { note1: 13, note2: 14, composition: 12, coefficient: 3, appreciation: "Satisfaisant" }
-      },
-      "Semestre 2": {
-        "Mathématiques": { note1: 17, note2: 18, composition: 16, coefficient: 4, appreciation: "Progrès remarquable" },
-        "Français": { note1: 14, note2: 15, composition: 13, coefficient: 3, appreciation: "Amélioration" },
-        "Histoire-Géographie": { note1: 15, note2: 16, composition: 14, coefficient: 2, appreciation: "Très bien" },
-        "Anglais": { note1: 18, note2: 19, composition: 17, coefficient: 2, appreciation: "Excellent niveau" },
-        "Physique-Chimie": { note1: 16, note2: 17, composition: 15, coefficient: 3, appreciation: "Très bon travail" }
-      }
-    },
-    "2024-2025": {
-      "Semestre 1": {
-        "Mathématiques": { note1: 16, note2: 17, composition: 15, coefficient: 4, appreciation: "Niveau solide" },
-        "Français": { note1: 15, note2: 16, composition: 14, coefficient: 3, appreciation: "Bon travail" },
-        "Histoire-Géographie": { note1: 13, note2: 14, composition: 12, coefficient: 2, appreciation: "Satisfaisant" },
-        "Anglais": { note1: 17, note2: 18, composition: 16, coefficient: 2, appreciation: "Excellent" },
-        "Physique-Chimie": { note1: 14, note2: 15, composition: 13, coefficient: 3, appreciation: "Bon niveau" }
-      }
-    }
+// Fonction pour charger les notes d'un élève
+const loadNotesEleve = async (eleveId: number) => {
+  try {
+    // TODO: Implémenter l'appel au service pour charger les notes
+    return {};
+  } catch (error) {
+    console.error('Erreur lors du chargement des notes:', error);
+    return {};
   }
 };
 
-// Données simulées pour les absences
-const absencesMock: AbsencesMock = {
-  3: { // ID de l'élève Omar Ndiaye
-    "2024-2025": [
-      {
-        id: 1,
-        date: "2024-09-15",
-        motif: "Maladie",
-        justifiee: true,
-        matiere: "Mathématiques",
-        duree: 2
-      },
-      {
-        id: 2,
-        date: "2024-10-03",
-        motif: "Rendez-vous médical",
-        justifiee: true,
-        matiere: "Français",
-        duree: 1
-      },
-      {
-        id: 3,
-        date: "2024-11-12",
-        motif: "Absence non justifiée",
-        justifiee: false,
-        matiere: "Histoire-Géographie",
-        duree: 1
-      }
-    ],
-    "2023-2024": [
-      {
-        id: 4,
-        date: "2023-09-20",
-        motif: "Maladie",
-        justifiee: true,
-        matiere: "Physique-Chimie",
-        duree: 2
-      },
-      {
-        id: 5,
-        date: "2023-10-15",
-        motif: "Absence non justifiée",
-        justifiee: false,
-        matiere: "Anglais",
-        duree: 1
-      },
-      {
-        id: 6,
-        date: "2023-11-08",
-        motif: "Rendez-vous familial",
-        justifiee: true,
-        matiere: "Mathématiques",
-        duree: 1
-      },
-      {
-        id: 7,
-        date: "2023-12-05",
-        motif: "Absence non justifiée",
-        justifiee: false,
-        matiere: "Français",
-        duree: 2
-      }
-    ]
+// Fonction pour charger les absences d'un élève
+const loadAbsencesEleve = async (eleveId: number) => {
+  try {
+    // TODO: Implémenter l'appel au service pour charger les absences
+    return {};
+  } catch (error) {
+    console.error('Erreur lors du chargement des absences:', error);
+    return {};
   }
 };
-
-// Données simulées avec IDs numériques
-const initialUsers: (Gestionnaire | Professeur | Eleve | Parent)[] = [
-  {
-    id: 1,
-    nom: "Diallo",
-    prenom: "Amadou",
-    email: "adiallo@ecole.sn",
-    role: "gestionnaire",
-    sections: ["college"],
-    telephone: "77 234 56 78",
-    adresse: "123 Avenue Cheikh Anta Diop, Dakar",
-    actif: true,
-    dateCreation: "2024-01-15"
-  },
-  {
-    id: 2,
-    nom: "Fall",
-    prenom: "Fatou",
-    email: "ffall@ecole.sn",
-    role: "professeur",
-    sections: ["college"],
-    matieres: [1, 2], // IDs des matières
-    cours: [], // Tableau vide par défaut
-    telephone: "76 345 67 89",
-    adresse: "456 Rue de l'Université, Dakar",
-    actif: true,
-    dateCreation: "2024-02-01"
-  },
-  {
-    id: 3,
-    nom: "Ndiaye",
-    prenom: "Omar",
-    email: "ondiaye@ecole.sn",
-    role: "eleve",
-    classeId: 1,
-    dateNaissance: "2017-03-15",
-    lieuNaissance: "Dakar, Sénégal",
-    numeroEtudiant: "2024001",
-    parentsIds: [4],
-    telephone: "78 456 78 90",
-    adresse: "789 Boulevard de la République, Dakar",
-    actif: true,
-    dateCreation: "2024-03-01"
-  },
-  {
-    id: 4,
-    nom: "Ndiaye",
-    prenom: "Moussa",
-    email: "mndiaye@email.com",
-    role: "parent",
-    enfantsIds: [3],
-    telephone: "77 123 45 67",
-    adresse: "Dakar, Sénégal",
-    actif: true,
-    dateCreation: "2024-03-01"
-  }
-];
 
 // Composant Modal
 const Modal: React.FC<{
@@ -1407,141 +1240,10 @@ const ListeUtilisateurs: React.FC<{
                   <GraduationCap className="w-5 h-5 text-green-600" />
                   Notes et résultats
                 </h3>
-                {notesMock[utilisateurFiche.id] ? (
-                  <div className="space-y-4">
-                    {Object.entries(notesMock[utilisateurFiche.id])
-                      .sort(([anneeA], [anneeB]) => anneeB.localeCompare(anneeA)) // Trier du plus récent au plus ancien
-                      .map(([annee, semestres]) => (
-                      <div key={annee} className="border border-green-200 rounded-lg">
-                        {/* Accordéon pour l'année */}
-                        <div className="accordion">
-                          <div className="accordion-header">
-                            <button
-                              className="w-full px-4 py-3 text-left bg-green-100 hover:bg-green-200 transition-colors flex items-center justify-between"
-                              onClick={() => {
-                                const content = document.getElementById(`annee-${annee}`);
-                                if (content) {
-                                  content.classList.toggle('hidden');
-                                }
-                              }}
-                            >
-                              <span className="font-semibold text-green-800">{annee}</span>
-                              <ChevronDown className="w-5 h-5 text-green-600" />
-                            </button>
-                          </div>
-                          <div id={`annee-${annee}`} className="accordion-content hidden">
-                            <div className="p-4">
-                              {/* Onglets pour les semestres */}
-                              <div className="tabs">
-                                <div className="flex border-b border-green-200 mb-4">
-                                  {Object.keys(semestres as AnneeNotes).map((semestre, index) => (
-                                    <button
-                                      key={semestre}
-                                      className={`px-4 py-2 text-sm font-medium transition-colors ${
-                                        index === 0 ? 'text-green-600 border-b-2 border-green-600' : 'text-green-500 hover:text-green-600'
-                                      }`}
-                                      onClick={() => {
-                                        // Masquer tous les contenus d'onglets
-                                        document.querySelectorAll(`[data-semestre="${annee}"]`).forEach(el => {
-                                          el.classList.add('hidden');
-                                        });
-                                        // Afficher l'onglet sélectionné
-                                        const content = document.getElementById(`semestre-${annee}-${semestre}`);
-                                        if (content) {
-                                          content.classList.remove('hidden');
-                                        }
-                                        // Mettre à jour les styles des onglets
-                                        document.querySelectorAll(`[data-tab="${annee}"]`).forEach(tab => {
-                                          tab.classList.remove('text-green-600', 'border-b-2', 'border-green-600');
-                                          tab.classList.add('text-green-500');
-                                        });
-                                        const activeTab = document.querySelector(`[data-tab="${annee}"][data-semestre="${semestre}"]`);
-                                        if (activeTab) {
-                                          activeTab.classList.add('text-green-600', 'border-b-2', 'border-green-600');
-                                          activeTab.classList.remove('text-green-500');
-                                        }
-                                      }}
-                                      data-tab={annee}
-                                      data-semestre={semestre}
-                                    >
-                                      {semestre}
-                                    </button>
-                                  ))}
-                                </div>
-                                
-                                {/* Contenu des onglets */}
-                                {Object.entries(semestres as AnneeNotes).map(([semestre, matieres], index) => (
-                                  <div
-                                    key={semestre}
-                                    id={`semestre-${annee}-${semestre}`}
-                                    data-semestre={annee}
-                                    className={`${index === 0 ? '' : 'hidden'}`}
-                                  >
-                                    <div className="overflow-x-auto">
-                                      <table className="w-full border-collapse border border-green-200">
-                                        <thead>
-                                          <tr className="bg-green-100">
-                                            <th className="border border-green-200 px-4 py-2 text-left font-medium text-green-800">
-                                              Matière
-                                            </th>
-                                            <th className="border border-green-200 px-4 py-2 text-center font-medium text-green-800">
-                                              Coef
-                                            </th>
-                                            <th className="border border-green-200 px-4 py-2 text-center font-medium text-green-800">
-                                              Note 1
-                                            </th>
-                                            <th className="border border-green-200 px-4 py-2 text-center font-medium text-green-800">
-                                              Note 2
-                                            </th>
-                                            <th className="border border-green-200 px-4 py-2 text-center font-medium text-green-800">
-                                              Composition
-                                            </th>
-                                            <th className="border border-green-200 px-4 py-2 text-center font-medium text-green-800">
-                                              Appréciation
-                                            </th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {Object.entries(matieres as SemestreNotes).map(([matiere, details]) => (
-                                            <tr key={matiere} className="hover:bg-green-50">
-                                              <td className="border border-green-200 px-4 py-2 font-medium">
-                                                {matiere}
-                                              </td>
-                                              <td className="border border-green-200 px-4 py-2 text-center">
-                                                {(details as NoteDetails).coefficient}
-                                              </td>
-                                              <td className="border border-green-200 px-4 py-2 text-center">
-                                                {(details as NoteDetails).note1 || '_ _'}
-                                              </td>
-                                              <td className="border border-green-200 px-4 py-2 text-center">
-                                                {(details as NoteDetails).note2 || '_ _'}
-                                              </td>
-                                              <td className="border border-green-200 px-4 py-2 text-center">
-                                                {(details as NoteDetails).composition || '_ _'}
-                                              </td>
-                                              <td className="border border-green-200 px-4 py-2 text-sm text-gray-600 italic">
-                                                {(details as NoteDetails).appreciation || ''}
-                                              </td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-gray-500">
-                    <GraduationCap className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                    <p>Aucune note disponible pour cet élève</p>
-                  </div>
-                )}
+                <div className="space-y-4">
+                  {/* TODO: Charger les notes depuis le service */}
+                  <p className="text-gray-500">Notes à charger depuis le service</p>
+                </div>
               </div>
             )}
 
@@ -1552,97 +1254,10 @@ const ListeUtilisateurs: React.FC<{
                   <AlertCircle className="w-5 h-5 text-red-600" />
                   Absences
                 </h3>
-                {absencesMock[utilisateurFiche.id] ? (
-                  <div className="space-y-4">
-                    {Object.entries(absencesMock[utilisateurFiche.id])
-                      .sort(([anneeA], [anneeB]) => anneeB.localeCompare(anneeA)) // Trier du plus récent au plus ancien
-                      .map(([annee, absences]) => (
-                        <div key={annee} className="border border-red-200 rounded-lg">
-                          {/* Accordéon pour l'année */}
-                          <div className="accordion">
-                            <div className="accordion-header">
-                              <button
-                                className="w-full px-4 py-3 text-left bg-red-100 hover:bg-red-200 transition-colors flex items-center justify-between"
-                                onClick={() => {
-                                  const content = document.getElementById(`absences-annee-${annee}`);
-                                  if (content) {
-                                    content.classList.toggle('hidden');
-                                  }
-                                }}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <span className="font-semibold text-red-800">{annee}</span>
-                                  <span className="text-sm bg-red-200 text-red-800 px-2 py-1 rounded">
-                                    {absences.length} absence(s)
-                                  </span>
-                                </div>
-                                <ChevronDown className="w-5 h-5 text-red-600" />
-                              </button>
-                            </div>
-                            <div id={`absences-annee-${annee}`} className="accordion-content hidden">
-                              <div className="p-4">
-                                <div className="overflow-x-auto">
-                                  <table className="w-full border-collapse border border-red-200">
-                                    <thead>
-                                      <tr className="bg-red-100">
-                                        <th className="border border-red-200 px-4 py-2 text-left font-medium text-red-800">
-                                          Date
-                                        </th>
-                                        <th className="border border-red-200 px-4 py-2 text-left font-medium text-red-800">
-                                          Matière
-                                        </th>
-                                        <th className="border border-red-200 px-4 py-2 text-center font-medium text-red-800">
-                                          Durée
-                                        </th>
-                                        <th className="border border-red-200 px-4 py-2 text-left font-medium text-red-800">
-                                          Motif
-                                        </th>
-                                        <th className="border border-red-200 px-4 py-2 text-center font-medium text-red-800">
-                                          Statut
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {absences.map((absence) => (
-                                        <tr key={absence.id} className="hover:bg-red-50">
-                                          <td className="border border-red-200 px-4 py-2">
-                                            {new Date(absence.date).toLocaleDateString('fr-FR')}
-                                          </td>
-                                          <td className="border border-red-200 px-4 py-2">
-                                            {absence.matiere || 'Toutes matières'}
-                                          </td>
-                                          <td className="border border-red-200 px-4 py-2 text-center">
-                                            {absence.duree || 1}h
-                                          </td>
-                                          <td className="border border-red-200 px-4 py-2">
-                                            {absence.motif || 'Non précisé'}
-                                          </td>
-                                          <td className="border border-red-200 px-4 py-2 text-center">
-                                            <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                              absence.justifiee 
-                                                ? 'bg-green-100 text-green-800' 
-                                                : 'bg-red-100 text-red-800'
-                                            }`}>
-                                              {absence.justifiee ? 'Justifiée' : 'Non justifiée'}
-                                            </span>
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-gray-500">
-                    <AlertCircle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                    <p>Aucune absence enregistrée pour cet élève</p>
-                  </div>
-                )}
+                <div className="space-y-4">
+                  {/* TODO: Charger les absences depuis le service */}
+                  <p className="text-gray-500">Absences à charger depuis le service</p>
+                </div>
               </div>
             )}
 
@@ -1675,136 +1290,197 @@ const ListeUtilisateurs: React.FC<{
 
 // Composant principal
 const Utilisateurs: React.FC = () => {
-  // Simulation de l'utilisateur connecté - vous pouvez ajuster selon vos besoins
-  const [utilisateurConnecte] = useState({
-    id: "current_user",
-    role: "administrateur", // Administrateur peut gérer tous les utilisateurs
-    section: "primaire"
-  });
-
-  const [liste, setListe] = useState<any[]>(initialUsers);
-  const [filteredListe, setFilteredListe] = useState<any[]>(initialUsers);
+  const { utilisateur } = useAuth();
+  const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeRoleTab, setActiveRoleTab] = useState<string>("gestionnaire");
+  const [filterRole, setFilterRole] = useState<string>("");
+  const [filterStatut, setFilterStatut] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<"liste" | "ajouter">("liste");
+  const [activeRoleTab, setActiveRoleTab] = useState<string>("tous");
+  const [utilisateurFiche, setUtilisateurFiche] = useState<Utilisateur | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<string>("");
   const [modeEdition, setModeEdition] = useState(false);
-  const [utilisateurAModifier, setUtilisateurAModifier] = useState<any>(null);
+  const [modalType, setModalType] = useState<string>("");
+  const [utilisateurAModifier, setUtilisateurAModifier] = useState<Utilisateur | null>(null);
   const [modalSuppression, setModalSuppression] = useState(false);
-  const [utilisateurASupprimer, setUtilisateurASupprimer] = useState<any>(null);
+  const [utilisateurASupprimer, setUtilisateurASupprimer] = useState<Utilisateur | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showModalAjout, setShowModalAjout] = useState(false);
+  const [showModalModification, setShowModalModification] = useState(false);
 
-  // Détermine les droits selon le rôle
-  const isAdmin = utilisateurConnecte?.role === "administrateur";
-  const isGestionnaire = utilisateurConnecte?.role === "gestionnaire";
+  // Onglets disponibles selon les permissions
+  const availableTabs = [
+    { id: "tous", label: "Tous", canAdd: true, icon: <Users className="w-4 h-4" /> },
+    { id: "gestionnaire", label: "Gestionnaires", canAdd: true, icon: <UserCheck className="w-4 h-4" /> },
+    { id: "professeur", label: "Professeurs", canAdd: true, icon: <GraduationCap className="w-4 h-4" /> },
+    { id: "eleve", label: "Élèves", canAdd: true, icon: <Baby className="w-4 h-4" /> },
+    { id: "parent", label: "Parents", canAdd: true, icon: <Heart className="w-4 h-4" /> }
+  ];
 
-  // Onglets disponibles selon les droits
-  const getAvailableTabs = () => {
-    if (isAdmin) {
-      return [
-        { id: "gestionnaire", label: "Gestionnaires", icon: <Users className="w-4 h-4" />, canAdd: true },
-        { id: "professeur", label: "Professeurs", icon: <GraduationCap className="w-4 h-4" />, canAdd: true },
-        { id: "eleve", label: "Élèves", icon: <Baby className="w-4 h-4" />, canAdd: true },
-        { id: "parent", label: "Parents", icon: <Heart className="w-4 h-4" />, canAdd: true }
-      ];
-    } else if (isGestionnaire) {
-      return [
-        { id: "gestionnaire", label: "Gestionnaires", icon: <Users className="w-4 h-4" />, canAdd: false },
-        { id: "professeur", label: "Professeurs", icon: <GraduationCap className="w-4 h-4" />, canAdd: true },
-        { id: "eleve", label: "Élèves", icon: <Baby className="w-4 h-4" />, canAdd: true },
-        { id: "parent", label: "Parents", icon: <Heart className="w-4 h-4" />, canAdd: true }
-      ];
-    } else {
-      // Pour les autres rôles, lecture seule selon les permissions
-      return [
-        { id: "professeur", label: "Professeurs", icon: <GraduationCap className="w-4 h-4" />, canAdd: false },
-        { id: "eleve", label: "Élèves", icon: <Baby className="w-4 h-4" />, canAdd: false },
-        { id: "parent", label: "Parents", icon: <Heart className="w-4 h-4" />, canAdd: false }
-      ];
+  const currentTab = availableTabs.find(tab => tab.id === activeRoleTab);
+  const isAdmin = utilisateur?.role === "administrateur";
+  const isGestionnaire = utilisateur?.role === "gestionnaire";
+  const utilisateurConnecte = utilisateur;
+
+  // Charger les données au montage
+  useEffect(() => {
+    loadUtilisateurs();
+    loadNotifications();
+  }, []);
+
+  const loadUtilisateurs = async () => {
+    setLoading(true);
+    try {
+      const response = await adminService.getUtilisateurs({
+        page: 1,
+        limit: 100,
+        search: searchTerm,
+        filters: activeRoleTab !== "tous" ? { role: activeRoleTab } : undefined
+      });
+      
+      if (response.success && response.data) {
+        setUtilisateurs(response.data.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des utilisateurs:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const availableTabs = getAvailableTabs();
-
-  // Filtrage selon les droits et recherche
-  useEffect(() => {
-    let filtered = liste.filter(u => u.role === activeRoleTab);
-
-    if (searchTerm) {
-      filtered = filtered.filter(u => 
-        u.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filtrage selon les droits d'accès
-    if (!isAdmin && utilisateurConnecte) {
-      if (isGestionnaire) {
-        // Le gestionnaire ne peut voir que sa section pour certains rôles
-        if (activeRoleTab === "professeur" || activeRoleTab === "eleve") {
-          filtered = filtered.filter(u => u.section === utilisateurConnecte.section);
+  const loadNotifications = async () => {
+    if (utilisateur?.id) {
+      try {
+        const response = await notificationService.getNotifications(utilisateur.id);
+        if (response.success && response.data) {
+          setNotifications(response.data);
         }
-      } else if (utilisateurConnecte.role === "professeur") {
-        // Le professeur ne peut voir que ses élèves
-        if (activeRoleTab === "eleve") {
-          filtered = filtered.filter(u => u.section === utilisateurConnecte.section);
-        }
-      } else if (utilisateurConnecte.role === "parent") {
-        // Le parent ne peut voir que ses enfants
-        if (activeRoleTab === "eleve") {
-          const parent = liste.find(u => u.id === utilisateurConnecte.id && u.role === "parent");
-          filtered = filtered.filter(u => parent?.enfantsIds?.includes(u.id));
-        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des notifications:', error);
       }
     }
-
-    setFilteredListe(filtered);
-  }, [liste, searchTerm, activeRoleTab, utilisateurConnecte, isAdmin, isGestionnaire]);
-
-  // Fonction d'ajout/modification d'utilisateur
-  const ajouterUtilisateur = (nouvelUtilisateur: any) => {
-    if (modeEdition) {
-      setListe(prev => prev.map(u => u.id === nouvelUtilisateur.id ? nouvelUtilisateur : u));
-    } else {
-      setListe(prev => [...prev, nouvelUtilisateur]);
-    }
-    setModalOpen(false);
-    setModeEdition(false);
-    setUtilisateurAModifier(null);
   };
 
-  // Ouverture du modal d'ajout
+  const handleCreateUtilisateur = async (utilisateur: Omit<Utilisateur, 'id' | 'dateCreation'>) => {
+    try {
+      const response = await adminService.createUtilisateur(utilisateur);
+      if (response.success) {
+        setModalOpen(false);
+        loadUtilisateurs(); // Recharger la liste
+        // Afficher une notification de succès
+        console.log('Utilisateur créé avec succès');
+      } else {
+        console.error('Erreur lors de la création:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la création de l\'utilisateur:', error);
+    }
+  };
+
+  const handleUpdateUtilisateur = async (id: number, updates: Partial<Utilisateur>) => {
+    try {
+      const response = await adminService.updateUtilisateur(id, updates);
+      if (response.success) {
+        setModalOpen(false);
+        setUtilisateurAModifier(null);
+        loadUtilisateurs(); // Recharger la liste
+        console.log('Utilisateur mis à jour avec succès');
+      } else {
+        console.error('Erreur lors de la mise à jour:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de l\'utilisateur:', error);
+    }
+  };
+
+  const handleDeleteUtilisateur = async (id: number) => {
+    try {
+      const response = await adminService.deleteUtilisateur(id);
+      if (response.success) {
+        loadUtilisateurs(); // Recharger la liste
+        console.log('Utilisateur supprimé avec succès');
+      } else {
+        console.error('Erreur lors de la suppression:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la suppression de l\'utilisateur:', error);
+    }
+  };
+
+  const handleToggleStatus = async (id: number, actif: boolean) => {
+    try {
+      const response = await adminService.toggleUtilisateurStatus(id, actif);
+      if (response.success) {
+        await loadUtilisateurs();
+      }
+    } catch (error) {
+      console.error("Erreur lors de la modification du statut:", error);
+    }
+  };
+
+  // Fonctions pour les modals
   const ouvrirModalAjout = (type: string) => {
     setModalType(type);
-    setModalOpen(true);
     setModeEdition(false);
     setUtilisateurAModifier(null);
+    setModalOpen(true);
   };
 
-  // Ouverture du modal de modification
-  const ouvrirModalModification = (utilisateur: any) => {
+  const ouvrirModalModification = (utilisateur: Utilisateur) => {
     setModalType(utilisateur.role);
-    setModalOpen(true);
     setModeEdition(true);
     setUtilisateurAModifier(utilisateur);
+    setModalOpen(true);
   };
 
-  // Ouverture du modal de suppression
-  const ouvrirModalSuppression = (utilisateur: any) => {
+  const ouvrirModalSuppression = (utilisateur: Utilisateur) => {
     setUtilisateurASupprimer(utilisateur);
     setModalSuppression(true);
   };
 
-  // Confirmation de suppression
-  const confirmerSuppression = () => {
-    if (utilisateurASupprimer) {
-      setListe(prev => prev.filter(u => u.id !== utilisateurASupprimer.id));
-      setModalSuppression(false);
-      setUtilisateurASupprimer(null);
+  const ajouterUtilisateur = async (utilisateur: any) => {
+    try {
+      const response = await adminService.createUtilisateur(utilisateur);
+      if (response.success) {
+        // Envoyer les informations de connexion par email
+        await adminService.envoyerInfosConnexion(response.data?.id || 0);
+        
+        await loadUtilisateurs();
+        setModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'ajout:", error);
     }
   };
 
-  const currentTab = availableTabs.find(tab => tab.id === activeRoleTab);
+  const confirmerSuppression = async () => {
+    if (!utilisateurASupprimer) return;
+    
+    try {
+      const response = await adminService.deleteUtilisateur(utilisateurASupprimer.id);
+      if (response.success) {
+        await loadUtilisateurs();
+        setModalSuppression(false);
+        setUtilisateurASupprimer(null);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+    }
+  };
+
+  // Liste filtrée
+  const liste = utilisateurs;
+  const filteredListe = liste.filter((u: Utilisateur) => {
+    const matchSearch = !searchTerm || 
+      u.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchRole = !filterRole || u.role === filterRole;
+    const matchStatut = !filterStatut || (u.actif ? "actif" : "inactif") === filterStatut;
+    
+    return matchSearch && matchRole && matchStatut;
+  });
 
   return (
     <div className="space-y-6">
@@ -1813,8 +1489,10 @@ const Utilisateurs: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-neutral-900">Gestion des utilisateurs</h1>
           <p className="text-neutral-600 mt-1">
-            Connecté en tant que: {utilisateurConnecte.role}
-            {utilisateurConnecte.section && ` - Section ${utilisateurConnecte.section}`}
+            Connecté en tant que: {utilisateurConnecte?.role}
+            {utilisateurConnecte?.role === "professeur" && ` - Professeur`}
+            {utilisateurConnecte?.role === "gestionnaire" && ` - Gestionnaire`}
+            {utilisateurConnecte?.role === "administrateur" && ` - Administrateur`}
           </p>
         </div>
         
@@ -1959,7 +1637,7 @@ const Utilisateurs: React.FC = () => {
           <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
           <div>
             <p className="text-sm text-blue-800 font-medium">
-              Permissions actuelles ({utilisateurConnecte.role}):
+              Permissions actuelles ({utilisateurConnecte?.role}):
             </p>
             <ul className="text-xs text-blue-600 mt-1 space-y-1">
               {isAdmin && (
@@ -1977,10 +1655,10 @@ const Utilisateurs: React.FC = () => {
                   <li>• Lecture seule sur les gestionnaires</li>
                 </>
               )}
-              {utilisateurConnecte.role === "professeur" && (
+              {utilisateurConnecte?.role === "professeur" && (
                 <li>• Lecture seule sur les élèves de sa section</li>
               )}
-              {utilisateurConnecte.role === "parent" && (
+              {utilisateurConnecte?.role === "parent" && (
                 <li>• Lecture seule sur ses enfants uniquement</li>
               )}
             </ul>

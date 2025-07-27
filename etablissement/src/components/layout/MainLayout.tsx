@@ -1,5 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import { notificationService } from '../../services/notificationService';
 import { useAuth } from '../../contexts/ContexteAuth';
+import { 
+  Bell, 
+  Search, 
+  Settings, 
+  LogOut, 
+  User, 
+  Menu, 
+  X, 
+  ChevronDown,
+  MessageSquare,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  Star,
+  Archive,
+  Trash2,
+  Eye,
+  EyeOff
+} from 'lucide-react';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
@@ -16,18 +36,25 @@ const libellesRole: Record<string, string> = {
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { utilisateur } = useAuth();
   const [sidebarReduite, setSidebarReduite] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
-  // Notifications mock - à remplacer par de vraies données
-  const notifications = [
-    {
-      id: 1,
-      titre: "Nouvelle inscription",
-      message: "Un nouvel élève s'est inscrit dans votre classe",
-      lu: false,
-      type: "info" as const,
-      date: "Il y a 2 heures"
+  // Charger les notifications
+  useEffect(() => {
+    if (utilisateur?.id) {
+      loadNotifications();
     }
-  ];
+  }, [utilisateur]);
+
+  const loadNotifications = async () => {
+    try {
+      const response = await notificationService.getNotifications(utilisateur!.id);
+      if (response.success && response.data) {
+        setNotifications(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des notifications:', error);
+    }
+  };
 
   if (!utilisateur) {
     return (

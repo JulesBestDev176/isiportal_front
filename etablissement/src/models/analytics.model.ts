@@ -12,9 +12,10 @@ export interface MetriqueKPI {
 
 export interface DonneesTendance {
   periode: string;
+  eleves: number;
   professeurs: number;
-  gestionnaires: number;
   connexions: number;
+  messages: number;
 }
 
 export interface PerformanceClasse {
@@ -29,7 +30,15 @@ export interface PerformanceClasse {
 export interface StatistiqueRole {
   role: string;
   nombre: number;
+  actifs: number;
   couleur: string;
+}
+
+export interface ActiviteUtilisateur {
+  date: string;
+  connexions: number;
+  messages: number;
+  activites: number;
 }
 
 export interface RapportAnalytics {

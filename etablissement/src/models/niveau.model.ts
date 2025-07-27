@@ -1,6 +1,6 @@
 // Modèle pour la gestion des niveaux
 
-export interface MatiereNiveau {
+export interface MatiereNiveauNiveau {
   id: number;
   matiereId: number;
   matiereNom: string;
@@ -20,7 +20,7 @@ export interface Niveau {
   section: "college" | "lycee";
   cycle: string; // Ex: "Collège", "Lycée"
   description?: string;
-  matieres: MatiereNiveau[]; // Matières enseignées dans ce niveau
+  matieres: MatiereNiveauNiveau[]; // Matières enseignées dans ce niveau
   actif: boolean;
   dateCreation: string;
   dateModification?: string;
@@ -31,7 +31,7 @@ export interface FormDataNiveau {
   ordre: number;
   section: "college" | "lycee";
   description: string;
-  matieres: MatiereNiveau[];
+  matieres: MatiereNiveauNiveau[];
 }
 
 // Constantes
@@ -62,7 +62,7 @@ export const getNiveauxParSection = (niveaux: Niveau[], section: NiveauSectionTy
   return niveaux.filter(niveau => niveau.section === section).sort((a, b) => a.ordre - b.ordre);
 };
 
-export const getMatieresParNiveau = (niveau: Niveau): MatiereNiveau[] => {
+export const getMatieresParNiveau = (niveau: Niveau): MatiereNiveauNiveau[] => {
   return niveau.matieres.sort((a, b) => a.matiereNom.localeCompare(b.matiereNom));
 };
 

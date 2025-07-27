@@ -13,6 +13,21 @@ export interface Matiere {
   statut: "active" | "inactive";
 }
 
+export interface MatiereNiveau {
+  id: number;
+  matiereId: number;
+  niveauId: number;
+  heuresParSemaine: number;
+  coefficient: number;
+  dateCreation: string;
+  dateModification?: string;
+  statut: "active" | "inactive";
+  
+  // Champs calculés pour l'affichage
+  matiereNom?: string;
+  niveauNom?: string;
+}
+
 // Constantes pour les matières courantes
 export const MATIERES_COURANTES = [
   { code: "MATH", nom: "Mathématiques", couleur: "#3B82F6" },
@@ -38,3 +53,20 @@ export const STATUTS_MATIERE = [
 
 export type StatutMatiere = typeof STATUTS_MATIERE[number]["value"];
 export type CodeMatiere = typeof MATIERES_COURANTES[number]["code"];
+
+// Fonctions utilitaires
+export const getStatutInfo = (statut: StatutMatiere) => {
+  return STATUTS_MATIERE.find(s => s.value === statut);
+};
+
+export const getMatiereColorClass = (statut: StatutMatiere): string => {
+  switch (statut) {
+    case "active": return 'bg-green-100 text-green-800';
+    case "inactive": return 'bg-red-100 text-red-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
+
+export const getMatiereByCode = (code: CodeMatiere) => {
+  return MATIERES_COURANTES.find(m => m.code === code);
+};

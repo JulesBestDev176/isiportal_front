@@ -185,6 +185,24 @@ export class AuthService {
     const userStr = localStorage.getItem('utilisateur');
     return userStr ? JSON.parse(userStr) : null;
   }
+
+  /**
+   * Change le mot de passe de l'utilisateur
+   */
+  static async changePassword(data: {
+    motDePasseActuel: string;
+    nouveauMotDePasse: string;
+  }): Promise<ApiResponse<{ success: boolean }>> {
+    try {
+      const response = await apiClient.post<ApiResponse<{ success: boolean }>>('/auth/change-password', data);
+      return response.data;
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Erreur lors du changement de mot de passe'
+      };
+    }
+  }
 }
 
 // Export de l'instance axios pour d'autres services

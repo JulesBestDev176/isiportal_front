@@ -6,7 +6,7 @@ import {
   UserCheck, Clock, MapPin, AlertCircle, CheckCircle, School,
   FileText, Target, PlayCircle, PauseCircle, Zap, Award,
   ChevronRight, Globe, BarChart, TrendingUp, Bookmark,
-  CheckSquare, Square
+  CheckSquare, Square, Info
 } from "lucide-react";
 import { useAuth } from "../../contexts/ContexteAuth";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +14,8 @@ import MainLayout from "../../components/layout/MainLayout";
 import { Cours, Ressource } from "../../models/cours.model";
 import { Classe } from "../../models/classe.model";
 import { Utilisateur } from "../../models/utilisateur.model";
+import { matiereService } from "../../services/matiereService";
+import { adminService } from "../../services/adminService";
 
 // Interfaces locales pour les fonctionnalités spécifiques au gestionnaire
 interface AssignationCours {
@@ -51,173 +53,23 @@ const niveauxList = ["6ème", "5ème", "4ème", "3ème", "2nde", "1ère", "Termi
 
 const joursList: Creneau["jour"][] = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 
-// Données mockées
-const coursMock: Cours[] = [
-  {
-    id: 1,
-    titre: "Les équations du premier degré",
-    description: "Introduction aux équations linéaires et méthodes de résolution",
-    matiereId: 1,
-    classeId: 1,
-    professeurId: 1,
-    anneeScolaireId: 1,
-    semestresIds: [1],
-    heuresParSemaine: 3,
-    objectifs: ["Résoudre une équation simple", "Identifier les inconnues", "Vérifier une solution"],
-    prerequis: ["Calculs avec les nombres relatifs"],
-    dateCreation: "2024-07-01",
-    statut: "en_cours",
-    coefficient: 2
-  },
-  {
-    id: 2,
-    titre: "La Révolution française",
-    description: "Étude des causes et conséquences de la Révolution de 1789",
-    matiereId: 2,
-    classeId: 2,
-    professeurId: 2,
-    anneeScolaireId: 1,
-    semestresIds: [1, 2],
-    heuresParSemaine: 4,
-    objectifs: ["Comprendre les causes", "Analyser les événements", "Situer dans le contexte"],
-    dateCreation: "2024-06-28",
-    statut: "en_cours",
-    coefficient: 3
-  }
-];
+// Suppression des mocks - remplacés par des appels aux services
 
-const classesMock: Classe[] = [
-  { 
-    id: 1, 
-    nom: "6ème A", 
-    niveauId: 1, 
-    niveauNom: "6ème",
-    anneesScolaires: [{
-      id: 1,
-      classeId: 1,
-      anneeScolaireId: 1,
-      anneeScolaireNom: "2023-2024",
-      elevesIds: [],
-      effectif: 28,
-      effectifMax: 30,
-      professeurPrincipalId: 1,
-      professeurPrincipalNom: "M. Fall",
-      profsMatieres: [],
-      description: "Classe de 6ème section A",
-      statut: "active",
-      dateCreation: "2024-01-01"
-    }],
-    description: "Classe de 6ème section A",
-    dateCreation: "2024-01-01",
-    dateModification: "2024-01-01",
-    statut: "active" 
-  },
-  { 
-    id: 2, 
-    nom: "5ème B", 
-    niveauId: 2, 
-    niveauNom: "5ème",
-    anneesScolaires: [{
-      id: 2,
-      classeId: 2,
-      anneeScolaireId: 1,
-      anneeScolaireNom: "2023-2024",
-      elevesIds: [],
-      effectif: 25,
-      effectifMax: 30,
-      professeurPrincipalId: 2,
-      professeurPrincipalNom: "Mme Ndiaye",
-      profsMatieres: [],
-      description: "Classe de 5ème section B",
-      statut: "active",
-      dateCreation: "2024-01-01"
-    }],
-    description: "Classe de 5ème section B",
-    dateCreation: "2024-01-01",
-    dateModification: "2024-01-01",
-    statut: "active" 
-  },
-  { 
-    id: 3, 
-    nom: "4ème C", 
-    niveauId: 3, 
-    niveauNom: "4ème",
-    anneesScolaires: [{
-      id: 3,
-      classeId: 3,
-      anneeScolaireId: 1,
-      anneeScolaireNom: "2023-2024",
-      elevesIds: [],
-      effectif: 30,
-      effectifMax: 30,
-      professeurPrincipalId: 3,
-      professeurPrincipalNom: "M. Diouf",
-      profsMatieres: [],
-      description: "Classe de 4ème section C",
-      statut: "active",
-      dateCreation: "2024-01-01"
-    }],
-    description: "Classe de 4ème section C",
-    dateCreation: "2024-01-01",
-    dateModification: "2024-01-01",
-    statut: "active" 
-  }
-];
+// TODO: Remplacer par des appels aux services appropriés
 
-const professeursMock: Professeur[] = [
-  { 
-    id: 1, 
-    nom: "Diop", 
-    prenom: "Fatou", 
-    email: "f.diop@ecole.sn", 
-    role: "professeur",
-    dateCreation: "2024-01-01",
-    dateModification: "2024-01-01",
-    actif: true,
-    derniereConnexion: "2024-07-01"
-  },
-  { 
-    id: 2, 
-    nom: "Ba", 
-    prenom: "Moussa", 
-    email: "m.ba@ecole.sn", 
-    role: "professeur",
-    dateCreation: "2024-01-01",
-    dateModification: "2024-01-01",
-    actif: true,
-    derniereConnexion: "2024-07-01"
-  }
-];
-
-const assignationsMock: AssignationCours[] = [
-  {
-    id: 1,
-    coursId: 1,
-    classeId: 1,
-    dateDebut: "2024-07-15",
-    dateFin: "2024-07-30",
-    heuresParSemaine: 3,
-    salle: "A101",
-    creneaux: [
-      { jour: "lundi", heureDebut: "08:00", heureFin: "09:30", salle: "A101" },
-      { jour: "mercredi", heureDebut: "10:00", heureFin: "11:30", salle: "A101" }
-    ],
-    progression: 45,
-    statut: "en_cours",
-    notes: "Bon niveau général de la classe"
-  }
-];
+// TODO: Remplacer par des appels aux services appropriés
 
 // Composant Carte de Cours
 const CarteCours: React.FC<{
   cours: Cours;
   professeurs: Professeur[];
   onEdit: (cours: Cours) => void;
-  onDelete: (id: number) => void;
+  onDelete: (cours: Cours) => void;
   onView: (cours: Cours) => void;
   onAssign: (cours: Cours) => void;
 }> = ({ cours, professeurs, onEdit, onDelete, onView, onAssign }) => {
-  const professeur = professeurs.find(p => p.id === cours.professeurId);
+  const assignation = cours.assignations?.[0];
+  const professeur = assignation ? professeurs.find(p => p.id === assignation.professeurId) : null;
 
   const getStatutColor = (statut: string) => {
     switch (statut) {
@@ -264,34 +116,22 @@ const CarteCours: React.FC<{
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="text-sm text-gray-600">Classe:</span>
         <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-          Classe {cours.classeId} {/* TODO: Récupérer le nom de la classe */}
+          Niveau {cours.niveauId} {/* TODO: Récupérer le nom du niveau */}
         </span>
       </div>
 
       {/* Objectif principal */}
       <div className="mb-4">
-        <h4 className="text-sm font-medium text-gray-900 mb-2">
-          Objectif principal
-        </h4>
-        <div className="space-y-1">
-          {cours.objectifs.length > 0 && (
-            <div className="flex items-start gap-2 text-sm text-gray-600">
-              <Target className="w-3 h-3 mt-1 flex-shrink-0 text-green-500" />
-              <span className="line-clamp-1">{cours.objectifs[0]}</span>
-            </div>
-          )}
-          {cours.objectifs.length > 1 && (
-            <div className="text-xs text-gray-500">
-              +{cours.objectifs.length - 1} autres objectifs
-            </div>
-          )}
-        </div>
+
       </div>
 
       {/* Actions */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => onView(cours)}
+          onClick={() => {
+            console.log("🖱️ Bouton Voir cliqué pour le cours:", cours);
+            onView(cours);
+          }}
           className="flex-1 py-2 px-3 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-1"
         >
           <Eye className="w-4 h-4" />
@@ -311,7 +151,10 @@ const CarteCours: React.FC<{
           <Edit className="w-4 h-4" />
         </button>
         <button
-          onClick={() => onDelete(cours.id)}
+          onClick={() => {
+            console.log("🗑️ Bouton Supprimer cliqué pour le cours:", cours);
+            onDelete(cours);
+          }}
           className="py-2 px-3 text-sm border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
         >
           <Trash2 className="w-4 h-4" />
@@ -333,13 +176,10 @@ const FormulaireCours: React.FC<{
     titre: cours?.titre || "",
     description: cours?.description || "",
     matiereId: cours?.matiereId || 1,
-    classeId: cours?.classeId || 1,
-    professeurId: cours?.professeurId || 1,
+    niveauId: cours?.niveauId || 1,
     anneeScolaireId: cours?.anneeScolaireId || 1,
     semestresIds: cours?.semestresIds || [1],
     heuresParSemaine: cours?.heuresParSemaine || 3,
-    objectifs: cours?.objectifs || [""],
-    prerequis: cours?.prerequis || [],
     statut: cours?.statut || "planifie" as const,
     coefficient: cours?.coefficient || 1
   });
@@ -347,26 +187,11 @@ const FormulaireCours: React.FC<{
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const ajouterObjectif = () => {
-    setFormData(prev => ({
-      ...prev,
-      objectifs: [...prev.objectifs, ""]
-    }));
-  };
 
-  const retirerObjectif = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      objectifs: prev.objectifs.filter((_, i) => i !== index)
-    }));
-  };
 
-  const modifierObjectif = (index: number, valeur: string) => {
-    setFormData(prev => ({
-      ...prev,
-      objectifs: prev.objectifs.map((obj, i) => i === index ? valeur : obj)
-    }));
-  };
+
+
+
 
   const validerFormulaire = () => {
     const newErrors: Record<string, string> = {};
@@ -380,20 +205,12 @@ const FormulaireCours: React.FC<{
     if (!formData.matiereId || formData.matiereId === 0) {
       newErrors.matiereId = "La matière est requise";
     }
-    if (!formData.classeId || formData.classeId === 0) {
-      newErrors.classeId = "La classe est requise";
-    }
-    if (!formData.professeurId || formData.professeurId === 0) {
-      newErrors.professeurId = "Un professeur doit être assigné";
-    }
+
     if (formData.heuresParSemaine <= 0) {
       newErrors.heuresParSemaine = "Le nombre d'heures doit être positif";
     }
 
-    const objectifsValides = formData.objectifs.filter(obj => obj.trim());
-    if (objectifsValides.length === 0) {
-      newErrors.objectifs = "Au moins un objectif est requis";
-    }
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -408,7 +225,7 @@ const FormulaireCours: React.FC<{
 
         const coursData = {
           ...formData,
-          objectifs: formData.objectifs.filter(obj => obj.trim()),
+
           id: cours?.id?.toString(),
           dateCreation: cours?.dateCreation || new Date().toISOString().split('T')[0],
           dateModification: cours ? new Date().toISOString().split('T')[0] : undefined
@@ -459,7 +276,28 @@ const FormulaireCours: React.FC<{
               />
               {errors.titre && <p className="text-red-500 text-xs mt-1">{errors.titre}</p>}
             </div>
+            {/* Niveau */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Niveau *
+              </label>
+              <select
+                value={formData.niveauId}
+                onChange={(e) => setFormData(prev => ({ ...prev, niveauId: parseInt(e.target.value) || 1 }))}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.niveauId ? "border-red-500" : "border-gray-300"
+                }`}
+                disabled={isLoading}
+              >
+                <option value={0}>Sélectionner un niveau</option>
+                {niveauxList.map((niveau, index) => (
+                  <option key={niveau} value={index + 1}>{niveau}</option>
+                ))}
+              </select>
+              {errors.niveauId && <p className="text-red-500 text-xs mt-1">{errors.niveauId}</p>}
+            </div>
 
+            {/* matiere */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Matière *
@@ -480,27 +318,7 @@ const FormulaireCours: React.FC<{
               {errors.matiereId && <p className="text-red-500 text-xs mt-1">{errors.matiereId}</p>}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Professeur *
-              </label>
-              <select
-                value={formData.professeurId}
-                onChange={(e) => setFormData(prev => ({ ...prev, professeurId: parseInt(e.target.value) || 1 }))}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.professeurId ? "border-red-500" : "border-gray-300"
-                }`}
-                disabled={isLoading}
-              >
-                <option value={0}>Sélectionner un professeur</option>
-                {professeurs.filter(p => p.actif).map(prof => (
-                  <option key={prof.id} value={prof.id}>
-                    {prof.prenom} {prof.nom}
-                  </option>
-                ))}
-              </select>
-              {errors.professeurId && <p className="text-red-500 text-xs mt-1">{errors.professeurId}</p>}
-            </div>
+            
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -557,26 +375,7 @@ const FormulaireCours: React.FC<{
           {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
         </div>
 
-        {/* Classe */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Classe *
-          </label>
-          <select
-            value={formData.classeId}
-            onChange={(e) => setFormData(prev => ({ ...prev, classeId: parseInt(e.target.value) || 1 }))}
-            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-              errors.classeId ? "border-red-500" : "border-gray-300"
-            }`}
-            disabled={isLoading}
-          >
-            <option value={0}>Sélectionner une classe</option>
-            {classes.map(classe => (
-              <option key={classe.id} value={classe.id}>{classe.nom}</option>
-            ))}
-          </select>
-          {errors.classeId && <p className="text-red-500 text-xs mt-1">{errors.classeId}</p>}
-        </div>
+
 
         {/* Année scolaire */}
         <div>
@@ -637,51 +436,7 @@ const FormulaireCours: React.FC<{
           {errors.semestresIds && <p className="text-red-500 text-xs mt-1">{errors.semestresIds}</p>}
         </div>
 
-        {/* Objectifs */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <label className="text-sm font-medium text-gray-700">
-              Objectifs pédagogiques * ({formData.objectifs.filter(obj => obj.trim()).length})
-            </label>
-            <button
-              type="button"
-              onClick={ajouterObjectif}
-              className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-              disabled={isLoading}
-            >
-              <Plus className="w-4 h-4" />
-              Ajouter un objectif
-            </button>
-          </div>
-          
-          <div className="space-y-2">
-            {formData.objectifs.map((objectif, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={objectif}
-                  onChange={(e) => modifierObjectif(index, e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder={`Objectif ${index + 1}`}
-                  disabled={isLoading}
-                />
-                {formData.objectifs.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => retirerObjectif(index)}
-                    className="text-red-600 hover:text-red-700"
-                    disabled={isLoading}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-          {errors.objectifs && <p className="text-red-500 text-xs mt-1">{errors.objectifs}</p>}
-        </div>
-
-        {/* Statut */}
+                {/* Statut */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Statut
@@ -723,6 +478,286 @@ const FormulaireCours: React.FC<{
   );
 };
 
+// Composant Modal de détails du cours
+const ModalDetailsCours: React.FC<{
+  cours: Cours;
+  professeurs: Professeur[];
+  onClose: () => void;
+}> = ({ cours, professeurs, onClose }) => {
+  
+  // Debug: vérifier les données
+  console.log("ModalDetailsCours - cours reçu:", cours);
+  console.log("ModalDetailsCours - assignations:", cours.assignations);
+  console.log("ModalDetailsCours - creneaux:", cours.creneaux);
+  console.log("ModalDetailsCours - ressources:", cours.ressources);
+  
+  const getStatutColor = (statut: string) => {
+    switch (statut) {
+      case "en_cours": return "bg-green-100 text-green-800";
+      case "planifie": return "bg-blue-100 text-blue-800";
+      case "termine": return "bg-gray-100 text-gray-800";
+      case "annule": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">{cours.titre}</h2>
+              <p className="text-gray-600 mt-1">Détails complets du cours</p>
+            </div>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Informations générales */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <BookOpen className="w-5 h-5" />
+                Informations générales
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Description:</span>
+                  <p className="text-gray-900 mt-1">{cours.description}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Matière:</span>
+                  <p className="text-gray-900 mt-1">{matieresList[cours.matiereId - 1] || 'Matière inconnue'}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Niveau:</span>
+                  <p className="text-gray-900 mt-1">{niveauxList[cours.niveauId - 1] || 'Niveau inconnu'}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Année scolaire:</span>
+                  <p className="text-gray-900 mt-1">{cours.anneeScolaireNom || '2023-2024'}</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                Configuration horaire
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Heures par semaine:</span>
+                  <p className="text-gray-900 mt-1">{cours.heuresParSemaine}h</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Coefficient:</span>
+                  <p className="text-gray-900 mt-1">{cours.coefficient || 1}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Semestres:</span>
+                  <p className="text-gray-900 mt-1">
+                    {cours.semestresIds.map(sem => `Semestre ${sem}`).join(', ')}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-600">Statut:</span>
+                  <span className={`inline-block px-2 py-1 rounded-full text-sm font-medium mt-1 ${getStatutColor(cours.statut)}`}>
+                    {cours.statut === "planifie" ? "Planifié" :
+                     cours.statut === "en_cours" ? "En cours" :
+                     cours.statut === "termine" ? "Terminé" : "Annulé"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Assignations par classe */}
+          {cours.assignations && cours.assignations.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Assignations par classe ({cours.assignations.length})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {cours.assignations.map((assignation, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-gray-900">{assignation.classeNom || `Classe ${assignation.classeId}`}</h4>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        assignation.statut === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                      }`}>
+                        {assignation.statut === "active" ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      <p>Professeur: {assignation.professeurNom || `Prof ${assignation.professeurId}`}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Créneaux horaires */}
+          {cours.creneaux && cours.creneaux.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Créneaux horaires ({cours.creneaux.length})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {cours.creneaux.map((creneau, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-gray-900 capitalize">{creneau.jour}</span>
+                      {creneau.salleNom && (
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {creneau.salleNom}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {creneau.heureDebut} - {creneau.heureFin}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Classe: {creneau.classeNom || `Classe ${creneau.classeId}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Ressources */}
+          {cours.ressources && cours.ressources.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Ressources ({cours.ressources.length})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {cours.ressources.map((ressource, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-medium text-gray-900">{ressource.titre}</span>
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded capitalize">
+                        {ressource.type}
+                      </span>
+                    </div>
+                    {ressource.description && (
+                      <p className="text-sm text-gray-600 mb-2">{ressource.description}</p>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      Ajouté le {formatDate(ressource.dateAjout)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Informations système */}
+          <div className="border-t border-gray-200 pt-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Info className="w-5 h-5" />
+              Informations système
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Créé le:</span>
+                <p className="text-gray-900">{formatDate(cours.dateCreation)}</p>
+              </div>
+              {cours.dateModification && (
+                <div>
+                  <span className="text-gray-600">Modifié le:</span>
+                  <p className="text-gray-900">{formatDate(cours.dateModification)}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+// Composant Modal de confirmation de suppression
+const ModalConfirmationSuppression: React.FC<{
+  cours: Cours;
+  onConfirm: () => void;
+  onCancel: () => void;
+}> = ({ cours, onConfirm, onCancel }) => {
+  // Récupérer les informations du cours
+  const matiere = cours.matiereNom;
+  const niveau = cours.niveauNom;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-lg w-full max-w-md"
+      >
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Confirmer la suppression</h3>
+              <p className="text-sm text-gray-600">Cette action est irréversible</p>
+            </div>
+          </div>
+          
+          <div className="mb-6">
+            <p className="text-gray-700 mb-2">
+              Êtes-vous sûr de vouloir supprimer le cours :
+            </p>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="font-medium text-gray-900">{cours.titre}</p>
+              <p className="text-sm text-gray-600 mt-1">
+                {matiere} - {niveau}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onConfirm}
+              className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Supprimer définitivement
+            </button>
+            <button
+              onClick={onCancel}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 // Composant Modal d'assignation
 const ModalAssignation: React.FC<{
   cours: Cours;
@@ -758,26 +793,64 @@ const ModalAssignation: React.FC<{
   );
 
   const ajouterCreneau = () => {
+    // Vérifier si on peut ajouter un créneau sans dépasser la limite
+    if (cours && formData.classeId) {
+      const totalHeuresActuel = (formData.creneaux || []).reduce((total, creneau) => {
+        const heureDebut = new Date(`2000-01-01T${creneau.heureDebut}`);
+        const heureFin = new Date(`2000-01-01T${creneau.heureFin}`);
+        const dureeHeures = (heureFin.getTime() - heureDebut.getTime()) / (1000 * 60 * 60);
+        return total + dureeHeures;
+      }, 0);
+      
+      const heuresMax = cours.heuresParSemaine;
+      const dureeNouveauCreneau = 1.5; // 1h30 par défaut
+      
+      if (totalHeuresActuel + dureeNouveauCreneau > heuresMax) {
+        alert(`Impossible d'ajouter un créneau. Le total dépasserait la limite de ${heuresMax}h.`);
+        return;
+      }
+    }
+    
     setFormData(prev => ({
       ...prev,
-      creneaux: [...prev.creneaux, { jour: "lundi", heureDebut: "08:00", heureFin: "09:30" }]
+      creneaux: [...(prev.creneaux || []), { jour: "lundi", heureDebut: "08:00", heureFin: "09:30" }]
     }));
   };
 
   const retirerCreneau = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      creneaux: prev.creneaux.filter((_, i) => i !== index)
+      creneaux: (prev.creneaux || []).filter((_, i) => i !== index)
     }));
   };
 
   const modifierCreneau = (index: number, field: keyof Creneau, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      creneaux: prev.creneaux.map((creneau, i) => 
+    setFormData(prev => {
+      const nouveauxCreneaux = (prev.creneaux || []).map((creneau, i) => 
         i === index ? { ...creneau, [field]: value } : creneau
-      )
-    }));
+      );
+      
+      // Vérifier le total après modification
+      if (cours && formData.classeId) {
+        const totalHeures = nouveauxCreneaux.reduce((total, creneau) => {
+          const heureDebut = new Date(`2000-01-01T${creneau.heureDebut}`);
+          const heureFin = new Date(`2000-01-01T${creneau.heureFin}`);
+          const dureeHeures = (heureFin.getTime() - heureDebut.getTime()) / (1000 * 60 * 60);
+          return total + dureeHeures;
+        }, 0);
+        
+        const heuresMax = cours.heuresParSemaine;
+        if (totalHeures > heuresMax) {
+          // Afficher un avertissement mais permettre la modification
+          console.warn(`Attention: Le total des créneaux (${totalHeures}h) dépasse la limite de ${heuresMax}h`);
+        }
+      }
+      
+      return {
+        ...prev,
+        creneaux: nouveauxCreneaux
+      };
+    });
   };
 
   const validerFormulaire = () => {
@@ -792,16 +865,35 @@ const ModalAssignation: React.FC<{
     if (formData.heuresParSemaine <= 0) {
       newErrors.heuresParSemaine = "Le nombre d'heures doit être positif";
     }
-    if (formData.creneaux.length === 0) {
+    if ((formData.creneaux || []).length === 0) {
       newErrors.creneaux = "Au moins un créneau doit être défini";
     }
 
     // Validation des créneaux
-    formData.creneaux.forEach((creneau, index) => {
+    (formData.creneaux || []).forEach((creneau, index) => {
       if (creneau.heureDebut >= creneau.heureFin) {
         newErrors[`creneau_${index}`] = "L'heure de fin doit être après l'heure de début";
       }
     });
+
+    // Validation du total des heures par classe
+    if (formData.classeId && cours) {
+      const classeId = parseInt(formData.classeId);
+      const coursInfo = cours;
+      const heuresMaxParClasse = coursInfo.heuresParSemaine;
+      
+      // Calculer le total des heures pour cette classe
+      const totalHeuresClasse = (formData.creneaux || []).reduce((total, creneau) => {
+        const heureDebut = new Date(`2000-01-01T${creneau.heureDebut}`);
+        const heureFin = new Date(`2000-01-01T${creneau.heureFin}`);
+        const dureeHeures = (heureFin.getTime() - heureDebut.getTime()) / (1000 * 60 * 60);
+        return total + dureeHeures;
+      }, 0);
+
+      if (totalHeuresClasse > heuresMaxParClasse) {
+        newErrors.creneaux = `Le total des créneaux (${totalHeuresClasse}h) dépasse la limite de ${heuresMaxParClasse}h pour cette matière/niveau`;
+      }
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -821,7 +913,7 @@ const ModalAssignation: React.FC<{
           dateFin: formData.dateFin || undefined,
           heuresParSemaine: formData.heuresParSemaine,
           salle: formData.salle || undefined,
-          creneaux: formData.creneaux,
+          creneaux: formData.creneaux || [],
           progression: 0,
           statut: "planifie",
           notes: formData.notes || undefined
@@ -837,11 +929,11 @@ const ModalAssignation: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[9999]">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto"
       >
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
@@ -925,9 +1017,19 @@ const ModalAssignation: React.FC<{
           {/* Configuration des créneaux */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="text-sm font-medium text-gray-700">
-                Créneaux horaires * ({formData.creneaux.length})
-              </label>
+              <div>
+                <label className="text-sm font-medium text-gray-700">
+                  Créneaux horaires * ({(formData.creneaux || []).length})
+                </label>
+                <div className="text-sm text-gray-600">
+                  Total: {(formData.creneaux || []).reduce((total, creneau) => {
+                    const heureDebut = new Date(`2000-01-01T${creneau.heureDebut}`);
+                    const heureFin = new Date(`2000-01-01T${creneau.heureFin}`);
+                    const dureeHeures = (heureFin.getTime() - heureDebut.getTime()) / (1000 * 60 * 60);
+                    return total + dureeHeures;
+                  }, 0).toFixed(1)}h
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={ajouterCreneau}
@@ -939,9 +1041,9 @@ const ModalAssignation: React.FC<{
               </button>
             </div>
 
-            {formData.creneaux.length > 0 ? (
-              <div className="space-y-3">
-                {formData.creneaux.map((creneau, index) => (
+            {(formData.creneaux || []).length > 0 ? (
+              <div className="space-y-2">
+                {(formData.creneaux || []).map((creneau, index) => (
                   <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-3 border border-gray-200 rounded-lg">
                     <div>
                       <select
@@ -1151,7 +1253,7 @@ const ListeAssignations: React.FC<{
       {assignations.map((assignation) => {
         const coursInfo = getCoursInfo(assignation.coursId);
         const classeInfo = getClasseInfo(assignation.classeId);
-        const professeurInfo = coursInfo ? getProfesseurInfo(coursInfo.professeurId) : null;
+        const professeurInfo = coursInfo && coursInfo.assignations && coursInfo.assignations.length > 0 ? getProfesseurInfo(coursInfo.assignations[0].professeurId) : null;
 
         if (!coursInfo || !classeInfo) return null;
 
@@ -1262,13 +1364,17 @@ const CoursGestionnaire: React.FC = () => {
   const { utilisateur } = useAuth();
   const navigate = useNavigate();
   const [ongletActif, setOngletActif] = useState<"cours" | "assignations" | "nouveau">("cours");
-  const [cours, setCours] = useState<Cours[]>(coursMock);
-  const [classes, setClasses] = useState<Classe[]>(classesMock);
-  const [professeurs, setProfesseurs] = useState<Professeur[]>(professeursMock);
-  const [assignations, setAssignations] = useState<AssignationCours[]>(assignationsMock);
+  const [cours, setCours] = useState<Cours[]>([]);
+  const [classes, setClasses] = useState<Classe[]>([]);
+  const [professeurs, setProfesseurs] = useState<Professeur[]>([]);
+  const [assignations, setAssignations] = useState<AssignationCours[]>([]);
   const [coursSelectionne, setCoursSelectionne] = useState<Cours | null>(null);
   const [showModalAssignation, setShowModalAssignation] = useState(false);
   const [coursAAssigner, setCoursAAssigner] = useState<Cours | null>(null);
+  const [showModalDetails, setShowModalDetails] = useState(false);
+  const [coursADetailler, setCoursADetailler] = useState<Cours | null>(null);
+  const [showModalSuppression, setShowModalSuppression] = useState(false);
+  const [coursASupprimer, setCoursASupprimer] = useState<Cours | null>(null);
   const [rechercheTexte, setRechercheTexte] = useState("");
   const [filtreMatiere, setFiltreMatiere] = useState("");
   const [filtreNiveau, setFiltreNiveau] = useState("");
@@ -1283,12 +1389,68 @@ const CoursGestionnaire: React.FC = () => {
     }
   }, [utilisateur, navigate]);
 
+  // Charger les données au montage
+  useEffect(() => {
+    if (utilisateur) {
+      loadCours();
+      loadClasses();
+      loadProfesseurs();
+      loadAssignations();
+    }
+  }, [utilisateur]);
+
+  const loadCours = async () => {
+    try {
+      const response = await adminService.getCours();
+      if (response.success && response.data) {
+        setCours(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des cours:', error);
+    }
+  };
+
+  const loadClasses = async () => {
+    try {
+      const response = await adminService.getClasses();
+      if (response.success && response.data) {
+        setClasses(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des classes:', error);
+    }
+  };
+
+  const loadProfesseurs = async () => {
+    try {
+      const response = await adminService.getUtilisateurs({
+        page: 1,
+        limit: 100,
+        filters: { role: 'professeur' }
+      });
+      if (response.success && response.data) {
+        setProfesseurs(response.data.data as Professeur[]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des professeurs:', error);
+    }
+  };
+
+  const loadAssignations = async () => {
+    try {
+      // TODO: Implémenter l'appel au service pour charger les assignations
+      setAssignations([]);
+    } catch (error) {
+      console.error('Erreur lors du chargement des assignations:', error);
+    }
+  };
+
   // Filtrage des cours
   const coursFiltres = cours.filter(c => {
     const matchTexte = c.titre.toLowerCase().includes(rechercheTexte.toLowerCase()) ||
                       c.description.toLowerCase().includes(rechercheTexte.toLowerCase());
-    const matchMatiere = !filtreMatiere || matieresList[c.matiereId - 1] === filtreMatiere;
-    const matchNiveau = !filtreNiveau; // TODO: Implement niveau filtering based on classeId relationship
+    const matchMatiere = !filtreMatiere || c.matiereNom === filtreMatiere;
+    const matchNiveau = !filtreNiveau || c.niveauNom === filtreNiveau;
     const matchStatut = !filtreStatut || c.statut === filtreStatut;
     
     return matchTexte && matchMatiere && matchNiveau && matchStatut;
@@ -1333,19 +1495,30 @@ const CoursGestionnaire: React.FC = () => {
     setOngletActif("nouveau");
   };
 
-  const handleDeleteCours = (id: number) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce cours ?")) {
-      setCours(prev => prev.filter(c => c.id !== id));
+  const handleDeleteCours = (cours: Cours) => {
+    console.log("🗑️ handleDeleteCours appelé avec:", cours);
+    setCoursASupprimer(cours);
+    setShowModalSuppression(true);
+    console.log("✅ showModalSuppression mis à true, coursASupprimer:", cours);
+  };
+
+  const handleConfirmDelete = () => {
+    if (coursASupprimer) {
+      setCours(prev => prev.filter(c => c.id !== coursASupprimer.id));
       // Supprimer aussi les assignations liées
-      setAssignations(prev => prev.filter(a => a.coursId !== id));
+      setAssignations(prev => prev.filter(a => a.coursId !== coursASupprimer.id));
+      setShowModalSuppression(false);
+      setCoursASupprimer(null);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     }
   };
 
   const handleViewCours = (cours: Cours) => {
-    console.log("Voir détails du cours:", cours);
-    // Ici vous pourriez ouvrir un modal de détails
+    console.log("🔍 handleViewCours appelé avec:", cours);
+    setCoursADetailler(cours);
+    setShowModalDetails(true);
+    console.log("✅ showModalDetails mis à true");
   };
 
   const handleAssignCours = (cours: Cours) => {
@@ -1709,6 +1882,36 @@ const CoursGestionnaire: React.FC = () => {
               onClose={() => {
                 setShowModalAssignation(false);
                 setCoursAAssigner(null);
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Modal de détails du cours */}
+        <AnimatePresence>
+          {showModalDetails && coursADetailler && (
+            <ModalDetailsCours
+              key={coursADetailler.id}
+              cours={coursADetailler}
+              professeurs={professeurs}
+              onClose={() => {
+                setShowModalDetails(false);
+                setCoursADetailler(null);
+              }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Modal de confirmation de suppression */}
+        <AnimatePresence>
+          {showModalSuppression && coursASupprimer && (
+            <ModalConfirmationSuppression
+              key={coursASupprimer.id}
+              cours={coursASupprimer}
+              onConfirm={handleConfirmDelete}
+              onCancel={() => {
+                setShowModalSuppression(false);
+                setCoursASupprimer(null);
               }}
             />
           )}

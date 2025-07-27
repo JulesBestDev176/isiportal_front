@@ -1,163 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Niveau, MatiereNiveau, FormDataNiveau, NIVEAUX_SECTIONS, CYCLES } from '../../models/niveau.model';
-import { MATIERES_LIST } from '../../models/utilisateur.model';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Plus, Search, Filter, Edit3, Trash2, Layers, BookOpen,
-  UserCheck, AlertCircle, CheckCircle, X, Eye, ChevronDown
+  Plus, Search, Filter, Edit3, Trash2, Users, User, 
+  School, Mail, Phone, MapPin, Calendar, GraduationCap,
+  UserCheck, AlertCircle, CheckCircle, UserPlus, List, X,
+  Baby, Heart, FileText, Eye, ChevronDown, BookOpen, Settings,
+  Clock, Target, PlayCircle, Video, Volume2, Image, Link, File, Check, CalendarDays,
+  Info, BarChart3, Users2, Clock3, BookOpenCheck, CalendarCheck,
+  ArrowRight, ArrowLeft, RefreshCw, Download, Upload, EyeOff, Layers
 } from "lucide-react";
-
-// Mock data - Tous les niveaux de la 6ème à la Terminale
-const niveauxMock: Niveau[] = [
-  {
-    id: 1,
-    nom: "6ème",
-    ordre: 1,
-    section: "college",
-    cycle: "6ème",
-    description: "Première année du collège",
-    matieres: [
-      { id: 1, matiereId: 0, matiereNom: "Mathématiques", niveauId: 1, heuresParSemaine: 6, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 2, matiereId: 1, matiereNom: "Français", niveauId: 1, heuresParSemaine: 5, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 3, matiereId: 2, matiereNom: "Histoire-Géographie", niveauId: 1, heuresParSemaine: 4, coefficient: 3, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 4, matiereId: 3, matiereNom: "Anglais", niveauId: 1, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 5, matiereId: 6, matiereNom: "Physique-Chimie", niveauId: 1, heuresParSemaine: 2, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 6, matiereId: 7, matiereNom: "Sciences de la Vie et de la Terre", niveauId: 1, heuresParSemaine: 2, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 7, matiereId: 8, matiereNom: "Éducation Physique et Sportive", niveauId: 1, heuresParSemaine: 3, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 8, matiereId: 9, matiereNom: "Arts Plastiques", niveauId: 1, heuresParSemaine: 1, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 9, matiereId: 10, matiereNom: "Éducation Musicale", niveauId: 1, heuresParSemaine: 1, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 10, matiereId: 11, matiereNom: "Technologie", niveauId: 1, heuresParSemaine: 2, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" }
-    ],
-    actif: true,
-    dateCreation: "2024-01-01"
-  },
-  {
-    id: 2,
-    nom: "5ème",
-    ordre: 2,
-    section: "college",
-    cycle: "5ème",
-    description: "Deuxième année du collège",
-    matieres: [
-      { id: 11, matiereId: 0, matiereNom: "Mathématiques", niveauId: 2, heuresParSemaine: 5, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 12, matiereId: 1, matiereNom: "Français", niveauId: 2, heuresParSemaine: 5, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 13, matiereId: 2, matiereNom: "Histoire-Géographie", niveauId: 2, heuresParSemaine: 4, coefficient: 3, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 14, matiereId: 3, matiereNom: "Anglais", niveauId: 2, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 15, matiereId: 6, matiereNom: "Physique-Chimie", niveauId: 2, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 16, matiereId: 7, matiereNom: "Sciences de la Vie et de la Terre", niveauId: 2, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 17, matiereId: 8, matiereNom: "Éducation Physique et Sportive", niveauId: 2, heuresParSemaine: 3, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 18, matiereId: 9, matiereNom: "Arts Plastiques", niveauId: 2, heuresParSemaine: 1, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 19, matiereId: 10, matiereNom: "Éducation Musicale", niveauId: 2, heuresParSemaine: 1, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 20, matiereId: 11, matiereNom: "Technologie", niveauId: 2, heuresParSemaine: 2, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" }
-    ],
-    actif: true,
-    dateCreation: "2024-01-01"
-  },
-  {
-    id: 3,
-    nom: "4ème",
-    ordre: 3,
-    section: "college",
-    cycle: "4ème",
-    description: "Troisième année du collège",
-    matieres: [
-      { id: 21, matiereId: 0, matiereNom: "Mathématiques", niveauId: 3, heuresParSemaine: 5, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 22, matiereId: 1, matiereNom: "Français", niveauId: 3, heuresParSemaine: 5, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 23, matiereId: 2, matiereNom: "Histoire-Géographie", niveauId: 3, heuresParSemaine: 4, coefficient: 3, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 24, matiereId: 3, matiereNom: "Anglais", niveauId: 3, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 25, matiereId: 6, matiereNom: "Physique-Chimie", niveauId: 3, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 26, matiereId: 7, matiereNom: "Sciences de la Vie et de la Terre", niveauId: 3, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 27, matiereId: 8, matiereNom: "Éducation Physique et Sportive", niveauId: 3, heuresParSemaine: 3, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 28, matiereId: 9, matiereNom: "Arts Plastiques", niveauId: 3, heuresParSemaine: 1, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 29, matiereId: 10, matiereNom: "Éducation Musicale", niveauId: 3, heuresParSemaine: 1, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 30, matiereId: 11, matiereNom: "Technologie", niveauId: 3, heuresParSemaine: 2, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" }
-    ],
-    actif: true,
-    dateCreation: "2024-01-01"
-  },
-  {
-    id: 4,
-    nom: "3ème",
-    ordre: 4,
-    section: "college",
-    cycle: "3ème",
-    description: "Dernière année du collège",
-    matieres: [
-      { id: 31, matiereId: 0, matiereNom: "Mathématiques", niveauId: 4, heuresParSemaine: 5, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 32, matiereId: 1, matiereNom: "Français", niveauId: 4, heuresParSemaine: 5, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 33, matiereId: 2, matiereNom: "Histoire-Géographie", niveauId: 4, heuresParSemaine: 4, coefficient: 3, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 34, matiereId: 3, matiereNom: "Anglais", niveauId: 4, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 35, matiereId: 6, matiereNom: "Physique-Chimie", niveauId: 4, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 36, matiereId: 7, matiereNom: "Sciences de la Vie et de la Terre", niveauId: 4, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 37, matiereId: 8, matiereNom: "Éducation Physique et Sportive", niveauId: 4, heuresParSemaine: 3, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 38, matiereId: 9, matiereNom: "Arts Plastiques", niveauId: 4, heuresParSemaine: 1, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 39, matiereId: 10, matiereNom: "Éducation Musicale", niveauId: 4, heuresParSemaine: 1, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 40, matiereId: 11, matiereNom: "Technologie", niveauId: 4, heuresParSemaine: 2, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" }
-    ],
-    actif: true,
-    dateCreation: "2024-01-01"
-  },
-  {
-    id: 5,
-    nom: "2nde",
-    ordre: 1,
-    section: "lycee",
-    cycle: "2nde",
-    description: "Première année du lycée",
-    matieres: [
-      { id: 41, matiereId: 0, matiereNom: "Mathématiques", niveauId: 5, heuresParSemaine: 4, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 42, matiereId: 1, matiereNom: "Français", niveauId: 5, heuresParSemaine: 4, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 43, matiereId: 2, matiereNom: "Histoire-Géographie", niveauId: 5, heuresParSemaine: 3, coefficient: 3, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 44, matiereId: 3, matiereNom: "Anglais", niveauId: 5, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 45, matiereId: 6, matiereNom: "Physique-Chimie", niveauId: 5, heuresParSemaine: 3, coefficient: 3, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 46, matiereId: 7, matiereNom: "Sciences de la Vie et de la Terre", niveauId: 5, heuresParSemaine: 2, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 47, matiereId: 8, matiereNom: "Éducation Physique et Sportive", niveauId: 5, heuresParSemaine: 2, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 48, matiereId: 12, matiereNom: "Philosophie", niveauId: 5, heuresParSemaine: 1, coefficient: 1, obligatoire: false, dateCreation: "2024-01-01" }
-    ],
-    actif: true,
-    dateCreation: "2024-01-01"
-  },
-  {
-    id: 6,
-    nom: "1ère",
-    ordre: 2,
-    section: "lycee",
-    cycle: "1ère",
-    description: "Deuxième année du lycée",
-    matieres: [
-      { id: 49, matiereId: 0, matiereNom: "Mathématiques", niveauId: 6, heuresParSemaine: 4, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 50, matiereId: 1, matiereNom: "Français", niveauId: 6, heuresParSemaine: 4, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 51, matiereId: 2, matiereNom: "Histoire-Géographie", niveauId: 6, heuresParSemaine: 3, coefficient: 3, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 52, matiereId: 3, matiereNom: "Anglais", niveauId: 6, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 53, matiereId: 6, matiereNom: "Physique-Chimie", niveauId: 6, heuresParSemaine: 3, coefficient: 3, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 54, matiereId: 7, matiereNom: "Sciences de la Vie et de la Terre", niveauId: 6, heuresParSemaine: 2, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 55, matiereId: 8, matiereNom: "Éducation Physique et Sportive", niveauId: 6, heuresParSemaine: 2, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 56, matiereId: 12, matiereNom: "Philosophie", niveauId: 6, heuresParSemaine: 2, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" }
-    ],
-    actif: true,
-    dateCreation: "2024-01-01"
-  },
-  {
-    id: 7,
-    nom: "Terminale",
-    ordre: 3,
-    section: "lycee",
-    cycle: "Terminale",
-    description: "Dernière année du lycée",
-    matieres: [
-      { id: 57, matiereId: 0, matiereNom: "Mathématiques", niveauId: 7, heuresParSemaine: 6, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 58, matiereId: 1, matiereNom: "Français", niveauId: 7, heuresParSemaine: 4, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 59, matiereId: 2, matiereNom: "Histoire-Géographie", niveauId: 7, heuresParSemaine: 3, coefficient: 3, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 60, matiereId: 3, matiereNom: "Anglais", niveauId: 7, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 61, matiereId: 6, matiereNom: "Physique-Chimie", niveauId: 7, heuresParSemaine: 4, coefficient: 3, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 62, matiereId: 7, matiereNom: "Sciences de la Vie et de la Terre", niveauId: 7, heuresParSemaine: 3, coefficient: 2, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 63, matiereId: 8, matiereNom: "Éducation Physique et Sportive", niveauId: 7, heuresParSemaine: 2, coefficient: 1, obligatoire: true, dateCreation: "2024-01-01" },
-      { id: 64, matiereId: 12, matiereNom: "Philosophie", niveauId: 7, heuresParSemaine: 4, coefficient: 4, obligatoire: true, dateCreation: "2024-01-01" }
-    ],
-    actif: true,
-    dateCreation: "2024-01-01"
-  }
-];
+import { Niveau, MatiereNiveauNiveau, FormDataNiveau, NIVEAUX_SECTIONS, CYCLES } from '../../models/niveau.model';
+import { MATIERES_LIST } from '../../models/utilisateur.model';
+import { adminService } from '../../services/adminService';
+import { notificationService } from '../../services/notificationService';
+import { useAuth } from '../../contexts/ContexteAuth';
 
 // Composant Modal
 const Modal: React.FC<{
@@ -397,8 +253,8 @@ const GestionMatieres: React.FC<{
   onClose: () => void;
   onSave: (niveau: Niveau) => void;
 }> = ({ niveau, onClose, onSave }) => {
-  const [matieres, setMatieres] = useState<MatiereNiveau[]>(niveau.matieres);
-  const [nouvelleMatiere, setNouvelleMatiere] = useState<Partial<MatiereNiveau>>({
+  const [matieres, setMatieres] = useState<MatiereNiveauNiveau[]>(niveau.matieres);
+  const [nouvelleMatiere, setNouvelleMatiere] = useState<Partial<MatiereNiveauNiveau>>({
     matiereId: 0,
     matiereNom: "",
     heuresParSemaine: 1,
@@ -408,7 +264,7 @@ const GestionMatieres: React.FC<{
 
   const ajouterMatiere = () => {
     if (nouvelleMatiere.matiereNom && nouvelleMatiere.heuresParSemaine && nouvelleMatiere.coefficient) {
-      const matiere: MatiereNiveau = {
+      const matiere: MatiereNiveauNiveau = {
         id: Date.now(),
         matiereId: nouvelleMatiere.matiereId || 0,
         matiereNom: nouvelleMatiere.matiereNom,
@@ -433,7 +289,7 @@ const GestionMatieres: React.FC<{
     setMatieres(matieres.filter(m => m.id !== id));
   };
 
-  const modifierMatiere = (id: number, field: keyof MatiereNiveau, value: any) => {
+  const modifierMatiere = (id: number, field: keyof MatiereNiveauNiveau, value: any) => {
     setMatieres(matieres.map(m => m.id === id ? { ...m, [field]: value } : m));
   };
 
@@ -636,7 +492,7 @@ const FormulaireNiveau: React.FC<{
   };
 
   const ajouterMatiere = () => {
-    const nouvelleMatiere: MatiereNiveau = {
+    const nouvelleMatiere: MatiereNiveauNiveau = {
       id: Date.now(),
       matiereId: 0,
       matiereNom: MATIERES_LIST[0],
@@ -660,7 +516,7 @@ const FormulaireNiveau: React.FC<{
     }));
   };
 
-  const modifierMatiere = (index: number, field: keyof MatiereNiveau, value: any) => {
+  const modifierMatiere = (index: number, field: keyof MatiereNiveauNiveau, value: any) => {
     setFormData(prev => ({
       ...prev,
       matieres: prev.matieres.map((matiere, i) => 
@@ -872,108 +728,135 @@ const FormulaireNiveau: React.FC<{
 
 // Composant principal
 const Niveaux: React.FC = () => {
-  // Simulation de l'utilisateur connecté
-  const [utilisateurConnecte] = useState({
-    role: "administrateur", // ou "gestionnaire"
-    section: "college" // "college" ou "lycee"
-  });
-
-  const [niveaux, setNiveaux] = useState<Niveau[]>(niveauxMock);
-  const [filteredNiveaux, setFilteredNiveaux] = useState<Niveau[]>(niveauxMock);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sectionFilter, setSectionFilter] = useState<string>("Toutes les sections");
-  const [activeTab, setActiveTab] = useState<"liste" | "ajout">("liste");
-  const [modalMatieres, setModalMatieres] = useState(false);
+  const { utilisateur } = useAuth();
+  const [activeTab, setActiveTab] = useState<"liste" | "ajouter">("liste");
+  const [showModalAjout, setShowModalAjout] = useState(false);
   const [niveauAModifier, setNiveauAModifier] = useState<Niveau | null>(null);
-  const [niveauMatieres, setNiveauMatieres] = useState<Niveau | null>(null);
-  const [modeEdition, setModeEdition] = useState(false);
-  const [modalSuppression, setModalSuppression] = useState(false);
+  const [showModalModification, setShowModalModification] = useState(false);
+  const [showModalDetails, setShowModalDetails] = useState(false);
+  const [niveauSelectionne, setNiveauSelectionne] = useState<Niveau | null>(null);
+  const [niveaux, setNiveaux] = useState<Niveau[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [sectionFilter, setSectionFilter] = useState<string>("Toutes les sections");
+  const [filteredNiveaux, setFilteredNiveaux] = useState<Niveau[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showModalSuppression, setShowModalSuppression] = useState(false);
   const [niveauASupprimer, setNiveauASupprimer] = useState<Niveau | null>(null);
+  const [showModalMatieres, setShowModalMatieres] = useState(false);
+  const [niveauPourMatieres, setNiveauPourMatieres] = useState<Niveau | null>(null);
 
-  // Filtrage des niveaux selon les permissions et recherche
+  // Charger les données au montage
   useEffect(() => {
-    let filtered = niveaux.filter(niveau => {
-      if (utilisateurConnecte.role === "administrateur") {
-        return true; // L'admin peut voir tous les niveaux
-      } else if (utilisateurConnecte.role === "gestionnaire") {
-        return niveau.section === utilisateurConnecte.section;
+    loadNiveaux();
+    loadNotifications();
+  }, []);
+
+  const loadNiveaux = async () => {
+    setLoading(true);
+    try {
+      const response = await adminService.getNiveaux();
+      if (response.success && response.data) {
+        setNiveaux(response.data);
       }
-      return false;
-    });
-
-    // Filtrage par section
-    if (sectionFilter !== "Toutes les sections") {
-      filtered = filtered.filter(niveau => 
-        niveau.section === sectionFilter.toLowerCase()
-      );
+    } catch (error) {
+      console.error('Erreur lors du chargement des niveaux:', error);
+    } finally {
+      setLoading(false);
     }
-
-    // Filtrage par recherche
-    if (searchTerm) {
-      filtered = filtered.filter(niveau => 
-        niveau.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (niveau.description?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-        niveau.cycle.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredNiveaux(filtered);
-  }, [niveaux, searchTerm, sectionFilter, utilisateurConnecte]);
-
-  const ajouterNiveau = (nouveauNiveau: Niveau) => {
-    setNiveaux([...niveaux, nouveauNiveau]);
-    setActiveTab("liste");
-    setNiveauAModifier(null);
-    setModeEdition(false);
   };
 
-  const modifierNiveau = (niveauModifie: Niveau) => {
-    setNiveaux(niveaux.map(n => n.id === niveauModifie.id ? niveauModifie : n));
-    setActiveTab("liste");
-    setNiveauAModifier(null);
-    setModeEdition(false);
+  const loadNotifications = async () => {
+    if (utilisateur?.id) {
+      try {
+        const response = await notificationService.getNotifications(utilisateur.id);
+        if (response.success && response.data) {
+          setNotifications(response.data);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des notifications:', error);
+      }
+    }
   };
 
-  const supprimerNiveau = (niveau: Niveau) => {
-    setNiveaux(niveaux.filter(n => n.id !== niveau.id));
-    setModalSuppression(false);
-    setNiveauASupprimer(null);
+  const handleCreateNiveau = async (niveau: Omit<Niveau, 'id' | 'dateCreation'>) => {
+    try {
+      const response = await adminService.createNiveau(niveau);
+      if (response.success) {
+        setShowModalAjout(false);
+        loadNiveaux(); // Recharger la liste
+        console.log('Niveau créé avec succès');
+      } else {
+        console.error('Erreur lors de la création:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la création du niveau:', error);
+    }
+  };
+
+  const handleUpdateNiveau = async (id: number, updates: Partial<Niveau>) => {
+    try {
+      const response = await adminService.updateNiveau(id, updates);
+      if (response.success) {
+        setShowModalModification(false);
+        setNiveauAModifier(null);
+        loadNiveaux(); // Recharger la liste
+        console.log('Niveau mis à jour avec succès');
+      } else {
+        console.error('Erreur lors de la mise à jour:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du niveau:', error);
+    }
+  };
+
+  const handleDeleteNiveau = async (id: number) => {
+    try {
+      const response = await adminService.deleteNiveau(id);
+      if (response.success) {
+        loadNiveaux(); // Recharger la liste
+        console.log('Niveau supprimé avec succès');
+      } else {
+        console.error('Erreur lors de la suppression:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la suppression du niveau:', error);
+    }
   };
 
   const ouvrirModalModification = (niveau: Niveau) => {
     setNiveauAModifier(niveau);
-    setModeEdition(true);
-    setActiveTab("ajout");
+    setShowModalModification(true);
   };
 
   const ouvrirModalAjout = () => {
     setNiveauAModifier(null);
-    setModeEdition(false);
-    setActiveTab("ajout");
+    setShowModalModification(false);
+    setActiveTab("ajouter");
   };
 
   const ouvrirModalSuppression = (niveau: Niveau) => {
     setNiveauASupprimer(niveau);
-    setModalSuppression(true);
+    setShowModalSuppression(true);
   };
 
   const ouvrirModalMatieres = (niveau: Niveau) => {
-    setNiveauMatieres(niveau);
-    setModalMatieres(true);
+    setNiveauPourMatieres(niveau);
+    setShowModalMatieres(true);
   };
 
 
 
   const fermerModalMatieres = () => {
-    setModalMatieres(false);
-    setNiveauMatieres(null);
+    setShowModalMatieres(false);
+    setNiveauPourMatieres(null);
   };
 
   const handleSubmit = (niveau: Niveau) => {
-    if (modeEdition) {
-      modifierNiveau(niveau);
+    if (showModalModification) { // Changed to showModalModification
+      handleUpdateNiveau(niveau.id, niveau);
     } else {
-      ajouterNiveau(niveau);
+      handleCreateNiveau(niveau);
     }
   };
 
@@ -1006,11 +889,11 @@ const Niveaux: React.FC = () => {
                 Liste des niveaux
               </div>
             </button>
-            {(utilisateurConnecte.role === "administrateur" || utilisateurConnecte.role === "gestionnaire") && (
+            {(utilisateur?.role === "administrateur" || utilisateur?.role === "gestionnaire") && (
               <button
-                onClick={() => setActiveTab("ajout")}
+                onClick={() => setActiveTab("ajouter")}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === "ajout"
+                  activeTab === "ajouter"
                     ? "border-blue-500 text-blue-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
@@ -1032,7 +915,7 @@ const Niveaux: React.FC = () => {
           <div className="flex justify-between items-center mb-6">
             <div className="flex gap-4">
               {/* Filtre par section - seulement pour les admins */}
-              {utilisateurConnecte.role === "administrateur" && (
+              {utilisateur?.role === "administrateur" && (
                 <select
                   value={sectionFilter}
                   onChange={(e) => setSectionFilter(e.target.value)}
@@ -1045,15 +928,15 @@ const Niveaux: React.FC = () => {
               )}
 
               {/* Message pour les gestionnaires */}
-              {utilisateurConnecte.role === "gestionnaire" && (
+              {utilisateur?.role === "gestionnaire" && (
                 <div className="text-sm text-gray-600">
-                  Vous gérez uniquement les niveaux de votre section ({utilisateurConnecte.section === "college" ? "Collège" : "Lycée"})
+                  Vous gérez uniquement les niveaux de votre section (Collège)
                 </div>
               )}
             </div>
 
             {/* Bouton Nouveau niveau */}
-            {(utilisateurConnecte.role === "administrateur" || utilisateurConnecte.role === "gestionnaire") && (
+            {(utilisateur?.role === "administrateur" || utilisateur?.role === "gestionnaire") && (
               <button
                 onClick={ouvrirModalAjout}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -1078,19 +961,19 @@ const Niveaux: React.FC = () => {
         <div>
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">
-              {modeEdition ? "Modifier le niveau" : "Ajouter un nouveau niveau"}
+              {showModalModification ? "Modifier le niveau" : "Ajouter un nouveau niveau"}
             </h2>
             <FormulaireNiveau
               onSubmit={handleSubmit}
               onClose={() => {
                 setActiveTab("liste");
                 setNiveauAModifier(null);
-                setModeEdition(false);
+                setShowModalModification(false); // Changed to showModalModification
               }}
               niveauAModifier={niveauAModifier || undefined}
-              modeEdition={modeEdition}
-              utilisateurRole={utilisateurConnecte.role}
-              utilisateurSection={utilisateurConnecte.section}
+              modeEdition={showModalModification} // Changed to showModalModification
+              utilisateurRole={utilisateur?.role}
+              utilisateurSection={"college"}
             />
           </div>
         </div>
@@ -1100,14 +983,14 @@ const Niveaux: React.FC = () => {
 
       {/* Modal pour gérer les matières */}
       <Modal
-        isOpen={modalMatieres}
+        isOpen={showModalMatieres} // Changed to showModalMatieres
         onClose={fermerModalMatieres}
         title="Gestion des matières"
         size="xl"
       >
-        {niveauMatieres && (
+        {niveauPourMatieres && (
           <GestionMatieres
-            niveau={niveauMatieres}
+            niveau={niveauPourMatieres}
             onClose={fermerModalMatieres}
             onSave={sauvegarderMatieres}
           />
@@ -1116,8 +999,8 @@ const Niveaux: React.FC = () => {
 
       {/* Modal de confirmation de suppression */}
       <Modal
-        isOpen={modalSuppression}
-        onClose={() => setModalSuppression(false)}
+        isOpen={showModalSuppression} // Changed to showModalSuppression
+        onClose={() => setShowModalSuppression(false)} // Changed to showModalSuppression
         title="Confirmer la suppression"
         size="sm"
       >
@@ -1136,13 +1019,13 @@ const Niveaux: React.FC = () => {
           </div>
           <div className="flex justify-end gap-3">
             <button
-              onClick={() => setModalSuppression(false)}
+              onClick={() => setShowModalSuppression(false)} // Changed to showModalSuppression
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
             >
               Annuler
             </button>
             <button
-              onClick={() => niveauASupprimer && supprimerNiveau(niveauASupprimer)}
+              onClick={() => niveauASupprimer && handleDeleteNiveau(niveauASupprimer.id)}
               className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
             >
               Supprimer

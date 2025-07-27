@@ -1,144 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Search, Filter, Edit3, Trash2, Users, User, 
   School, Mail, Phone, MapPin, Calendar, GraduationCap,
   UserCheck, AlertCircle, CheckCircle, UserPlus, List, X,
   Baby, Heart, FileText, Eye, ChevronDown, BookOpen,
-  Clock, Target, PlayCircle, Video, Volume2, Image, Link, File
+  Clock, Target, PlayCircle, Video, Volume2, Image, Link, File, Check, CalendarDays,
+  Info, Settings, BarChart3, Users2, Clock3, BookOpenCheck, CalendarCheck,
+  Headphones,
+  BookOpen as BookOpenIcon,
+  Plus as PlusIcon,
+  Edit as EditIcon,
+  Trash2 as Trash2Icon,
+  Search as SearchIcon,
+  Filter as FilterIcon,
+  Calendar as CalendarIcon,
+  Clock as ClockIcon,
+  Users as UsersIcon,
+  Eye as EyeIcon,
+  Settings as SettingsIcon,
+  FileText as FileTextIcon,
+  Video as VideoIcon,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Download as DownloadIcon,
+  Share2 as Share2Icon,
+  Star as StarIcon,
+  CheckCircle as CheckCircleIcon,
+  AlertCircle as AlertCircleIcon,
+  ChevronDown as ChevronDownIcon,
+  ChevronRight as ChevronRightIcon,
+  Play as PlayIcon,
+  Pause as PauseIcon,
+  SkipForward as SkipForwardIcon,
+  SkipBack as SkipBackIcon,
+  Volume2 as Volume2Icon,
+  Maximize as MaximizeIcon,
+  Minimize as MinimizeIcon,
+  RotateCcw as RotateCcwIcon,
+  Target as TargetIcon,
+  PlayCircle as PlayCircleIcon,
+  Check as CheckIcon,
+  CalendarDays as CalendarDaysIcon,
+  Info as InfoIcon,
+  BarChart3 as BarChart3Icon,
+  Users2 as Users2Icon,
+  Clock3 as Clock3Icon,
+  BookOpenCheck as BookOpenCheckIcon,
+  CalendarCheck as CalendarCheckIcon,
+  ArrowRight as ArrowRightIcon,
+  ArrowLeft as ArrowLeftIcon,
+  RefreshCw as RefreshCwIcon,
+  Upload as UploadIcon,
+  EyeOff as EyeOffIcon,
+  UserX as UserXIcon
 } from "lucide-react";
-
-// Import des modèles
-import { Cours, FormDataCours, CoursErrors, STATUTS_COURS, TYPES_RESSOURCE } from '../../models/cours.model';
+import { Cours, FormDataCours, CoursErrors, Creneau, STATUTS_COURS } from '../../models/cours.model';
+import { JOURS_SEMAINE } from '../../models/emploi-du-temps.model';
 import { Niveau } from '../../models/niveau.model';
 import { Matiere } from '../../models/matiere.model';
 import { Professeur } from '../../models/utilisateur.model';
 import { AnneeScolaire } from '../../models/annee-scolaire.model';
+import { adminService } from '../../services/adminService';
+import { matiereService } from '../../services/matiereService';
+import { notificationService } from '../../services/notificationService';
+import { useAuth } from '../../contexts/ContexteAuth';
+import { eleveService } from '../../services/eleveService';
 
-// Mock data - remplacez par vos vrais modèles
-const coursMock: Cours[] = [
-  {
-    id: 1,
-    titre: "Algèbre et Géométrie",
-    description: "Cours de mathématiques niveau 6ème comprenant les opérations de base et la géométrie plane",
-    matiereId: 1,
-    matiereNom: "Mathématiques",
-    niveauId: 1,
-    niveauNom: "6ème",
-    professeurId: 1,
-    professeurNom: "Fall Amadou",
-    anneeScolaireId: 1,
-    anneeScolaireNom: "2023-2024",
-    semestresIds: [1, 2],
-    dateCreation: "2024-09-01",
-    heuresParSemaine: 4,
-    coefficient: 3,
-    statut: "en_cours",
-    ressources: [
-      {
-        id: 1,
-        nom: "Manuel de mathématiques 6ème",
-        type: "pdf",
-        url: "#",
-        taille: "2.5 MB",
-        obligatoire: true,
-        dateAjout: "2024-09-01"
-      },
-      {
-        id: 2,
-        nom: "Vidéo explicative - Les fractions",
-        type: "video",
-        url: "#",
-        obligatoire: false,
-        dateAjout: "2024-09-15"
-      }
-    ]
-  },
-  {
-    id: 2,
-    titre: "Littérature française",
-    description: "Étude des œuvres classiques et développement de l'expression écrite",
-    matiereId: 2,
-    matiereNom: "Français",
-    niveauId: 2,
-    niveauNom: "5ème",
-    professeurId: 2,
-    professeurNom: "Ndiaye Fatou",
-    anneeScolaireId: 1,
-    anneeScolaireNom: "2023-2024",
-    semestresIds: [1],
-    dateCreation: "2024-09-01",
-    heuresParSemaine: 5,
-    coefficient: 4,
-    statut: "planifie",
-    ressources: [
-      {
-        id: 3,
-        nom: "Anthologie de textes",
-        type: "pdf",
-        url: "#",
-        taille: "3.2 MB",
-        obligatoire: true,
-        dateAjout: "2024-09-01"
-      }
-    ]
-  },
-  {
-    id: 3,
-    titre: "Sciences physiques",
-    description: "Introduction aux concepts de base de la physique et de la chimie",
-    matiereId: 3,
-    matiereNom: "Physique-Chimie",
-    niveauId: 3,
-    niveauNom: "4ème",
-    professeurId: 3,
-    professeurNom: "Diouf Moussa",
-    anneeScolaireId: 1,
-    anneeScolaireNom: "2023-2024",
-    semestresIds: [1, 2],
-    dateCreation: "2024-09-01",
-    heuresParSemaine: 3,
-    coefficient: 2,
-    statut: "en_cours",
-    ressources: []
-  }
-];
 
-// Données mock pour les niveaux
-const niveauxMock: Niveau[] = [
-  { id: 1, nom: "6ème", ordre: 1, section: "college", cycle: "Collège", description: "Sixième", matieres: [], actif: true, dateCreation: "2023-01-01" },
-  { id: 2, nom: "5ème", ordre: 2, section: "college", cycle: "Collège", description: "Cinquième", matieres: [], actif: true, dateCreation: "2023-01-01" },
-  { id: 3, nom: "4ème", ordre: 3, section: "college", cycle: "Collège", description: "Quatrième", matieres: [], actif: true, dateCreation: "2023-01-01" },
-  { id: 4, nom: "3ème", ordre: 4, section: "college", cycle: "Collège", description: "Troisième", matieres: [], actif: true, dateCreation: "2023-01-01" },
-  { id: 5, nom: "2nde", ordre: 1, section: "lycee", cycle: "Lycée", description: "Seconde", matieres: [], actif: true, dateCreation: "2023-01-01" },
-  { id: 6, nom: "1ère", ordre: 2, section: "lycee", cycle: "Lycée", description: "Première", matieres: [], actif: true, dateCreation: "2023-01-01" },
-  { id: 7, nom: "Terminale", ordre: 3, section: "lycee", cycle: "Lycée", description: "Terminale", matieres: [], actif: true, dateCreation: "2023-01-01" }
-];
-
-// Données mock pour les années scolaires
-const anneesScolairesMock: AnneeScolaire[] = [
-  { id: 1, nom: "2023-2024", anneeDebut: 2023, anneeFin: 2024, dateDebut: "2023-09-01", dateFin: "2024-07-31", statut: "active", description: "Année scolaire 2023-2024", dateCreation: "2023-06-01", dateModification: "2023-09-01" },
-  { id: 2, nom: "2022-2023", anneeDebut: 2022, anneeFin: 2023, dateDebut: "2022-09-01", dateFin: "2023-07-31", statut: "terminee", description: "Année scolaire 2022-2023", dateCreation: "2022-06-01", dateModification: "2023-07-31" },
-  { id: 3, nom: "2024-2025", anneeDebut: 2024, anneeFin: 2025, dateDebut: "2024-09-01", dateFin: "2025-07-31", statut: "planifiee", description: "Année scolaire 2024-2025", dateCreation: "2024-06-01" }
-];
-
-// Données mock pour les professeurs
-const professeursMock: Professeur[] = [
-  { id: 1, nom: "Fall", prenom: "Amadou", email: "amadou.fall@ecole.fr", role: "professeur", sections: ["college"], matieres: [1], cours: [], dateCreation: "2023-01-01", actif: true },
-  { id: 2, nom: "Ndiaye", prenom: "Fatou", email: "fatou.ndiaye@ecole.fr", role: "professeur", sections: ["college"], matieres: [2], cours: [], dateCreation: "2023-01-01", actif: true },
-  { id: 3, nom: "Diouf", prenom: "Moussa", email: "moussa.diouf@ecole.fr", role: "professeur", sections: ["college"], matieres: [3], cours: [], dateCreation: "2023-01-01", actif: true },
-  { id: 4, nom: "Ba", prenom: "Aissatou", email: "aissatou.ba@ecole.fr", role: "professeur", sections: ["college"], matieres: [4], cours: [], dateCreation: "2023-01-01", actif: true }
-];
-
-// Données mock pour les matières
-const matieresMock: Matiere[] = [
-  { id: 1, nom: "Mathématiques", code: "MATH", description: "Mathématiques", couleur: "#3B82F6", coefficient: 4, niveaux: [1, 2, 3, 4, 5, 6, 7], dateCreation: "2023-01-01", statut: "active" },
-  { id: 2, nom: "Français", code: "FRAN", description: "Français", couleur: "#EF4444", coefficient: 3, niveaux: [1, 2, 3, 4, 5, 6, 7], dateCreation: "2023-01-01", statut: "active" },
-  { id: 3, nom: "Physique-Chimie", code: "PHYS", description: "Physique-Chimie", couleur: "#06B6D4", coefficient: 2, niveaux: [3, 4, 5, 6, 7], dateCreation: "2023-01-01", statut: "active" },
-  { id: 4, nom: "Histoire-Géographie", code: "HIST", description: "Histoire-Géographie", couleur: "#F59E0B", coefficient: 2, niveaux: [1, 2, 3, 4, 5, 6, 7], dateCreation: "2023-01-01", statut: "active" },
-  { id: 5, nom: "Anglais", code: "ANGL", description: "Anglais", couleur: "#10B981", coefficient: 2, niveaux: [1, 2, 3, 4, 5, 6, 7], dateCreation: "2023-01-01", statut: "active" },
-  { id: 6, nom: "SVT", code: "SVT", description: "Sciences de la Vie et de la Terre", couleur: "#84CC16", coefficient: 2, niveaux: [1, 2, 3, 4, 5, 6, 7], dateCreation: "2023-01-01", statut: "active" }
-];
+// TODO: Remplacer par des appels aux services appropriés
 
 // Composant Modal
 const Modal: React.FC<{
@@ -190,36 +120,152 @@ const FormulaireCours: React.FC<{
   onClose: () => void;
   coursAModifier?: Cours;
   modeEdition?: boolean;
-}> = ({ onSubmit, onClose, coursAModifier, modeEdition = false }) => {
+  classes: any[];
+  professeurs: Professeur[];
+}> = ({ onSubmit, onClose, coursAModifier, modeEdition = false, classes, professeurs }) => {
   const [formData, setFormData] = useState<FormDataCours>({
     titre: coursAModifier?.titre || "",
     description: coursAModifier?.description || "",
     matiereId: coursAModifier?.matiereId?.toString() || "",
     niveauId: coursAModifier?.niveauId?.toString() || "",
-    professeurId: coursAModifier?.professeurId?.toString() || "",
     anneeScolaireId: coursAModifier?.anneeScolaireId?.toString() || "",
-    heuresParSemaine: coursAModifier?.heuresParSemaine || 1,
-    coefficient: coursAModifier?.coefficient || 1,
-    statut: coursAModifier?.statut || "active"
+    semestresIds: coursAModifier?.semestresIds || [1, 2],
+    heuresParSemaine: coursAModifier?.heuresParSemaine || 0,
+    coefficient: coursAModifier?.coefficient || 0,
+    statut: coursAModifier?.statut || "planifie" as const,
+    creneaux: coursAModifier?.creneaux || []
   });
 
   const [errors, setErrors] = useState<CoursErrors>({});
   const [loading, setLoading] = useState(false);
+  const [matieres, setMatieres] = useState<any[]>([]);
+  const [niveaux, setNiveaux] = useState<any[]>([]);
+  const [anneesScolaires, setAnneesScolaires] = useState<any[]>([]);
+  interface AssignationProfClasse {
+    classeId: number;
+    classeNom: string;
+    professeurId: number;
+    professeurNom: string;
+  }
 
-  const matieres = matieresMock;
-  const niveaux = niveauxMock;
-  const professeurs = professeursMock;
-  const anneesScolaires = anneesScolairesMock;
+  const [assignationsProfesseurs, setAssignationsProfesseurs] = useState<AssignationProfClasse[]>([]);
+
+  // Récupérer les matières disponibles pour le niveau sélectionné
+  const matieresDuNiveau = formData.niveauId ? 
+    matieres.filter((m: any) => m.niveaux && m.niveaux.includes(parseInt(formData.niveauId))) : [];
+
+  // Récupérer les informations de la matière sélectionnée
+  const matiereNiveauSelectionnee = formData.matiereId && formData.niveauId ?
+    matieres.find((m: any) => m.id === parseInt(formData.matiereId) && m.niveaux && m.niveaux.includes(parseInt(formData.niveauId))) : null;
+
+  // Mettre à jour automatiquement les heures et coefficient quand la matière change
+  useEffect(() => {
+    if (matiereNiveauSelectionnee) {
+      setFormData(prev => ({
+        ...prev,
+        heuresParSemaine: (matiereNiveauSelectionnee as any).heuresParSemaine || 0,
+        coefficient: (matiereNiveauSelectionnee as any).coefficient || 1
+      }));
+    }
+  }, [matiereNiveauSelectionnee]);
+
+  // Obtenir les classes du niveau sélectionné
+  const classesDuNiveau = classes.filter(classe => classe.niveauId === parseInt(formData.niveauId));
+
+  // Obtenir les professeurs de la matière sélectionnée
+  const professeursDeLaMatiere = professeurs.filter(prof => 
+    prof.matieres && prof.matieres.includes(parseInt(formData.matiereId))
+  );
+
+  // Initialiser les assignations quand le niveau change
+  useEffect(() => {
+    const nouvellesAssignations = classesDuNiveau.map(classe => ({
+      classeId: classe.id,
+      classeNom: classe.nom,
+      professeurId: 0,
+      professeurNom: ""
+    }));
+    setAssignationsProfesseurs(nouvellesAssignations);
+  }, [formData.niveauId]);
+
+  // Mettre à jour le nom du professeur quand l'ID change
+  const updateProfesseurNom = (classeId: number, professeurId: number) => {
+    const professeur = professeursDeLaMatiere.find(p => p.id === professeurId);
+    setAssignationsProfesseurs(prev => 
+      prev.map(assignation => 
+        assignation.classeId === classeId 
+          ? { ...assignation, professeurId, professeurNom: professeur ? `${professeur.prenom} ${professeur.nom}` : "" }
+          : assignation
+      )
+    );
+  };
+
+  // Ajouter un créneau
+  const ajouterCreneau = () => {
+    const nouveauCreneau: Creneau = {
+      id: Date.now(),
+      jour: "lundi",
+      heureDebut: "08:00",
+      heureFin: "10:00",
+      salleId: 1, // ID de la première salle par défaut
+      salleNom: "Salle 101", // Nom de la salle par défaut
+      classeId: parseInt(formData.niveauId),
+      professeurId: 1,
+      classeNom: "Classe",
+      professeurNom: "Professeur"
+    };
+    setFormData({
+      ...formData,
+      creneaux: [...(formData.creneaux || []), nouveauCreneau]
+    });
+  };
+
+  // Supprimer un créneau
+  const supprimerCreneau = (id: number) => {
+    setFormData({
+      ...formData,
+      creneaux: (formData.creneaux || []).filter((creneau: Creneau) => creneau.id !== id)
+    });
+  };
+
+  // Mettre à jour un créneau
+  const updateCreneau = (id: number, field: keyof Creneau, value: string | number) => {
+    setFormData({
+      ...formData,
+      creneaux: (formData.creneaux || []).map((creneau: Creneau) => 
+        creneau.id === id ? { ...creneau, [field]: value } : creneau
+      )
+    });
+  };
 
   const validateForm = () => {
     const newErrors: CoursErrors = {};
     if (!formData.titre.trim()) newErrors.titre = "Le titre est requis";
     if (!formData.description.trim()) newErrors.description = "La description est requise";
-    if (!formData.matiereId) newErrors.matiereId = "La matière est requise";
-    if (!formData.niveauId) newErrors.niveauId = "Le niveau est requis";
-    if (!formData.professeurId) newErrors.professeurId = "Le professeur est requis";
-    if (!formData.anneeScolaireId) newErrors.anneeScolaireId = "L'année scolaire est requise";
-    if (!formData.heuresParSemaine || formData.heuresParSemaine < 1) newErrors.heuresParSemaine = "Le nombre d'heures doit être supérieur à 0";
+    if (!formData.matiereId || formData.matiereId === "") newErrors.matiereId = "La matière est requise";
+    if (!formData.niveauId || formData.niveauId === "") newErrors.niveauId = "Le niveau est requis";
+    if (!formData.anneeScolaireId || formData.anneeScolaireId === "") newErrors.anneeScolaireId = "L'année scolaire est requise";
+    if (!formData.semestresIds || formData.semestresIds.length === 0) {
+      newErrors.semestresIds = "Au moins un semestre doit être sélectionné";
+    }
+
+    // Validation des assignations de professeurs
+    const assignationsIncompletes = assignationsProfesseurs.filter(assignation => assignation.professeurId === 0);
+    if (assignationsIncompletes.length > 0) {
+      newErrors.assignations = `Veuillez assigner un professeur pour ${assignationsIncompletes.length} classe(s)`;
+    }
+
+    // Validation des créneaux
+    const totalHeuresCreneaux = (formData.creneaux || []).reduce((total: number, creneau: Creneau) => {
+      const debut = new Date(`2000-01-01T${creneau.heureDebut}`);
+      const fin = new Date(`2000-01-01T${creneau.heureFin}`);
+      const heures = (fin.getTime() - debut.getTime()) / (1000 * 60 * 60);
+      return total + heures;
+    }, 0);
+
+    if (totalHeuresCreneaux > formData.heuresParSemaine) {
+      newErrors.creneaux = `Le total des heures des créneaux (${totalHeuresCreneaux}h) ne peut pas dépasser les heures par semaine (${formData.heuresParSemaine}h)`;
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -237,18 +283,29 @@ const FormulaireCours: React.FC<{
       id: modeEdition ? (coursAModifier?.id || Date.now()) : Date.now(),
       matiereId: parseInt(formData.matiereId),
       niveauId: parseInt(formData.niveauId),
-      professeurId: parseInt(formData.professeurId),
       anneeScolaireId: parseInt(formData.anneeScolaireId),
       semestresIds: [1, 2], // Valeur par défaut
       dateCreation: modeEdition ? (coursAModifier?.dateCreation || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
       dateModification: modeEdition ? new Date().toISOString().split('T')[0] : undefined,
       matiereNom: matieres.find(m => m.id === parseInt(formData.matiereId))?.nom || "",
       niveauNom: niveaux.find(n => n.id === parseInt(formData.niveauId))?.nom || "",
-      professeurNom: professeurs.find(p => p.id === parseInt(formData.professeurId)) ? 
-        `${professeurs.find(p => p.id === parseInt(formData.professeurId))?.nom} ${professeurs.find(p => p.id === parseInt(formData.professeurId))?.prenom}` : "",
       anneeScolaireNom: anneesScolaires.find(a => a.id === parseInt(formData.anneeScolaireId))?.nom || "",
       ressources: modeEdition ? (coursAModifier?.ressources || []) : [],
-      statut: formData.statut
+      statut: formData.statut as "en_cours" | "planifie" | "termine" | "annule",
+      assignations: assignationsProfesseurs.map((assignation, index) => ({
+        id: index + 1,
+        classeId: assignation.classeId,
+        professeurId: assignation.professeurId,
+        classeNom: assignation.classeNom,
+        professeurNom: assignation.professeurNom,
+        statut: "active" as const
+      })),
+      creneaux: (formData.creneaux || []).map((creneau: Creneau, index: number) => ({
+        ...creneau,
+        id: index + 1,
+        classeNom: classesDuNiveau.find(c => c.id === creneau.classeId)?.nom || "",
+        professeurNom: assignationsProfesseurs.find(a => a.classeId === creneau.classeId)?.professeurNom || ""
+      }))
     };
 
     onSubmit(nouveauCours);
@@ -308,9 +365,14 @@ const FormulaireCours: React.FC<{
               }`}
             >
               <option value="">Sélectionner une matière</option>
-              {matieres.map(matiere => (
-                <option key={matiere.id} value={matiere.id}>{matiere.nom}</option>
-              ))}
+              {matieresDuNiveau.map((mn: any) => {
+                const matiere = matieres.find(m => m.id === mn.id);
+                return (
+                  <option key={mn.id} value={mn.id}>
+                    {matiere?.nom} ({mn.heuresParSemaine || 0}h/sem, coef: {mn.coefficient || 1})
+                  </option>
+                );
+              })}
             </select>
             {errors.matiereId && <p className="text-red-500 text-sm mt-1">{errors.matiereId}</p>}
           </div>
@@ -334,24 +396,7 @@ const FormulaireCours: React.FC<{
             {errors.niveauId && <p className="text-red-500 text-sm mt-1">{errors.niveauId}</p>}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Professeur *
-            </label>
-            <select
-              value={formData.professeurId}
-              onChange={(e) => setFormData({...formData, professeurId: e.target.value})}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.professeurId ? 'border-red-500' : 'border-neutral-300'
-              }`}
-            >
-              <option value="">Sélectionner un professeur</option>
-              {professeurs.map(prof => (
-                <option key={prof.id} value={prof.id}>{prof.nom} {prof.prenom}</option>
-              ))}
-            </select>
-            {errors.professeurId && <p className="text-red-500 text-sm mt-1">{errors.professeurId}</p>}
-          </div>
+
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -374,36 +419,7 @@ const FormulaireCours: React.FC<{
             {errors.anneeScolaireId && <p className="text-red-500 text-sm mt-1">{errors.anneeScolaireId}</p>}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Heures par semaine *
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="10"
-              value={formData.heuresParSemaine}
-              onChange={(e) => setFormData({...formData, heuresParSemaine: parseInt(e.target.value)})}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.heuresParSemaine ? 'border-red-500' : 'border-neutral-300'
-              }`}
-            />
-            {errors.heuresParSemaine && <p className="text-red-500 text-sm mt-1">{errors.heuresParSemaine}</p>}
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Coefficient
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="5"
-              value={formData.coefficient}
-              onChange={(e) => setFormData({...formData, coefficient: parseInt(e.target.value)})}
-              className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
 
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -411,7 +427,7 @@ const FormulaireCours: React.FC<{
             </label>
             <select
               value={formData.statut}
-              onChange={(e) => setFormData({...formData, statut: e.target.value})}
+              onChange={(e) => setFormData({...formData, statut: e.target.value as "planifie" | "en_cours" | "termine" | "annule"})}
               className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {STATUTS_COURS.map(statut => (
@@ -420,6 +436,157 @@ const FormulaireCours: React.FC<{
             </select>
           </div>
         </div>
+
+        {/* Informations automatiques */}
+        {matiereNiveauSelectionnee && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-blue-900 mb-2">Informations de la matière</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-blue-700">Heures par semaine:</span>
+                <span className="ml-2 font-medium">{(matiereNiveauSelectionnee as any).heuresParSemaine || 0}h</span>
+              </div>
+              <div>
+                <span className="text-blue-700">Coefficient:</span>
+                <span className="ml-2 font-medium">{(matiereNiveauSelectionnee as any).coefficient || 1}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Assignation des professeurs par classe */}
+        {classesDuNiveau.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900">Assignation des professeurs par classe</h3>
+            <div className="space-y-3">
+              {assignationsProfesseurs.map((assignation, index) => (
+                <div key={assignation.classeId} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {assignation.classeNom}
+                    </label>
+                    <select
+                      value={assignation.professeurId}
+                      onChange={(e) => updateProfesseurNom(assignation.classeId, parseInt(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={loading}
+                    >
+                      <option value={0}>Sélectionner un professeur</option>
+                      {professeursDeLaMatiere.map(prof => (
+                        <option key={prof.id} value={prof.id}>
+                          {prof.prenom} {prof.nom}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {assignation.professeurNom && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <Check className="w-4 h-4" />
+                      <span>{assignation.professeurNom}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {errors.assignations && (
+              <p className="text-red-500 text-sm">{errors.assignations}</p>
+            )}
+            
+            {professeursDeLaMatiere.length === 0 && (
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <p className="text-sm text-orange-700">
+                  Aucun professeur disponible pour cette matière. Veuillez d'abord assigner des professeurs à cette matière.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Gestion des créneaux */}
+        {classesDuNiveau.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">Créneaux horaires</h3>
+              <button
+                type="button"
+                onClick={ajouterCreneau}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Ajouter un créneau
+              </button>
+            </div>
+            
+            {(formData.creneaux || []).map((creneau, index) => (
+              <div key={creneau.id} className="p-4 border border-gray-200 rounded-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-gray-700">Créneau {index + 1}</h4>
+                  <button
+                    type="button"
+                    onClick={() => supprimerCreneau(creneau.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Jour</label>
+                    <select
+                      value={creneau.jour}
+                      onChange={(e) => updateCreneau(creneau.id, 'jour', e.target.value as any)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      {JOURS_SEMAINE.map(jour => (
+                        <option key={jour.value} value={jour.value}>{jour.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Heure début</label>
+                    <input
+                      type="time"
+                      value={creneau.heureDebut}
+                      onChange={(e) => updateCreneau(creneau.id, 'heureDebut', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Heure fin</label>
+                    <input
+                      type="time"
+                      value={creneau.heureFin}
+                      onChange={(e) => updateCreneau(creneau.id, 'heureFin', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Classe</label>
+                    <select
+                      value={creneau.classeId}
+                      onChange={(e) => updateCreneau(creneau.id, 'classeId', parseInt(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value={0}>Sélectionner une classe</option>
+                      {classesDuNiveau.map(classe => (
+                        <option key={classe.id} value={classe.id}>{classe.nom}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {errors.creneaux && (
+              <p className="text-red-500 text-sm">{errors.creneaux}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
@@ -452,86 +619,695 @@ const FormulaireCours: React.FC<{
   );
 };
 
-const CoursAdmin = () => {
-  const [cours, setCours] = useState<Cours[]>(coursMock);
-  const [filteredCours, setFilteredCours] = useState<Cours[]>(coursMock);
+// Modal de détails complet du cours avec onglets
+const ModalDetailsCoursComplet: React.FC<{
+  cours: Cours;
+  professeurs: Professeur[];
+  classes: any[];
+  eleves: any[];
+  onClose: () => void;
+}> = ({ cours, professeurs, classes, eleves, onClose }) => {
+  const [activeTab, setActiveTab] = useState<"infos" | "classes" | "emploi">("infos");
+  const [classeDetails, setClasseDetails] = useState<any>(null);
+  const [showClasseDetails, setShowClasseDetails] = useState(false);
+
+  const getStatutColor = (statut: string) => {
+    switch (statut) {
+      case "planifie": return "bg-blue-100 text-blue-800";
+      case "en_cours": return "bg-green-100 text-green-800";
+      case "termine": return "bg-gray-100 text-gray-800";
+      case "annule": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getStatutIcon = (statut: string) => {
+    switch (statut) {
+      case "planifie": return <Calendar className="w-4 h-4" />;
+      case "en_cours": return <PlayCircle className="w-4 h-4" />;
+      case "termine": return <CheckCircle className="w-4 h-4" />;
+      case "annule": return <X className="w-4 h-4" />;
+      default: return <Info className="w-4 h-4" />;
+    }
+  };
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('fr-FR');
+  };
+
+  const classesDuCours = classes.filter(classe => 
+    cours.assignations?.some(assignation => assignation.classeId === classe.id)
+  );
+
+
+
+  const tabs = [
+    { id: "infos", label: "Informations", icon: <Info className="w-4 h-4" /> },
+    { id: "classes", label: "Classes assignées", icon: <Users2 className="w-4 h-4" /> },
+    { id: "emploi", label: "Emploi du temps", icon: <CalendarCheck className="w-4 h-4" /> }
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden"
+      >
+        {/* En-tête */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">{cours.titre}</h2>
+              <p className="text-sm text-gray-600">
+                {cours.matiereNom} - {cours.niveauNom} - {cours.anneeScolaireNom}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Onglets */}
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-6">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
+                  activeTab === tab.id
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Contenu des onglets */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+          <AnimatePresence mode="wait">
+            {activeTab === "infos" && (
+              <motion.div
+                key="infos"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                {/* Informations générales */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Informations générales</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Titre :</span>
+                        <span className="font-medium">{cours.titre}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Matière :</span>
+                        <span className="font-medium">{cours.matiereNom}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Niveau :</span>
+                        <span className="font-medium">{cours.niveauNom}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Année scolaire :</span>
+                        <span className="font-medium">{cours.anneeScolaireNom}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Heures par semaine :</span>
+                        <span className="font-medium">{cours.heuresParSemaine}h</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Coefficient :</span>
+                        <span className="font-medium">{cours.coefficient}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Statut :</span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatutColor(cours.statut)}`}>
+                          {getStatutIcon(cours.statut)}
+                          {cours.statut}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Date de création :</span>
+                        <span className="font-medium">{formatDate(cours.dateCreation)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Description</h3>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <p className="text-gray-700">{cours.description}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Statistiques */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Users2 className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-blue-600 font-medium">Classes assignées</p>
+                        <p className="text-2xl font-bold text-blue-900">{cours.assignations?.length || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-green-50 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <Clock3 className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-green-600 font-medium">Créneaux horaires</p>
+                        <p className="text-2xl font-bold text-green-900">{cours.creneaux?.length || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+
+
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === "classes" && (
+              <motion.div
+                key="classes"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                {!showClasseDetails ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">Classes assignées</h3>
+                      <button
+                        onClick={() => setShowClasseDetails(false)}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        ← Retour
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {classesDuCours.map((classe) => {
+                        const assignation = cours.assignations?.find(a => a.classeId === classe.id);
+                        const professeur = professeurs.find(p => p.id === assignation?.professeurId);
+                        const elevesClasse = eleves.filter(eleve => eleve.classeId === classe.id);
+                        
+                        return (
+                          <div key={classe.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                               onClick={() => {
+                                 setClasseDetails(classe);
+                                 setShowClasseDetails(true);
+                               }}>
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-semibold text-gray-900">{classe.nom}</h4>
+                              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                {elevesClasse.length} élèves
+                              </span>
+                            </div>
+                            
+                                                    <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <School className="w-4 h-4" />
+                            <span>{classe.niveauNom}</span>
+                          </div>
+                          
+                          {assignation && (
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <User className="w-4 h-4" />
+                              <span className="font-medium">{assignation.professeurNom}</span>
+                            </div>
+                          )}
+                          
+                          {assignation && (
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Calendar className="w-4 h-4" />
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatutColor(assignation.statut)}`}>
+                                {assignation.statut}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                            
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                              <p className="text-xs text-gray-500">Cliquez pour voir les détails</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <button
+                          onClick={() => setShowClasseDetails(false)}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium mb-2"
+                        >
+                          ← Retour aux classes
+                        </button>
+                        <h3 className="text-lg font-semibold text-gray-900">{classeDetails.nom}</h3>
+                        <p className="text-sm text-gray-600">{classeDetails.niveauNom} - Année scolaire actuelle</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Informations de la classe */}
+                      <div className="space-y-4">
+                        <h4 className="text-md font-semibold text-gray-900">Informations de la classe</h4>
+                        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Nom de la classe :</span>
+                            <span className="font-medium">{classeDetails.nom}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Niveau :</span>
+                            <span className="font-medium">{classeDetails.niveauNom}</span>
+                          </div>
+                          {cours.assignations?.find(a => a.classeId === classeDetails.id) && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Professeur assigné :</span>
+                              <span className="font-medium text-blue-600">
+                                {cours.assignations.find(a => a.classeId === classeDetails.id)?.professeurNom}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Statut :</span>
+                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                              {classeDetails.statut}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Date de création :</span>
+                            <span className="font-medium">{formatDate(classeDetails.dateCreation)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Statistiques */}
+                      <div className="space-y-4">
+                        <h4 className="text-md font-semibold text-gray-900">Statistiques</h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-blue-50 rounded-lg p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <Users className="w-4 h-4 text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm text-blue-600 font-medium">Élèves</p>
+                                <p className="text-xl font-bold text-blue-900">
+                                  {(() => {
+                                    const elevesClasse = eleves.filter(eleve => eleve.classeId === classeDetails.id);
+                                    return elevesClasse.length;
+                                  })()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="bg-green-50 rounded-lg p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                <BarChart3 className="w-4 h-4 text-green-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm text-green-600 font-medium">Moyenne</p>
+                                <p className="text-xl font-bold text-green-900">
+                                  {(() => {
+                                    const elevesClasse = eleves.filter(eleve => eleve.classeId === classeDetails.id);
+                                    return elevesClasse.length > 0 
+                                      ? (elevesClasse.reduce((acc: number, eleve: any) => acc + eleve.moyenne, 0) / elevesClasse.length).toFixed(2)
+                                      : "0.00";
+                                  })()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Liste des élèves */}
+                    <div className="mt-6">
+                      <h4 className="text-md font-semibold text-gray-900 mb-4">Liste des élèves</h4>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nom</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prénom</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Moyenne</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {(() => {
+                              const elevesClasse = eleves.filter(eleve => eleve.classeId === classeDetails.id);
+                              return elevesClasse.map((eleve: any) => (
+                                <tr key={eleve.id} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                    {eleve.nom}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-600">
+                                    {eleve.prenom}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-600">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      eleve.moyenne >= 14 ? 'bg-green-100 text-green-800' :
+                                      eleve.moyenne >= 10 ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-red-100 text-red-800'
+                                    }`}>
+                                      {eleve.moyenne.toFixed(2)}/20
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-600">
+                                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                      {eleve.statut}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ));
+                            })()}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === "emploi" && (
+              <motion.div
+                key="emploi"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Emploi du temps</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Répartition des {cours.heuresParSemaine}h par semaine ({cours.heuresParSemaine / 2} créneaux de 2h par classe)
+                </p>
+                
+                <div className="space-y-4">
+                  {classesDuCours.map((classe) => {
+                    const assignation = cours.assignations?.find(a => a.classeId === classe.id);
+                    const professeur = professeurs.find(p => p.id === assignation?.professeurId);
+                    const creneauxClasse = cours.creneaux?.filter(c => c.classeId === classe.id) || [];
+                    
+                    return (
+                      <div key={classe.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="font-semibold text-gray-900">{classe.nom}</h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-600">
+                              {creneauxClasse.length} créneaux de 2h
+                            </span>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                              {creneauxClasse.length * 2}h/semaine
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {assignation && (
+                          <p className="text-sm text-gray-600 mb-3">
+                            Professeur : <span className="font-medium text-blue-600">{assignation.professeurNom}</span>
+                          </p>
+                        )}
+                        
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full bg-gray-50 rounded-lg">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Jour</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Heure</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Salle</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                              {creneauxClasse.map((creneau, index) => (
+                                <tr key={index} className="hover:bg-gray-100">
+                                  <td className="px-3 py-2 text-sm font-medium text-gray-900 capitalize">
+                                    {creneau.jour}
+                                  </td>
+                                  <td className="px-3 py-2 text-sm text-gray-600">
+                                    {creneau.heureDebut} - {creneau.heureFin}
+                                  </td>
+                                  <td className="px-3 py-2 text-sm text-gray-600">
+                                    {creneau.salleNom || "Non définie"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+
+
+          </AnimatePresence>
+        </div>
+      </motion.div>
+
+
+    </div>
+  );
+};
+
+const CoursAdmin: React.FC = () => {
+  const { utilisateur } = useAuth();
+  const [cours, setCours] = useState<Cours[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [eleves, setEleves] = useState<any[]>([]);
+  const [professeurs, setProfesseurs] = useState<Professeur[]>([]);
+  const [niveaux, setNiveaux] = useState<any[]>([]);
+  const [matieres, setMatieres] = useState<any[]>([]);
+  const [anneesScolaires, setAnneesScolaires] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatut, setFilterStatut] = useState("all");
-  const [filterMatiere, setFilterMatiere] = useState("all");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modeEdition, setModeEdition] = useState(false);
+  const [filterStatut, setFilterStatut] = useState<string>("");
+  const [filterMatiere, setFilterMatiere] = useState<string>("");
+  const [filterNiveau, setFilterNiveau] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<"liste" | "ajouter">("liste");
+  const [showModalAjout, setShowModalAjout] = useState(false);
   const [coursAModifier, setCoursAModifier] = useState<Cours | null>(null);
-  const [coursDetails, setCoursDetails] = useState<Cours | null>(null);
-  const [activeTab, setActiveTab] = useState<"liste" | "ajout">("liste");
+  const [showModalModification, setShowModalModification] = useState(false);
+  const [showModalDetails, setShowModalDetails] = useState(false);
+  const [coursSelectionne, setCoursSelectionne] = useState<Cours | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
+  // Charger les données au montage
   useEffect(() => {
-    let filtered = cours;
-
-    if (searchTerm) {
-      filtered = filtered.filter(coursItem => 
-        coursItem.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        coursItem.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (coursItem.matiereNom || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (coursItem.niveauNom || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (coursItem.professeurNom || "").toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    if (utilisateur) {
+      loadCours();
+      loadMatieres();
+      loadNiveaux();
+      loadProfesseurs();
+      loadAnneesScolaires();
+      loadClasses();
+      loadEleves();
+      loadNotifications();
     }
+  }, [utilisateur]);
 
-    if (filterStatut !== "all") {
-      filtered = filtered.filter(coursItem => coursItem.statut === filterStatut);
+  const loadCours = async () => {
+    setLoading(true);
+    try {
+      const response = await adminService.getCours();
+      if (response.success && response.data) {
+        setCours(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des cours:', error);
+    } finally {
+      setLoading(false);
     }
-
-    if (filterMatiere !== "all") {
-      filtered = filtered.filter(coursItem => coursItem.matiereId === parseInt(filterMatiere));
-    }
-
-    setFilteredCours(filtered);
-  }, [cours, searchTerm, filterStatut, filterMatiere]);
-
-  const ajouterCours = (nouveauCours: Cours) => {
-    if (modeEdition) {
-      setCours(prev => prev.map(c => c.id === nouveauCours.id ? nouveauCours : c));
-    } else {
-      setCours(prev => [...prev, nouveauCours]);
-    }
-    setModalOpen(false);
-    setModeEdition(false);
-    setCoursAModifier(null);
-    setActiveTab("liste");
   };
 
-  const ouvrirModalAjout = () => {
-    setActiveTab("ajout");
-    setModeEdition(false);
-    setCoursAModifier(null);
+  const loadProfesseurs = async () => {
+    try {
+      const response = await adminService.getUtilisateurs({
+        page: 1,
+        limit: 100,
+        filters: { role: 'professeur' }
+      });
+      if (response.success && response.data) {
+        setProfesseurs(response.data.data as Professeur[]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des professeurs:', error);
+    }
   };
 
-  const ouvrirModalModification = (coursItem: Cours) => {
-    setCoursAModifier(coursItem);
-    setModeEdition(true);
-    setActiveTab("ajout");
+  const loadMatieres = async () => {
+    try {
+      const response = await matiereService.getMatieres();
+      if (response.success && response.data) {
+        setMatieres(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des matières:', error);
+    }
   };
 
+  const loadNiveaux = async () => {
+    try {
+      const response = await adminService.getNiveaux();
+      if (response.success && response.data) {
+        setNiveaux(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des niveaux:', error);
+    }
+  };
+
+  const loadAnneesScolaires = async () => {
+    try {
+      const response = await adminService.getAnneesScolaires();
+      if (response.success && response.data) {
+        setAnneesScolaires(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des années scolaires:', error);
+    }
+  };
+
+  const loadClasses = async () => {
+    try {
+      const response = await adminService.getClasses();
+      if (response.success && response.data) {
+        setClasses(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des classes:', error);
+    }
+  };
+
+  const loadEleves = async () => {
+    try {
+      const response = await eleveService.getEleves();
+      if (response.success && response.data) {
+        setEleves(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des élèves:', error);
+    }
+  };
+
+  const loadNotifications = async () => {
+    if (utilisateur?.id) {
+      try {
+        const response = await notificationService.getNotifications(utilisateur.id);
+        if (response.success && response.data) {
+          setNotifications(response.data);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des notifications:', error);
+      }
+    }
+  };
+
+  const handleCreateCours = async (cours: Omit<Cours, 'id' | 'dateCreation'>) => {
+    try {
+      const response = await adminService.createCours(cours);
+      if (response.success) {
+        setShowModalAjout(false);
+        loadCours(); // Recharger la liste
+        console.log('Cours créé avec succès');
+      } else {
+        console.error('Erreur lors de la création:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la création du cours:', error);
+    }
+  };
+
+  const handleUpdateCours = async (id: number, updates: Partial<Cours>) => {
+    try {
+      const response = await adminService.updateCours(id, updates);
+      if (response.success) {
+        setShowModalModification(false);
+        setCoursAModifier(null);
+        loadCours(); // Recharger la liste
+        console.log('Cours mis à jour avec succès');
+      } else {
+        console.error('Erreur lors de la mise à jour:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du cours:', error);
+    }
+  };
+
+  const handleDeleteCours = async (id: number) => {
+    try {
+      const response = await adminService.deleteCours(id);
+      if (response.success) {
+        loadCours(); // Recharger la liste
+        console.log('Cours supprimé avec succès');
+      } else {
+        console.error('Erreur lors de la suppression:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la suppression du cours:', error);
+    }
+  };
+
+  // Fonctions utilitaires
   const getStatutBadge = (statut: string) => {
-    const statutInfo = STATUTS_COURS.find(s => s.value === statut);
     const colors = {
-      blue: 'bg-blue-100 text-blue-800',
-      green: 'bg-green-100 text-green-800',
-      gray: 'bg-gray-100 text-gray-800',
-      red: 'bg-red-100 text-red-800'
+      active: "bg-green-100 text-green-800",
+      inactive: "bg-gray-100 text-gray-800",
+      archived: "bg-red-100 text-red-800"
     };
     
     return (
-      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${colors[statutInfo?.couleur as keyof typeof colors || 'gray']}`}>
-        {statutInfo?.label || statut}
+      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${colors[statut as keyof typeof colors] || colors.inactive}`}>
+        {statut === "active" ? "Active" : statut === "inactive" ? "Inactive" : "Archivée"}
       </span>
     );
   };
 
   const getIconeRessource = (type: string) => {
-    const typeInfo = TYPES_RESSOURCE.find(t => t.value === type);
-    const IconComponent = typeInfo?.icone || File;
-    return <IconComponent className="w-4 h-4" />;
+    switch (type) {
+      case "pdf":
+        return <FileText className="w-4 h-4 text-red-500" />;
+      case "image":
+        return <Image className="w-4 h-4 text-blue-500" />;
+      case "video":
+        return <Video className="w-4 h-4 text-purple-500" />;
+      case "audio":
+        return <Headphones className="w-4 h-4 text-green-500" />;
+      default:
+        return <File className="w-4 h-4 text-gray-500" />;
+    }
   };
 
   return (
@@ -546,7 +1322,7 @@ const CoursAdmin = () => {
         </div>
         
         <button
-          onClick={ouvrirModalAjout}
+          onClick={() => setShowModalAjout(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -572,9 +1348,9 @@ const CoursAdmin = () => {
               </div>
             </button>
             <button
-              onClick={() => setActiveTab("ajout")}
+              onClick={() => setActiveTab("ajouter")}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "ajout"
+                activeTab === "ajouter"
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
@@ -625,7 +1401,7 @@ const CoursAdmin = () => {
                   className="px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">Toutes les matières</option>
-                  {matieresMock.map(matiere => (
+                  {matieres.map(matiere => (
                     <option key={matiere.id} value={matiere.id}>{matiere.nom}</option>
                   ))}
                 </select>
@@ -660,7 +1436,7 @@ const CoursAdmin = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
-                  {filteredCours.map((coursItem, index) => (
+                  {cours.map((coursItem, index) => (
                     <motion.tr
                       key={coursItem.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -702,7 +1478,7 @@ const CoursAdmin = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <User className="w-4 h-4 text-green-500" />
-                          <span className="text-neutral-900">{coursItem.professeurNom}</span>
+                          <span className="text-neutral-900">{coursItem.assignations && coursItem.assignations.length > 0 ? coursItem.assignations[0].professeurNom : "Non assigné"}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -731,14 +1507,20 @@ const CoursAdmin = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => setCoursDetails(coursItem)}
+                            onClick={() => {
+                              setCoursSelectionne(coursItem);
+                              setShowModalDetails(true);
+                            }}
                             className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                             title="Voir détails"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => ouvrirModalModification(coursItem)}
+                            onClick={() => {
+                              setCoursAModifier(coursItem);
+                              setShowModalModification(true);
+                            }}
                             className="p-2 text-neutral-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
                             title="Modifier"
                           >
@@ -747,7 +1529,7 @@ const CoursAdmin = () => {
                           <button
                             onClick={() => {
                               if (window.confirm(`Êtes-vous sûr de vouloir supprimer le cours "${coursItem.titre}" ?`)) {
-                                setCours(prev => prev.filter(c => c.id !== coursItem.id));
+                                handleDeleteCours(coursItem.id);
                               }
                             }}
                             className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -763,7 +1545,7 @@ const CoursAdmin = () => {
               </table>
             </div>
 
-            {filteredCours.length === 0 && (
+            {cours.length === 0 && (
               <div className="text-center py-12">
                 <BookOpen className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-neutral-900 mb-2">
@@ -829,12 +1611,12 @@ const CoursAdmin = () => {
           <div className="bg-white rounded-lg border border-neutral-200 p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">
-                {modeEdition ? "Modifier" : "Ajouter"} un cours
+                {coursAModifier ? "Modifier" : "Ajouter"} un cours
               </h2>
               <button
                 onClick={() => {
                   setActiveTab("liste");
-                  setModeEdition(false);
+                  setShowModalModification(false);
                   setCoursAModifier(null);
                 }}
                 className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800"
@@ -844,14 +1626,15 @@ const CoursAdmin = () => {
               </button>
             </div>
             <FormulaireCours
-              onSubmit={ajouterCours}
+              onSubmit={handleCreateCours}
               onClose={() => {
                 setActiveTab("liste");
-                setModeEdition(false);
+                setShowModalModification(false);
                 setCoursAModifier(null);
               }}
-              coursAModifier={coursAModifier}
-              modeEdition={modeEdition}
+              coursAModifier={coursAModifier || undefined}
+              classes={classes}
+              professeurs={professeurs}
             />
           </div>
         </div>
@@ -859,32 +1642,33 @@ const CoursAdmin = () => {
 
       {/* Modal d'ajout/modification */}
       <Modal
-        isOpen={modalOpen}
+        isOpen={showModalAjout || showModalModification}
         onClose={() => {
-          setModalOpen(false);
-          setModeEdition(false);
+          setShowModalAjout(false);
+          setShowModalModification(false);
           setCoursAModifier(null);
         }}
-        title={`${modeEdition ? "Modifier" : "Ajouter"} un cours`}
+        title={`${coursAModifier ? "Modifier" : "Ajouter"} un cours`}
       >
         <FormulaireCours
-          onSubmit={ajouterCours}
+          onSubmit={handleCreateCours}
           onClose={() => {
-            setModalOpen(false);
-            setModeEdition(false);
+            setShowModalAjout(false);
+            setShowModalModification(false);
             setCoursAModifier(null);
           }}
-          coursAModifier={coursAModifier}
-          modeEdition={modeEdition}
+          coursAModifier={coursAModifier || undefined}
+                      classes={classes}
+            professeurs={professeurs}
         />
       </Modal>
 
       {/* Modal détails cours */}
-      {coursDetails && (
+      {coursSelectionne && (
         <Modal
-          isOpen={!!coursDetails}
-          onClose={() => setCoursDetails(null)}
-          title={`Détails du cours: ${coursDetails.titre}`}
+          isOpen={!!coursSelectionne}
+          onClose={() => setCoursSelectionne(null)}
+          title={`Détails du cours: ${coursSelectionne.titre}`}
           size="max-w-5xl"
         >
           <div className="space-y-6">
@@ -896,21 +1680,21 @@ const CoursAdmin = () => {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div className="space-y-2">
-                  <p><strong>Titre :</strong> {coursDetails.titre}</p>
-                  <p><strong>Matière :</strong> {coursDetails.matiereNom}</p>
-                  <p><strong>Niveau :</strong> {coursDetails.niveauNom}</p>
-                  <p><strong>Professeur :</strong> {coursDetails.professeurNom}</p>
+                  <p><strong>Titre :</strong> {coursSelectionne.titre}</p>
+                  <p><strong>Matière :</strong> {coursSelectionne.matiereNom}</p>
+                  <p><strong>Niveau :</strong> {coursSelectionne.niveauNom}</p>
+                  <p><strong>Professeur :</strong> {coursSelectionne.assignations && coursSelectionne.assignations.length > 0 ? coursSelectionne.assignations[0].professeurNom : "Non assigné"}</p>
                 </div>
                 <div className="space-y-2">
-                  <p><strong>Heures/semaine :</strong> {coursDetails.heuresParSemaine}h</p>
-                  {coursDetails.coefficient && <p><strong>Coefficient :</strong> {coursDetails.coefficient}</p>}
-                  <p><strong>Statut :</strong> {getStatutBadge(coursDetails.statut)}</p>
-                  <p><strong>Date de création :</strong> {coursDetails.dateCreation}</p>
+                  <p><strong>Heures/semaine :</strong> {coursSelectionne.heuresParSemaine}h</p>
+                  {coursSelectionne.coefficient && <p><strong>Coefficient :</strong> {coursSelectionne.coefficient}</p>}
+                  <p><strong>Statut :</strong> {getStatutBadge(coursSelectionne.statut)}</p>
+                  <p><strong>Date de création :</strong> {coursSelectionne.dateCreation}</p>
                 </div>
               </div>
               <div className="mt-4">
                 <p><strong>Description :</strong></p>
-                <p className="text-neutral-600 mt-1">{coursDetails.description}</p>
+                <p className="text-neutral-600 mt-1">{coursSelectionne.description}</p>
               </div>
             </div>
 
@@ -918,14 +1702,14 @@ const CoursAdmin = () => {
             {/* Removed Objectifs and Prerequis sections */}
 
             {/* Ressources */}
-            {coursDetails.ressources && coursDetails.ressources.length > 0 && (
+            {coursSelectionne.ressources && coursSelectionne.ressources.length > 0 && (
               <div className="bg-blue-50 rounded-lg p-4">
                 <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
                   <FileText className="w-5 h-5 text-blue-600" />
                   Ressources pédagogiques
                 </h3>
                 <div className="space-y-3">
-                  {coursDetails.ressources.map((ressource: any) => (
+                  {coursSelectionne.ressources.map((ressource: any) => (
                     <div key={ressource.id} className="flex items-center justify-between bg-white rounded-lg p-3">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -934,7 +1718,7 @@ const CoursAdmin = () => {
                         <div>
                           <p className="font-medium text-neutral-900">{ressource.nom}</p>
                           <div className="flex items-center gap-4 text-sm text-neutral-600">
-                            <span className="capitalize">{TYPES_RESSOURCE.find(t => t.value === ressource.type)?.label}</span>
+                            <span className="capitalize">{ressource.type}</span>
                             {ressource.taille && <span>{ressource.taille}</span>}
                             <span>Ajouté le {ressource.dateAjout}</span>
                           </div>
@@ -960,8 +1744,8 @@ const CoursAdmin = () => {
             <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
               <button
                 onClick={() => {
-                  ouvrirModalModification(coursDetails);
-                  setCoursDetails(null);
+                  setCoursAModifier(coursSelectionne);
+                  setShowModalModification(true);
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
               >
@@ -969,7 +1753,7 @@ const CoursAdmin = () => {
                 Modifier
               </button>
               <button
-                onClick={() => setCoursDetails(null)}
+                onClick={() => setCoursSelectionne(null)}
                 className="flex items-center gap-2 px-4 py-2 bg-neutral-600 text-white rounded-lg hover:bg-neutral-700 transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -978,6 +1762,17 @@ const CoursAdmin = () => {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Modal de détails complet du cours avec onglets */}
+      {coursSelectionne && (
+        <ModalDetailsCoursComplet
+          cours={coursSelectionne}
+          professeurs={professeurs}
+          classes={classes}
+          eleves={eleves}
+          onClose={() => setCoursSelectionne(null)}
+        />
       )}
 
       {/* Informations sur la gestion */}

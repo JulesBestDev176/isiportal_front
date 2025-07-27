@@ -89,3 +89,48 @@ export const getMoyenneColorClass = (moyenne: number): string => {
   if (moyenne < 12) return 'bg-yellow-100 text-yellow-800';
   return 'bg-green-100 text-green-800';
 }; 
+
+// Interface pour un professeur de matière
+export interface ProfMatiere {
+  id: number;
+  nom: string;
+  prenom: string;
+  matiere: string;
+  email: string;
+  telephone: string;
+  photo?: string;
+}
+
+// Interface pour un étudiant
+export interface Etudiant {
+  id: number;
+  nom: string;
+  prenom: string;
+  dateNaissance: string;
+  lieuNaissance: string;
+  adresse: string;
+  telephone: string;
+  email: string;
+  classeId: number;
+  classeNom: string;
+  niveauNom: string;
+  numeroEtudiant: string;
+  statut: "actif" | "inactif" | "suspendu";
+  dateInscription: string;
+  moyenne: number;
+  parentsIds: number[];
+}
+
+// Interface pour une note
+export interface Note {
+  id: number;
+  eleveId: number;
+  matiereId: number;
+  matiereNom: string;
+  type: "devoir" | "composition" | "examen";
+  note: number;
+  coefficient: number;
+  date: string;
+  appreciation?: string;
+  remarques?: string;
+} 

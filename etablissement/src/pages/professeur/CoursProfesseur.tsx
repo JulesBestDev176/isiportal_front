@@ -11,267 +11,12 @@ import {
 import { useAuth } from "../../contexts/ContexteAuth";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
-import { Cours, Ressource } from "../../models/cours.model";
+import { Cours, AssignationCours, ProgressionSeance } from "../../models/cours.model";
 import { Classe } from "../../models/classe.model";
 
-// Interfaces locales pour les fonctionnalités spécifiques au professeur
-interface AssignationCours {
-  id: number;
-  coursId: number;
-  classeId: number;
-  dateDebut: string;
-  dateFin?: string;
-  heuresParSemaine: number;
-  salle?: string;
-  creneaux: Creneau[];
-  progression: number;
-  statut: "planifie" | "en_cours" | "termine" | "annule";
-  notes?: string;
-  prochaineCeance?: string;
-}
+// Suppression des interfaces locales - maintenant importées depuis les modèles
 
-interface Creneau {
-  jour: "lundi" | "mardi" | "mercredi" | "jeudi" | "vendredi" | "samedi";
-  heureDebut: string;
-  heureFin: string;
-  salle?: string;
-}
-
-interface ProgressionSeance {
-  id: number;
-  assignationId: number;
-  date: string;
-  sujet: string;
-  objectifs: string[];
-  ressourcesUtilisees: number[];
-  notesProf: string;
-  presences: number;
-  evaluations?: {
-    type: string;
-    notes: number[];
-    moyenne: number;
-  };
-}
-
-// Données mockées
-const professeurActuel = {
-  id: 1,
-  nom: "Diop",
-  prenom: "Fatou",
-  email: "f.diop@ecole.sn",
-  matieres: ["Mathématiques", "Sciences"],
-  statut: "actif"
-};
-
-const coursMock: Cours[] = [
-  {
-    id: 1,
-    titre: "Les équations du premier degré",
-    description: "Introduction aux équations linéaires et méthodes de résolution avec applications pratiques",
-    matiereId: 1,
-    classeId: 1,
-    professeurId: 1,
-    anneeScolaireId: 1,
-    semestresIds: [1],
-    heuresParSemaine: 3,
-    objectifs: [
-      "Résoudre une équation simple à une inconnue",
-      "Identifier et isoler les inconnues",
-      "Vérifier la validité d'une solution",
-      "Appliquer les équations à des problèmes concrets"
-    ],
-    prerequis: ["Calculs avec les nombres relatifs", "Propriétés des opérations"],
-    dateCreation: "2024-07-01",
-    dateModification: "2024-07-15",
-    statut: "en_cours",
-    coefficient: 2,
-    ressources: [
-      {
-        id: 1,
-        nom: "Cours - Equations premier degré.pdf",
-        type: "pdf",
-        url: "#",
-        taille: "2.3 MB",
-        obligatoire: true,
-        dateAjout: "2024-07-01"
-      },
-      {
-        id: 2,
-        nom: "Exercices d'application",
-        type: "pdf",
-        url: "#",
-        taille: "1.8 MB",
-        obligatoire: false,
-        dateAjout: "2024-07-05"
-      }
-    ]
-  },
-  {
-    id: 2,
-    titre: "Géométrie : Les triangles",
-    description: "Étude des propriétés des triangles, classification et théorèmes fondamentaux",
-    matiereId: 1,
-    classeId: 2,
-    professeurId: 1,
-    anneeScolaireId: 1,
-    semestresIds: [1],
-    heuresParSemaine: 4,
-    objectifs: [
-      "Identifier les différents types de triangles",
-      "Appliquer le théorème de Pythagore",
-      "Calculer périmètres et aires",
-      "Résoudre des problèmes géométriques"
-    ],
-    dateCreation: "2024-06-20",
-    statut: "en_cours",
-    coefficient: 3
-  },
-  {
-    id: 3,
-    titre: "Fractions et décimaux",
-    description: "Manipulation des fractions, conversion et opérations avec les nombres décimaux",
-    matiereId: 1,
-    classeId: 3,
-    professeurId: 1,
-    anneeScolaireId: 1,
-    semestresIds: [1],
-    heuresParSemaine: 2,
-    objectifs: [
-      "Convertir fractions en décimaux",
-      "Effectuer les quatre opérations",
-      "Comparer et ordonner les nombres"
-    ],
-    dateCreation: "2024-06-15",
-    statut: "planifie",
-    coefficient: 1
-  }
-];
-
-const classesMock: Classe[] = [
-  { 
-    id: 1, 
-    nom: "6ème A", 
-    niveauId: 3, 
-    niveauNom: "6ème",
-    anneesScolaires: [{
-      id: 1,
-      classeId: 1,
-      anneeScolaireId: 1,
-      anneeScolaireNom: "2023-2024",
-      elevesIds: [],
-      effectif: 28,
-      effectifMax: 30,
-      professeurPrincipalId: 1,
-      professeurPrincipalNom: "M. Fall",
-      profsMatieres: [],
-      description: "Classe de 6ème A",
-      statut: "active",
-      dateCreation: "2024-01-01"
-    }],
-    description: "Classe de 6ème A",
-    dateCreation: "2024-01-01",
-    statut: "active" 
-  },
-  { 
-    id: 2, 
-    nom: "5ème B", 
-    niveauId: 2, 
-    niveauNom: "5ème",
-    anneesScolaires: [{
-      id: 2,
-      classeId: 2,
-      anneeScolaireId: 1,
-      anneeScolaireNom: "2023-2024",
-      elevesIds: [],
-      effectif: 25,
-      effectifMax: 30,
-      professeurPrincipalId: 2,
-      professeurPrincipalNom: "Mme Ndiaye",
-      profsMatieres: [],
-      description: "Classe de 5ème B",
-      statut: "active",
-      dateCreation: "2024-01-01"
-    }],
-    description: "Classe de 5ème B",
-    dateCreation: "2024-01-01",
-    statut: "active" 
-  },
-  { 
-    id: 3, 
-    nom: "5ème C", 
-    niveauId: 2, 
-    niveauNom: "5ème",
-    anneesScolaires: [{
-      id: 3,
-      classeId: 3,
-      anneeScolaireId: 1,
-      anneeScolaireNom: "2023-2024",
-      elevesIds: [],
-      effectif: 27,
-      effectifMax: 30,
-      professeurPrincipalId: 3,
-      professeurPrincipalNom: "M. Diouf",
-      profsMatieres: [],
-      description: "Classe de 5ème C",
-      statut: "active",
-      dateCreation: "2024-01-01"
-    }],
-    description: "Classe de 5ème C",
-    dateCreation: "2024-01-01",
-    statut: "active" 
-  }
-];
-
-const assignationsMock: AssignationCours[] = [
-  {
-    id: 1,
-    coursId: 1,
-    classeId: 1,
-    dateDebut: "2024-07-15",
-    dateFin: "2024-08-15",
-    heuresParSemaine: 3,
-    salle: "A101",
-    creneaux: [
-      { jour: "lundi", heureDebut: "08:00", heureFin: "09:30", salle: "A101" },
-      { jour: "mercredi", heureDebut: "10:00", heureFin: "11:30", salle: "A101" }
-    ],
-    progression: 65,
-    statut: "en_cours",
-    prochaineCeance: "2024-07-22T08:00:00",
-    notes: "Classe motivée, bon niveau général"
-  },
-  {
-    id: 2,
-    coursId: 2,
-    classeId: 2,
-    dateDebut: "2024-07-10",
-    dateFin: "2024-08-20",
-    heuresParSemaine: 4,
-    salle: "B205",
-    creneaux: [
-      { jour: "mardi", heureDebut: "09:00", heureFin: "10:30", salle: "B205" },
-      { jour: "jeudi", heureDebut: "14:00", heureFin: "15:30", salle: "B205" }
-    ],
-    progression: 40,
-    statut: "en_cours",
-    prochaineCeance: "2024-07-23T09:00:00",
-    notes: "Quelques difficultés sur les théorèmes"
-  },
-  {
-    id: 3,
-    coursId: 1,
-    classeId: 3,
-    dateDebut: "2024-08-01",
-    heuresParSemaine: 2,
-    salle: "A103",
-    creneaux: [
-      { jour: "vendredi", heureDebut: "11:00", heureFin: "12:30", salle: "A103" }
-    ],
-    progression: 0,
-    statut: "planifie",
-    prochaineCeance: "2024-08-02T11:00:00"
-  }
-];
+// TODO: Remplacer par des appels aux services appropriés
 
 // Composant Carte de Cours Professeur
 const CarteCoursProf: React.FC<{
@@ -580,7 +325,7 @@ const ModalDetailsCours: React.FC<{
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{cours.titre}</h2>
-              <p className="text-gray-600 mt-1">Matière ID: {cours.matiereId} • Classe ID: {cours.classeId}</p>
+              <p className="text-gray-600 mt-1">Matière ID: {cours.matiereId} • Niveau ID: {cours.niveauId}</p>
             </div>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
               <X className="w-6 h-6" />
@@ -596,34 +341,9 @@ const ModalDetailsCours: React.FC<{
           </div>
 
           {/* Objectifs */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">
-              Objectifs pédagogiques ({cours.objectifs.length})
-            </h3>
-            <div className="space-y-2">
-              {cours.objectifs.map((objectif, index) => (
-                <div key={index} className="flex items-start gap-2">
-                  <Target className="w-4 h-4 mt-1 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700">{objectif}</span>
-                </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Prérequis */}
-          {cours.prerequis && cours.prerequis.length > 0 && (
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Prérequis</h3>
-              <div className="space-y-2">
-                {cours.prerequis.map((prerequis, index) => (
-                  <div key={index} className="flex items-start gap-2">
-                    <CheckCircle className="w-4 h-4 mt-1 text-blue-500 flex-shrink-0" />
-                    <span className="text-gray-700">{prerequis}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+
+
 
           {/* Ressources */}
           {cours.ressources && cours.ressources.length > 0 && (
@@ -639,15 +359,10 @@ const ModalDetailsCours: React.FC<{
                         <FileText className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{ressource.nom}</div>
+                        <div className="font-medium text-gray-900">{ressource.titre}</div>
                         <div className="text-sm text-gray-600">
                           {ressource.type.toUpperCase()}
-                          {ressource.taille && ` • ${ressource.taille}`}
-                          {ressource.obligatoire && (
-                            <span className="ml-2 px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full">
-                              Obligatoire
-                            </span>
-                          )}
+                          {ressource.description && ` • ${ressource.description}`}
                         </div>
                       </div>
                     </div>
@@ -832,9 +547,9 @@ const CoursProfesseur: React.FC = () => {
   const { utilisateur } = useAuth();
   const navigate = useNavigate();
   const [ongletActif, setOngletActif] = useState<"apercu" | "cours" | "planning">("apercu");
-  const [cours, setCours] = useState<Cours[]>(coursMock);
-  const [classes, setClasses] = useState<Classe[]>(classesMock);
-  const [assignations, setAssignations] = useState<AssignationCours[]>(assignationsMock);
+  const [cours, setCours] = useState<Cours[]>([]);
+  const [classes, setClasses] = useState<Classe[]>([]);
+  const [assignations, setAssignations] = useState<AssignationCours[]>([]);
   const [coursSelectionne, setCoursSelectionne] = useState<Cours | null>(null);
   const [showModalDetails, setShowModalDetails] = useState(false);
   const [rechercheTexte, setRechercheTexte] = useState("");
@@ -851,11 +566,11 @@ const CoursProfesseur: React.FC = () => {
 
   // Filtrage des cours du professeur
   const coursFiltres = cours.filter(c => {
-    const matchProfesseur = c.professeurId === professeurActuel.id;
+    const matchProfesseur = c.assignations && c.assignations.some(a => a.professeurId === utilisateur?.id);
     const matchTexte = c.titre.toLowerCase().includes(rechercheTexte.toLowerCase()) ||
                       c.description.toLowerCase().includes(rechercheTexte.toLowerCase());
     const matchStatut = !filtreStatut || c.statut === filtreStatut;
-    const matchNiveau = !filtreNiveau; // TODO: Implémenter le filtrage par niveau basé sur classeId
+    const matchNiveau = !filtreNiveau; // TODO: Implémenter le filtrage par niveau basé sur niveauId
     
     return matchProfesseur && matchTexte && matchStatut && matchNiveau;
   });
@@ -897,7 +612,7 @@ const CoursProfesseur: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Mes cours</h1>
             <p className="text-gray-600 mt-1">
-              Gérez vos cours et suivez la progression de vos classes, {professeurActuel.prenom} {professeurActuel.nom}
+              Gérez vos cours et suivez la progression de vos classes, {utilisateur.prenom} {utilisateur.nom}
             </p>
           </div>
           

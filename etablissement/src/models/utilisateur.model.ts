@@ -17,6 +17,7 @@ export interface Utilisateur {
   dateCreation: string;
   dateModification?: string;
   actif: boolean;
+  doitChangerMotDePasse: boolean; // Nouveau champ pour forcer le changement de mot de passe
   derniereConnexion?: string;
   telephone?: string;
   adresse?: string;
@@ -124,58 +125,55 @@ export const PRIVILEGES_ADMIN = [
 
 export type PrivilegeAdmin = typeof PRIVILEGES_ADMIN[number];
 
-// Mock data pour les administrateurs
-export const administrateursMock: Administrateur[] = [
-  {
-    id: 1,
-    nom: 'Dupont',
-    prenom: 'Jean',
-    email: 'jean.dupont@ecole.fr',
-    role: 'administrateur',
-    telephone: '01.23.45.67.89',
-    adresse: '123 Rue de l\'École, 75001 Paris',
-    dateCreation: '2023-01-15T08:00:00Z',
-    actif: true,
-    privileges: ['gestion_utilisateurs', 'gestion_classes', 'gestion_systeme'],
-    historiqueConnexions: [
-      {
-        date: '2024-01-15T09:30:00Z',
-        ip: '192.168.1.100',
-        navigateur: 'Chrome 120.0',
-        succes: true
-      },
-      {
-        date: '2024-01-14T14:15:00Z',
-        ip: '192.168.1.100',
-        navigateur: 'Chrome 120.0',
-        succes: true
-      }
-    ],
-    dernierAcces: '2024-01-15T09:30:00Z',
-    tentativesConnexionEchouees: 0,
-    compteVerrouille: false
-  },
-  {
-    id: 2,
-    nom: 'Martin',
-    prenom: 'Sophie',
-    email: 'sophie.martin@ecole.fr',
-    role: 'administrateur',
-    telephone: '01.98.76.54.32',
-    adresse: '456 Avenue des Sciences, 69000 Lyon',
-    dateCreation: '2023-02-20T10:00:00Z',
-    actif: true,
-    privileges: ['gestion_utilisateurs', 'gestion_notes', 'gestion_rapports'],
-    historiqueConnexions: [
-      {
-        date: '2024-01-15T08:45:00Z',
-        ip: '192.168.1.101',
-        navigateur: 'Firefox 121.0',
-        succes: true
-      }
-    ],
-    dernierAcces: '2024-01-15T08:45:00Z',
-    tentativesConnexionEchouees: 0,
-    compteVerrouille: false
+// Constantes pour les rôles
+export const ROLES_UTILISATEUR = [
+  { value: "administrateur", label: "Administrateur" },
+  { value: "gestionnaire", label: "Gestionnaire" },
+  { value: "professeur", label: "Professeur" },
+  { value: "eleve", label: "Élève" },
+  { value: "parent", label: "Parent" }
+] as const;
+
+// Fonctions utilitaires
+export const getRoleInfo = (role: RoleUtilisateur) => {
+  return ROLES_UTILISATEUR.find(r => r.value === role);
+};
+
+export const getRoleColorClass = (role: RoleUtilisateur): string => {
+  switch (role) {
+    case "administrateur": return 'bg-red-100 text-red-800';
+    case "gestionnaire": return 'bg-blue-100 text-blue-800';
+    case "professeur": return 'bg-green-100 text-green-800';
+    case "eleve": return 'bg-yellow-100 text-yellow-800';
+    case "parent": return 'bg-purple-100 text-purple-800';
+    default: return 'bg-gray-100 text-gray-800';
   }
-];
+};
+
+export const getStatutColorClass = (actif: boolean): string => {
+  return actif ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
+};
+
+// Interface pour les détails d'une note
+export interface NoteDetails {
+  note1?: number;
+  note2?: number;
+  composition?: number;
+  coefficient: number;
+  appreciation?: string;
+}
+
+// Interface pour les notes d'un semestre
+export interface SemestreNotes {
+  [matiere: string]: NoteDetails;
+}
+
+// Interface pour les notes d'une année
+export interface AnneeNotes {
+  [semestre: string]: SemestreNotes;
+}
+
+// Interface pour les notes d'un élève
+export interface NotesEleve {
+  [annee: string]: AnneeNotes;
+}

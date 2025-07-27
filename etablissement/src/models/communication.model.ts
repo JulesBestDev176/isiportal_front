@@ -93,3 +93,47 @@ export const REGLES_NOTIFICATION: RegleNotification[] = [
 
 export type TypeNotification = typeof TYPES_NOTIFICATION[number]["value"];
 export type PrioriteNotification = typeof PRIORITES_NOTIFICATION[number]["value"];
+
+// Interface locale pour Notification
+export interface NotificationLocale {
+  id: number;
+  titre: string;
+  contenu: string;
+  type: "info" | "urgent" | "evenement" | "rappel" | "absence" | "note" | "emploi_du_temps";
+  expediteurId: number;
+  expediteurRole: "administrateur" | "gestionnaire" | "professeur";
+  destinataireType: "role" | "individuel" | "classe" | "section";
+  destinataires: number[];
+  destinataireRoles?: ("professeur" | "gestionnaire" | "administrateur" | "eleve" | "parent")[];
+  classeId?: number;
+  sectionId?: number;
+  dateCreation: string;
+  dateEnvoi?: string;
+  programmee?: boolean;
+  dateProgrammee?: string;
+  active: boolean;
+  nbDestinataires: number;
+  nbLues: number;
+  pieceJointe?: {
+    nom: string;
+    url: string;
+    type: string;
+    taille?: number;
+  };
+  priorite: "normale" | "haute" | "critique";
+}
+
+// Interface locale pour les données de contact étendues (statut en ligne, etc.)
+export interface ContactEtendu {
+  id: number;
+  nom: string;
+  prenom: string;
+  role: string;
+  email: string;
+  statut: "en_ligne" | "absent" | "occupe" | "invisible";
+  derniereConnexion?: string;
+  dernierMessage?: string;
+  heureMessage?: string;
+  classe?: string;
+  matiere?: string;
+}

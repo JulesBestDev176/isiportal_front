@@ -8,6 +8,8 @@ interface ContexteAuthType {
   connexion: (email: string, motDePasse: string) => Promise<void>;
   deconnexion: () => void;
   mettreAJourUtilisateur: (utilisateur: Utilisateur) => void;
+  estRoleAutorise: (role: string) => boolean;
+  doitChangerMotDePasse: boolean;
 }
 
 const ContexteAuth = createContext<ContexteAuthType | undefined>(undefined);
@@ -19,6 +21,7 @@ interface FournisseurAuthProps {
 export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) => {
   const [utilisateur, setUtilisateur] = useState<Utilisateur | null>(null);
   const [chargement, setChargement] = useState(true);
+  const [doitChangerMotDePasse, setDoitChangerMotDePasse] = useState(false);
 
   useEffect(() => {
     const verifierAuth = async () => {
@@ -32,7 +35,8 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
             email: utilisateurActuel.email,
             role: utilisateurActuel.role as any,
             dateCreation: new Date().toISOString(),
-            actif: true
+            actif: true,
+            doitChangerMotDePasse: false
           });
         }
       } catch (error) {
@@ -49,16 +53,26 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
     try {
       const response = await AuthService.login({ email, password: motDePasse });
       if (response.success) {
+        const role = response.data.user.role;
+        
+        // Vérifier si le rôle est autorisé sur cette plateforme
+        if (!estRoleAutorise(role)) {
+          throw new Error(`Accès refusé. Les utilisateurs avec le rôle "${role}" doivent utiliser leur plateforme dédiée.`);
+        }
+        
         const nouvelUtilisateur: Utilisateur = {
           id: response.data.user.id,
           nom: response.data.user.nom,
           prenom: response.data.user.prenom,
           email: response.data.user.email,
-          role: response.data.user.role as any,
+          role: role as any,
           dateCreation: new Date().toISOString(),
-          actif: true
+          actif: true,
+          doitChangerMotDePasse: (response.data.user as any).doitChangerMotDePasse || false
         };
+        
         setUtilisateur(nouvelUtilisateur);
+        setDoitChangerMotDePasse(nouvelUtilisateur.doitChangerMotDePasse);
       }
     } catch (error) {
       throw error;
@@ -78,6 +92,12 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
     setUtilisateur(nouvelUtilisateur);
   };
 
+  // Fonction pour vérifier si un rôle est autorisé sur cette plateforme
+  const estRoleAutorise = (role: string): boolean => {
+    const rolesAutorises = ['administrateur', 'gestionnaire', 'professeur'];
+    return rolesAutorises.includes(role);
+  };
+
   // Simulation pour le développement
   useEffect(() => {
     if (process.env.NODE_ENV === 'development' && !utilisateur && !chargement) {
@@ -88,7 +108,8 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
         email: 'admin@ecole.fr',
         role: 'administrateur',
         dateCreation: new Date().toISOString(),
-        actif: true
+        actif: true,
+        doitChangerMotDePasse: false
       };
       setUtilisateur(utilisateurSimule);
     }
@@ -100,6 +121,8 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
     connexion,
     deconnexion,
     mettreAJourUtilisateur,
+    estRoleAutorise,
+    doitChangerMotDePasse,
   };
 
   return (

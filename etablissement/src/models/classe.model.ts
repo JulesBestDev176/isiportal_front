@@ -33,8 +33,8 @@ export interface ClasseAnneeScolaire {
   dateModification?: string;
 }
 
-// Élève avec ses informations de transfert
-export interface EleveClasse {
+// Élève avec ses informations de transfert (renommé pour éviter le conflit)
+export interface EleveClasseInfo {
   id: number;
   nom: string;
   prenom: string;
@@ -101,13 +101,13 @@ export const STATUTS_CLASSE = [
 export const STATUTS_INSCRIPTION = [
   { value: "inscrit", label: "Inscrit", couleur: "green" },
   { value: "desinscrit", label: "Désinscrit", couleur: "red" },
-  { value: "transfere", label: "Transféré", couleur: "orange" },
-  { value: "termine", label: "Terminé", couleur: "blue" }
+  { value: "transfere", label: "Transféré", couleur: "blue" },
+  { value: "termine", label: "Terminé", couleur: "gray" }
 ] as const;
 
 export const STATUTS_AFFECTATION = [
   { value: "active", label: "Active", couleur: "green" },
-  { value: "terminee", label: "Terminée", couleur: "blue" },
+  { value: "terminee", label: "Terminée", couleur: "gray" },
   { value: "annulee", label: "Annulée", couleur: "red" }
 ] as const;
 
@@ -129,3 +129,37 @@ export const getProfesseursActuels = (classe: Classe, anneeScolaireId: number): 
   const anneeActuelle = getClasseAnneeActuelle(classe, anneeScolaireId);
   return anneeActuelle?.profsMatieres || [];
 };
+
+// Interface pour le formulaire de classe
+export interface FormDataClasse {
+  nom: string;
+  niveauId: string;
+  effectifMax: number;
+  description: string;
+  professeurPrincipalId: string;
+  statut: string;
+}
+
+// Interface pour les erreurs de validation
+export interface ClasseErrors {
+  nom?: string;
+  niveauId?: string;
+  effectifMax?: string;
+}
+
+// Interface pour une matière dans un bulletin
+export interface MatiereBulletin {
+  nom: string;
+  note1?: number;
+  note2?: number;
+  composition?: number;
+  coefficient: number;
+  moyenne: number;
+  appreciation: string;
+}
+
+// Interface pour un bulletin de semestre
+export interface BulletinSemestre {
+  moyenne: number;
+  matieres: MatiereBulletin[];
+}

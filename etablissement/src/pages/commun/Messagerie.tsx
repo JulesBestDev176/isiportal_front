@@ -1,110 +1,96 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import {
-  Plus, Send, Paperclip, X, Clock, Bell,
-  AlertCircle, Calendar, FileText,
-  Target, CheckCircle2, GraduationCap, Briefcase,
-  Heart, User, Filter, Trash2, Info, Users, BookOpen
-} from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { adminService } from '../../services/adminService';
+import { notificationService } from '../../services/notificationService';
+import { useAuth } from '../../contexts/ContexteAuth';
+import { 
+  Send, 
+  Search, 
+  Filter, 
+  MoreVertical, 
+  Paperclip, 
+  Smile, 
+  Mic, 
+  Phone, 
+  Video, 
+  Info, 
+  Trash2, 
+  Archive, 
+  Star, 
+  Reply, 
+  Forward, 
+  Edit, 
+  Eye, 
+  EyeOff, 
+  Download, 
+  Share, 
+  Bookmark, 
+  Flag, 
+  Clock, 
+  Calendar, 
+  User, 
+  Users, 
+  MessageSquare, 
+  Bell, 
+  Settings, 
+  Plus,
+  CheckCircle,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  BookOpen
+} from 'lucide-react';
+import { Contact, NotificationLocale, ContactEtendu } from '../../models/communication.model';
 
-import { useAuth } from "../../contexts/ContexteAuth";
-import { Contact, Notification } from "../../models/communication.model";
-
-// Interface locale pour les données de contact étendues (statut en ligne, etc.)
-interface ContactEtendu extends Contact {
-  statut: "en_ligne" | "absent" | "occupe" | "invisible";
-  derniereConnexion?: string;
-  dernierMessage?: string;
-  heureMessage?: string;
-}
-
-// Données mockées
-const contactsMock: ContactEtendu[] = [
-  {
-    id: 1,
-    nom: "Diop",
-    prenom: "Aminata",
-    role: "professeur",
-    email: "aminata.diop@groupeisi.com",
-    statut: "en_ligne",
-    derniereConnexion: "2024-01-15T14:30:00Z",
-    dernierMessage: "Merci pour les documents",
-    heureMessage: "14:30",
-    classe: "6ème A",
-    matiere: "Mathématiques"
-  },
-  {
-    id: 2, 
-    nom: "Ndiaye",
-    prenom: "Moussa",
-    role: "gestionnaire",
-    email: "moussa.ndiaye@groupeisi.com",
-    statut: "absent",
-    derniereConnexion: "2024-01-15T12:15:00Z",
-    dernierMessage: "La réunion est confirmée",
-    heureMessage: "12:15",
-    sectionId: 1
-  },
-  {
-    id: 3,
-    nom: "Fall",
-    prenom: "Fatou",
-    role: "administrateur",
-    email: "fatou.fall@groupeisi.com",
-    statut: "occupe",
-    derniereConnexion: "2024-01-15T09:45:00Z",
-    dernierMessage: "Rapport envoyé",
-    heureMessage: "09:45"
+// Fonctions pour charger les données depuis les services
+const loadContactsFromService = async () => {
+  try {
+    const response = await adminService.getUtilisateurs({ page: 1, limit: 100 });
+    if (response.success && response.data) {
+      return response.data.data.map(user => ({
+        id: user.id,
+        nom: user.nom,
+        prenom: user.prenom,
+        role: user.role,
+        email: user.email,
+        statut: "en_ligne" as const,
+        derniereConnexion: new Date().toISOString(),
+        dernierMessage: "",
+        heureMessage: "",
+        classe: "",
+        matiere: ""
+      })) as ContactEtendu[];
+    }
+    return [];
+  } catch (error) {
+    console.error('Erreur lors du chargement des contacts:', error);
+    return [];
   }
-];
+};
 
-const notificationsMock: Notification[] = [
-  {
-    id: 1,
-    titre: "Réunion pédagogique",
-    contenu: "Réunion prévue demain à 14h en salle de conférence pour discuter des nouveaux programmes.",
-    type: "evenement",
-    expediteurId: 3,
-    expediteurRole: "administrateur",
-    destinataireType: "role",
-    destinataires: [],
-    destinataireRoles: ["gestionnaire"],
-    dateCreation: "2024-01-15T10:30:00Z",
-    dateEnvoi: "2024-01-15T10:30:00Z",
-    active: true,
-    nbDestinataires: 1,
-    nbLues: 0,
-    priorite: "normale"
-  },
-  {
-    id: 2,
-    titre: "Mise à jour système",
-    contenu: "Le système sera mis à jour ce soir entre 20h et 22h. Merci de sauvegarder vos travaux.",
-    type: "info",
-    expediteurId: 3,
-    expediteurRole: "administrateur",
-    destinataireType: "role",
-    destinataires: [],
-    destinataireRoles: ["professeur", "gestionnaire"],
-    dateCreation: "2024-01-14T16:45:00Z",
-    dateEnvoi: "2024-01-14T16:45:00Z",
-    active: true,
-    nbDestinataires: 2,
-    nbLues: 0,
-    priorite: "normale"
+const loadNotificationsFromService = async () => {
+  try {
+    const response = await notificationService.getNotifications(1);
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return [];
+  } catch (error) {
+    console.error('Erreur lors du chargement des notifications:', error);
+    return [];
   }
-];
+};
 
 // Composant pour créer une notification
 const CreerNotification: React.FC<{
-  onCreer: (notification: Omit<Notification, "id" | "dateCreation">) => void;
+  onCreer: (notification: Omit<NotificationLocale, "id" | "dateCreation">) => void;
   onAnnuler: () => void;
   roleUtilisateur?: string;
 }> = ({ onCreer, onAnnuler, roleUtilisateur }) => {
   const { utilisateur } = useAuth();
   const [titre, setTitre] = useState("");
   const [contenu, setContenu] = useState("");
-  const [type, setType] = useState<Notification["type"]>("info");
+  const [type, setType] = useState<string>("info");
   const [destinataireRoles, setDestinataireRoles] = useState<("administrateur" | "gestionnaire" | "professeur" | "eleve" | "parent")[]>([]);
   const [programmee, setProgrammee] = useState(false);
   const [dateEnvoi, setDateEnvoi] = useState("");
@@ -147,7 +133,7 @@ const CreerNotification: React.FC<{
     onCreer({
       titre: titre.trim(),
       contenu: contenu.trim(),
-      type,
+      type: type as "info" | "urgent" | "evenement" | "rappel" | "absence" | "note" | "emploi_du_temps",
       expediteurId: utilisateur?.id || 1,
       expediteurRole: utilisateur?.role as "administrateur" | "gestionnaire" | "professeur",
       destinataireType: "role",
@@ -221,7 +207,7 @@ const CreerNotification: React.FC<{
               <button
                 key={typeNotif.value}
                 type="button"
-                onClick={() => setType(typeNotif.value as Notification["type"])}
+                onClick={() => setType(typeNotif.value as NotificationLocale["type"])}
                 className={`p-3 border rounded-lg text-center transition-colors ${
                   type === typeNotif.value
                     ? `border-${typeNotif.couleur}-500 bg-${typeNotif.couleur}-50 text-${typeNotif.couleur}-700`
@@ -352,7 +338,7 @@ const CreerNotification: React.FC<{
 
 // Composant pour afficher une notification
 const CarteNotification: React.FC<{
-  notification: Notification;
+  notification: NotificationLocale;
   onSupprimer: (id: number) => void;
 }> = ({ notification, onSupprimer }) => {
   const getTypeIcon = (type: string) => {
@@ -422,19 +408,16 @@ const CarteNotification: React.FC<{
 
       {/* Destinataires */}
       <div className="flex flex-wrap gap-1">
-        {notification.destinataireRoles?.map((dest, index) => (
+        {notification.destinataireRoles?.map((dest: string, index: number) => (
           <span
             key={index}
             className={`px-2 py-1 rounded-full text-xs font-medium ${
-              dest === "gestionnaire" ? "bg-blue-100 text-blue-700" :
-              dest === "professeur" ? "bg-green-100 text-green-700" :
-              dest === "administrateur" ? "bg-purple-100 text-purple-700" :
-              "bg-gray-100 text-gray-700"
+              getBadgeColor(dest)
             }`}
           >
-            {dest === "gestionnaire" ? "Gestionnaire" : 
-             dest === "professeur" ? "Professeur" : 
-             dest === "administrateur" ? "Administrateur" : dest}
+            {dest === "administrateur" ? "Admin" : 
+             dest === "gestionnaire" ? "Gestionnaire" : 
+             dest === "professeur" ? "Professeur" : dest}
           </span>
         ))}
       </div>
@@ -471,23 +454,50 @@ const CarteNotification: React.FC<{
 // Composant principal
 const Messagerie: React.FC = () => {
   const { utilisateur } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>(notificationsMock);
+  const [notifications, setNotifications] = useState<NotificationLocale[]>([]);
+  const [contacts, setContacts] = useState<ContactEtendu[]>([]);
   const [afficherFormulaire, setAfficherFormulaire] = useState(false);
   const [filtreType, setFiltreType] = useState<string>("tous");
 
-  const creerNotification = (nouvelleNotification: Omit<Notification, "id" | "dateCreation">) => {
-    const notification: Notification = {
-      ...nouvelleNotification,
-      id: Date.now(),
-      dateCreation: new Date().toISOString()
+  useEffect(() => {
+    const fetchData = async () => {
+      const [notificationsData, contactsData] = await Promise.all([
+        loadNotificationsFromService(),
+        loadContactsFromService()
+      ]);
+      setNotifications(notificationsData);
+      setContacts(contactsData);
     };
+    fetchData();
+    const interval = setInterval(fetchData, 5000); // Rafraîchir toutes les 5 secondes
+    return () => clearInterval(interval);
+  }, []);
 
-    setNotifications(prev => [notification, ...prev]);
-    setAfficherFormulaire(false);
+  const creerNotification = async (nouvelleNotification: Omit<NotificationLocale, "id" | "dateCreation">) => {
+    try {
+      const response = await notificationService.createNotification(nouvelleNotification);
+      if (response.success && response.data) {
+        setNotifications(prev => [response.data as NotificationLocale, ...prev]);
+        setAfficherFormulaire(false);
+      } else {
+        console.error('Erreur lors de la création de la notification:', response.message);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la création de la notification:', error);
+    }
   };
 
-  const supprimerNotification = (id: number) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+  const supprimerNotification = async (id: number) => {
+    try {
+      const response = await notificationService.deleteNotification(id);
+      if (response.success) {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+      } else {
+        console.error('Erreur lors de la suppression de la notification:', response.message);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la notification:', error);
+    }
   };
 
   const notificationsFiltrees = notifications.filter(notification => {

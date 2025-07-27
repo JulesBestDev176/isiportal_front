@@ -1,47 +1,61 @@
-import React, { useEffect, useState } from "react";
-import { Professeur } from "../../models/utilisateur.model";
-import { MATIERES_COURANTES } from "../../models/matiere.model";
+import React, { useState, useEffect } from 'react';
+import { Professeur } from '../../models/utilisateur.model';
+import { adminService } from '../../services/adminService';
+import { notificationService } from '../../services/notificationService';
+import { useAuth } from '../../contexts/ContexteAuth';
+import { 
+  Users, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Search, 
+  Filter,
+  Calendar,
+  GraduationCap,
+  ArrowRight,
+  Settings,
+  Eye,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  UserCheck,
+  UserX,
+  Mail,
+  Phone,
+  MapPin,
+  BookOpen,
+  Award,
+  Activity
+} from 'lucide-react';
 
 const Professeurs: React.FC = () => {
   const [profs, setProfs] = useState<Professeur[]>([]);
 
   useEffect(() => {
-    // Données mock pour le développement
-    const professeursMock: Professeur[] = [
-      {
-        id: 1,
-        nom: "Dupont",
-        prenom: "Marie",
-        email: "marie.dupont@ecole.fr",
-        role: "professeur",
-        sections: ["college", "lycee"],
-        matieres: [1, 7], // Mathématiques, Physique-Chimie
-        cours: [1, 2, 3],
-        dateCreation: "2023-09-01T00:00:00Z",
-        actif: true
-      },
-      {
-        id: 2,
-        nom: "Martin",
-        prenom: "Pierre",
-        email: "pierre.martin@ecole.fr",
-        role: "professeur",
-        sections: ["lycee"],
-        matieres: [2, 13], // Français, Philosophie
-        cours: [4, 5],
-        dateCreation: "2023-09-01T00:00:00Z",
-        actif: true
-      }
-    ];
-    setProfs(professeursMock);
+    loadProfesseurs();
   }, []);
 
-  const getNomMatiere = (matiereId: number): string => {
-    // Pour l'instant, on utilise un mapping simple basé sur l'index
+  const loadProfesseurs = async () => {
+    try {
+      const response = await adminService.getUtilisateurs({
+        page: 1,
+        limit: 100,
+        filters: { role: 'professeur' }
+      });
+      if (response.success && response.data) {
+        setProfs(response.data.data as Professeur[]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des professeurs:', error);
+    }
+  };
+
+  const getMatiereNom = (matiereId: number): string => {
     // Dans un vrai projet, il faudrait une correspondance ID -> matière
     const matiereIndex = matiereId - 1;
-    if (matiereIndex >= 0 && matiereIndex < MATIERES_COURANTES.length) {
-      return MATIERES_COURANTES[matiereIndex].nom;
+    if (matiereIndex >= 0 && matiereIndex < 13) {
+      const matieres = ["Mathématiques", "Français", "Histoire-Géographie", "Anglais", "Sciences", "EPS", "Physique-Chimie", "SVT", "Musique", "Arts plastiques", "Technologie", "Philosophie", "Espagnol"];
+      return matieres[matiereIndex] || `Matière ${matiereId}`;
     }
     return `Matière ${matiereId}`;
   };
@@ -69,7 +83,7 @@ const Professeurs: React.FC = () => {
                 <td className="px-2 py-1">{p.prenom}</td>
                 <td className="px-2 py-1">{p.email}</td>
                 <td className="px-2 py-1">
-                  {p.matieres?.map(matiereId => getNomMatiere(matiereId)).join(", ") || "-"}
+                  {p.matieres?.map(matiereId => getMatiereNom(matiereId)).join(", ") || "-"}
                 </td>
                 <td className="px-2 py-1">
                   {p.sections?.map(s => s === "college" ? "Collège" : "Lycée").join(", ") || "-"}

@@ -31,11 +31,23 @@ const Connexion: React.FC = () => {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Connexion au Portail Scolaire
+            Connexion au Portail Établissement
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Accédez à votre espace personnel
           </p>
+        </div>
+
+        {/* Information sur les plateformes */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-blue-800 mb-2">
+            Plateformes disponibles :
+          </h3>
+          <div className="text-xs text-blue-700 space-y-1">
+            <p>• <strong>Cette plateforme :</strong> Administrateurs, Gestionnaires, Professeurs</p>
+            <p>• <strong>Plateforme Parents :</strong> Accès dédié aux parents</p>
+            <p>• <strong>Plateforme Élèves :</strong> Accès dédié aux élèves</p>
+          </div>
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={gererSoumission}>

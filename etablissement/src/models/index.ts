@@ -1,37 +1,139 @@
-// Export de tous les modèles
+// Export des modèles de communication
+export type {
+  Message,
+  Contact,
+  Notification,
+  NotificationLocale,
+  ContactEtendu
+} from './communication.model';
 
-// Modèles utilisateurs et académiques
-export * from './utilisateur.model';
-export * from './classe.model';
-export * from './cours.model';
-export * from './matiere.model';
-export * from './niveau.model';
-export * from './section.model';
-export * from './salle.model';
-export * from './annee-scolaire.model';
-export * from './emploi-du-temps.model';
-export * from './absence.model';
+// Export des modèles de cours
+export type {
+  Cours,
+  Creneau,
+  AssignationCoursClasse,
+  AssignationCours,
+  ProgressionSeance,
+  FormDataCours,
+  CoursErrors
+} from './cours.model';
 
-// Modèles de communication
-export * from './communication.model';
+// Export des modèles d'élève
+export type {
+  EleveClasse,
+  ProfMatiere,
+  Etudiant,
+  Note
+} from './eleve.model';
 
-// Modèles d'analytics
-export * from './analytics.model';
+// Export des modèles de classe
+export type {
+  Classe,
+  FormDataClasse,
+  ClasseErrors,
+  MatiereBulletin,
+  BulletinSemestre
+} from './classe.model';
 
-// Modèles de notation
-export * from './note.model';
+// Export des modèles d'utilisateur
+export type {
+  Utilisateur,
+  Administrateur,
+  Gestionnaire,
+  Professeur,
+  Eleve,
+  Parent,
+  FormDataUtilisateur,
+  RoleUtilisateur,
+  SectionType,
+  PrivilegeAdmin,
+  NoteDetails,
+  SemestreNotes,
+  AnneeNotes,
+  NotesEleve
+} from './utilisateur.model';
 
-// Modèles système
-export * from './roles.model';
+export {
+  SECTIONS,
+  MATIERES_LIST,
+  CLASSES_LIST,
+  PRIVILEGES_ADMIN,
+  ROLES_UTILISATEUR,
+  getRoleInfo,
+  getRoleColorClass,
+  getStatutColorClass
+} from './utilisateur.model';
 
-// Modèles de transfert
-export * from './regles-transfert.model';
+// Export des modèles de niveau
+export type {
+  Niveau,
+  FormDataNiveau
+} from './niveau.model';
 
-// Modèles UI
-export * from './ui.model';
+// Export des modèles de matière
+export type {
+  Matiere,
+  MatiereNiveau,
+  StatutMatiere,
+  CodeMatiere
+} from './matiere.model';
 
-// Types communs
-export * from './common.types';
+export {
+  MATIERES_COURANTES,
+  STATUTS_MATIERE,
+  getStatutInfo,
+  getMatiereColorClass,
+  getMatiereByCode
+} from './matiere.model';
 
-// Types utilitaires
-export * from './utility.types';
+// Export des modèles de salle
+export type {
+  Salle,
+  FormDataSalle,
+  SalleErrors
+} from './salle.model';
+
+export {
+  STATUTS_SALLE,
+  TYPES_SALLE,
+  getStatutInfo as getSalleStatutInfo,
+  getTypeInfo as getSalleTypeInfo,
+  getSalleColorClass
+} from './salle.model';
+
+// Export des modèles de bâtiment
+export type {
+  Batiment,
+  FormDataBatiment,
+  BatimentErrors
+} from './batiment.model';
+
+export {
+  STATUTS_BATIMENT,
+  getStatutInfo as getBatimentStatutInfo,
+  getBatimentColorClass
+} from './batiment.model';
+
+// Export des modèles d'élève
+export type {
+  EleveClasse
+} from './eleve.model';
+
+// Export des modèles de règles de transfert
+export type {
+  ReglesTransfert
+} from './regles-transfert.model';
+
+export {
+  getStatutInfo as getRegleStatutInfo,
+  getRegleColorClass
+} from './regles-transfert.model';
+
+// Export des modèles d'analytics
+export type {
+  MetriqueKPI,
+  DonneesTendance,
+  PerformanceClasse,
+  ActiviteUtilisateur,
+  StatistiqueRole
+} from './analytics.model';

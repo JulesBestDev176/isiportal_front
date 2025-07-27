@@ -66,27 +66,25 @@ export const getClasseDestination = (
   }
 };
 
-// Mock data pour les règles de transfert
-export const reglesTransfertMock: ReglesTransfert[] = [
-  {
-    id: 1,
-    moyenneMinimale: 8,
-    statutRequis: "inscrit",
-    transfertDirect: true,
-    desactiverAnneeApresTransfert: true,
-    actif: true,
-    dateCreation: "2024-01-15T08:00:00Z",
-    creePar: 1
-  },
-  {
-    id: 2,
-    moyenneMinimale: 10,
-    statutRequis: "inscrit",
-    transfertDirect: false,
-    desactiverAnneeApresTransfert: false,
-    actif: false,
-    dateCreation: "2024-01-10T10:00:00Z",
-    dateModification: "2024-01-12T14:30:00Z",
-    creePar: 1
+// Fonctions utilitaires pour les statuts des règles
+export const STATUTS_REGLES = [
+  { label: "Actif", value: "active" },
+  { label: "Inactif", value: "inactive" },
+  { label: "Test", value: "test" }
+] as const;
+
+export type StatutRegle = typeof STATUTS_REGLES[number]["value"];
+
+// Fonctions utilitaires
+export const getStatutInfo = (statut: StatutRegle) => {
+  return STATUTS_REGLES.find(s => s.value === statut);
+};
+
+export const getRegleColorClass = (statut: StatutRegle): string => {
+  switch (statut) {
+    case "active": return 'bg-green-100 text-green-800';
+    case "inactive": return 'bg-red-100 text-red-800';
+    case "test": return 'bg-yellow-100 text-yellow-800';
+    default: return 'bg-gray-100 text-gray-800';
   }
-]; 
+}; 
