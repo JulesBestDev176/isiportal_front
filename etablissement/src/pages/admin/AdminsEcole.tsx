@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { AdminEcole } from "../../models/AdminEcole";
+import { Administrateur, HistoriqueConnexion, administrateursMock } from "../../models/utilisateur.model";
 import MainLayout from "../../components/layout/MainLayout";
 
 const AdminsEcole: React.FC = () => {
-  const [admins, setAdmins] = useState<AdminEcole[]>([]);
+  const [admins, setAdmins] = useState<Administrateur[]>([]);
 
   useEffect(() => {
-    fetch("/data/adminEcole.json")
-      .then(res => res.json())
-      .then(data => setAdmins(data));
+    // Utilisation des données mock au lieu du fetch
+    setAdmins(administrateursMock);
+    
+    // Pour plus tard, quand l'API sera prête :
+    // fetch("/data/administrateurs.json")
+    //   .then(res => res.json())
+    //   .then(data => setAdmins(data));
   }, []);
 
   return (
@@ -36,7 +40,11 @@ const AdminsEcole: React.FC = () => {
                 <td className="px-2 py-1">{a.telephone || "-"}</td>
                 <td className="px-2 py-1">{a.adresse || "-"}</td>
                 <td className="px-2 py-1">{a.privileges?.join(", ") || "-"}</td>
-                <td className="px-2 py-1">{a.historiqueConnexions?.map(c => `${c.date} (${c.ip})`).join(", ") || "-"}</td>
+                <td className="px-2 py-1">
+                  {a.historiqueConnexions?.map((c: HistoriqueConnexion) => 
+                    `${new Date(c.date).toLocaleDateString()} (${c.ip})`
+                  ).join(", ") || "-"}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -46,4 +54,4 @@ const AdminsEcole: React.FC = () => {
   );
 };
 
-export default AdminsEcole; 
+export default AdminsEcole;

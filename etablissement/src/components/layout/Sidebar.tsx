@@ -1,45 +1,65 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { User, GraduationCap } from "lucide-react";
+import { Home, BookOpen, Users, MessageSquare, GraduationCap, User, Building, Layers } from "lucide-react";
 
-interface MenuItem {
-  titre: string;
-  lien: string;
-  icone: React.ReactNode;
-}
+const getMenu = (role: string) => {
+  if (role === 'administrateur') {
+    return [
+      { titre: 'Tableau de bord', lien: '/dashboard', icone: <Home className="w-5 h-5" /> },
+      { titre: 'Utilisateurs', lien: '/utilisateurs', icone: <Users className="w-5 h-5" /> },
+      { titre: 'Niveaux', lien: '/niveaux', icone: <Layers className="w-5 h-5" /> },
+      { titre: 'Classes', lien: '/classes', icone: <BookOpen className="w-5 h-5" /> },
+      { titre: 'Cours', lien: '/cours', icone: <BookOpen className="w-5 h-5" /> },
+      { titre: 'Salles', lien: '/salles', icone: <Building className="w-5 h-5" /> },
+      { titre: 'Messagerie', lien: '/messagerie', icone: <MessageSquare className="w-5 h-5" /> }
+    ];
+  }
+  if (role === 'gestionnaire') {
+    return [
+      { titre: 'Tableau de bord', lien: '/dashboard', icone: <Home className="w-5 h-5" /> },
+      { titre: 'Utilisateurs', lien: '/utilisateurs', icone: <Users className="w-5 h-5" /> },
+      { titre: 'Niveaux', lien: '/niveaux', icone: <Layers className="w-5 h-5" /> },
+      { titre: 'Classes', lien: '/classes', icone: <BookOpen className="w-5 h-5" /> },
+      { titre: 'Messagerie', lien: '/messagerie', icone: <MessageSquare className="w-5 h-5" /> }
+    ];
+  }
+  if (role === 'professeur') {
+    return [
+      { titre: 'Tableau de bord', lien: '/dashboard', icone: <Home className="w-5 h-5" /> },
+      { titre: 'Mes cours', lien: '/cours', icone: <BookOpen className="w-5 h-5" /> },
+      { titre: 'Messagerie', lien: '/messagerie', icone: <MessageSquare className="w-5 h-5" /> }
+    ];
+  }
+  return [];
+};
 
 interface SidebarProps {
-  menu: MenuItem[];
-  utilisateur: any;
-  tenant: any;
-  reduite?: boolean;
+  reduit: boolean;
+  onToggle: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ menu, utilisateur, tenant, reduite }) => {
+const Sidebar: React.FC<SidebarProps> = ({ reduit, onToggle }) => {
   const location = useLocation();
-  const libellesRole: Record<string, string> = {
-    adminEcole: "Administrateur d'École",
-    gestionnaire: "Gestionnaire",
-    professeur: "Professeur",
-    eleve: "Élève",
-    parent: "Parent/Tuteur"
-  };
+  // Pour l'instant, on simule un utilisateur - à remplacer par le contexte d'auth réel
+  const utilisateur = { role: 'administrateur', email: 'admin@etablissement.fr' };
+  if (!utilisateur) return null;
+  
+  const menu = getMenu(utilisateur.role);
 
   return (
-    <aside className={`relative min-h-screen bg-white border-r border-neutral-200 flex flex-col transition-all duration-200 ${reduite ? 'w-20' : 'w-64'}`}>
+    <aside className={`relative min-h-screen bg-white border-r border-neutral-200 flex flex-col transition-all duration-200 ${reduit ? 'w-20' : 'w-64'}`}>
       {/* Logo + titre */}
-      <div className={`flex items-center gap-3 px-6 py-6 border-b border-neutral-200 ${reduite ? 'justify-center' : ''}`}>
-        <div className="w-10 h-10 bg-primaire rounded-lg flex items-center justify-center">
+      <div className={`flex items-center gap-3 px-6 py-6 border-b border-neutral-200 ${reduit ? 'justify-center' : ''}`}>
+        <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
           <GraduationCap className="w-6 h-6 text-white" />
         </div>
-        {!reduite && (
+        {!reduit && (
           <div className="min-w-0 flex-1">
             <h2 className="font-bold text-lg text-neutral-900 truncate">
-              {tenant?.nom || tenant?.idEcole || tenant?.sousDomaine}
+              {utilisateur?.role === 'administrateur' ? 'Administrateur' : 
+               utilisateur?.role === 'gestionnaire' ? 'Gestionnaire' : 
+               utilisateur?.role === 'professeur' ? 'Professeur' : ''}
             </h2>
-            <p className="text-sm text-neutral-500 truncate">
-              {libellesRole[utilisateur?.role] || utilisateur?.role}
-            </p>
           </div>
         )}
       </div>
@@ -55,19 +75,19 @@ const Sidebar: React.FC<SidebarProps> = ({ menu, utilisateur, tenant, reduite })
                   className={`
                     group flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200
                     ${isActive 
-                      ? 'bg-primaire/10 text-primaire shadow-sm' 
-                      : 'text-neutral-700 hover:bg-fond hover:text-primaire'
+                      ? 'bg-primary/10 text-primary shadow-sm' 
+                      : 'text-neutral-700 hover:bg-neutral-50 hover:text-primary'
                     }
                   `}
                 >
                   <span className={`transition-colors ${
-                    isActive ? 'text-primaire' : 'text-neutral-500 group-hover:text-primaire'
+                    isActive ? 'text-primary' : 'text-neutral-500 group-hover:text-primary'
                   }`}>
                     {item.icone}
                   </span>
-                  {!reduite && <span className="truncate">{item.titre}</span>}
-                  {isActive && !reduite && (
-                    <div className="w-1.5 h-1.5 bg-primaire rounded-full ml-auto" />
+                  {!reduit && <span className="truncate">{item.titre}</span>}
+                  {isActive && !reduit && (
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full ml-auto" />
                   )}
                 </Link>
               </li>
@@ -76,15 +96,15 @@ const Sidebar: React.FC<SidebarProps> = ({ menu, utilisateur, tenant, reduite })
         </ul>
       </nav>
       {/* Footer utilisateur */}
-      <div className={`px-4 py-4 border-t border-neutral-200 ${reduite ? 'justify-center flex' : ''}`}>
-        <div className={`flex items-center gap-3 px-3 py-3 rounded-lg bg-fond ${reduite ? 'justify-center' : ''}`}>
-          <div className="w-9 h-9 bg-primaire rounded-lg flex items-center justify-center flex-shrink-0">
+      <div className={`px-4 py-4 border-t border-neutral-200 ${reduit ? 'flex justify-center' : ''}`}>
+        <div className={`flex items-center gap-3 px-3 py-3 rounded-lg bg-neutral-50 ${reduit ? 'justify-center' : ''}`}>
+          <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
             <User className="w-5 h-5 text-white" />
           </div>
-          {!reduite && (
+          {!reduit && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-neutral-900 truncate">
-                {utilisateur?.prenom} {utilisateur?.nom}
+              <p className="text-sm font-bold text-neutral-900 truncate">
+                {utilisateur?.email}
               </p>
               <p className="text-xs text-neutral-500 truncate">
                 {utilisateur?.email}

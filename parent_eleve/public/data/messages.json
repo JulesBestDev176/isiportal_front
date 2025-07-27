@@ -1,0 +1,29 @@
+[
+  {
+    "id": "1",
+    "expediteurId": "admin@ecole.fr",
+    "destinataireId": "prof1@ecole.fr",
+    "contenu": "Bonjour, pouvez-vous me transmettre la liste des élèves absents ?",
+    "dateEnvoi": "2024-06-01T09:00:00Z",
+    "lu": false,
+    "type": "texte"
+  },
+  {
+    "id": "2",
+    "expediteurId": "prof1@ecole.fr",
+    "destinataireId": "admin@ecole.fr",
+    "contenu": "Bien reçu, je vous l'envoie dans la journée.",
+    "dateEnvoi": "2024-06-01T09:05:00Z",
+    "lu": true,
+    "type": "texte"
+  },
+  {
+    "id": "3",
+    "expediteurId": "parent1@famille.fr",
+    "destinataireId": "prof1@ecole.fr",
+    "contenu": "Mon enfant sera absent demain pour raison médicale.",
+    "dateEnvoi": "2024-06-01T10:00:00Z",
+    "lu": false,
+    "type": "texte"
+  }
+] 

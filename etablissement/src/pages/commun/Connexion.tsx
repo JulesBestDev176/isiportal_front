@@ -1,111 +1,104 @@
-import React, { useState } from "react";
-import { useAuth } from "../../contexts/ContexteAuth";
-import { useNavigate } from "react-router-dom";
-import { useTenant } from "../../contexts/ContexteTenant";
-
-const fichiers = [
-  "/data/adminEcole.json",
-  "/data/professeurs.json",
-  "/data/gestionnaires.json",
-  "/data/eleves.json",
-  "/data/parents.json"
-];
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/ContexteAuth';
 
 const Connexion: React.FC = () => {
-  const { connexion } = useAuth();
-  const { definirTenant } = useTenant();
-  const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [motDePasse, setMotDePasse] = useState("");
-  const [erreur, setErreur] = useState("");
+  const [email, setEmail] = useState('');
+  const [motDePasse, setMotDePasse] = useState('');
+  const [chargement, setChargement] = useState(false);
+  const [erreur, setErreur] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const { connexion } = useAuth();
+  const navigate = useNavigate();
+
+  const gererSoumission = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErreur("");
-    if (!email || !motDePasse) {
-      setErreur("Veuillez saisir un email et un mot de passe.");
-      return;
-    }
+    setChargement(true);
+    setErreur('');
+
     try {
-      // Charge tous les utilisateurs
-      const datas = await Promise.all(fichiers.map(f => fetch(f).then(res => res.json())));
-      const tous = datas.flat();
-      const user = tous.find((u: any) => u.email === email && u.motDePasse === motDePasse);
-      if (user) {
-        connexion({
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          idTenant: user.idTenant,
-          prenom: user.prenom,
-          nom: user.nom
-        });
-        // Charger la config tenant
-        const etablissements = await fetch("/data/etablissements.json").then(res => res.json());
-        const etab = etablissements.find((e: any) => e.id === user.idTenant);
-        if (etab) {
-          // Adapter à ConfigurationTenant minimal pour le dashboard
-          definirTenant({
-            idEcole: etab.id,
-            sousDomaine: etab.sousDomaine,
-            nom: etab.nom,
-            branding: {
-              logo: etab.logo,
-              couleurs: etab.couleurs,
-              favicon: ""
-            },
-            fonctionnalites: {},
-            limites: { utilisateurs: 0, stockage: 0 },
-            emailContact: etab.emailContact
-          });
-        }
-        // Redirection selon le rôle
-        let chemin = "/dashboard";
-        // Exemple d'extension possible :
-        // if (user.role === "parent") chemin = "/dashboard-parent";
-        // if (user.role === "professeur") chemin = "/dashboard-prof";
-        navigate(chemin);
-      } else {
-        setErreur("Email ou mot de passe incorrect.");
-      }
-    } catch (err) {
-      setErreur("Erreur lors de la connexion. Veuillez réessayer.");
+      await connexion(email, motDePasse);
+      navigate('/dashboard');
+    } catch (error: any) {
+      setErreur(error.message || 'Erreur lors de la connexion');
+    } finally {
+      setChargement(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-300">
-      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center text-primary-700">Connexion à l'espace établissement</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-            <input
-              id="email"
-              type="email"
-              className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Connexion au Portail Scolaire
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Accédez à votre espace personnel
+          </p>
+        </div>
+        
+        <form className="mt-8 space-y-6" onSubmit={gererSoumission}>
+          {erreur && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {erreur}
+            </div>
+          )}
+          
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <label htmlFor="email" className="sr-only">
+                Adresse email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Adresse email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">
+                Mot de passe
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Mot de passe"
+                value={motDePasse}
+                onChange={(e) => setMotDePasse(e.target.value)}
+              />
+            </div>
           </div>
+
           <div>
-            <label htmlFor="motDePasse" className="block text-sm font-medium text-gray-700">Mot de passe</label>
-            <input
-              id="motDePasse"
-              type="password"
-              className="mt-1 block w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400"
-              value={motDePasse}
-              onChange={e => setMotDePasse(e.target.value)}
-              required
-            />
+            <button
+              type="submit"
+              disabled={chargement}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {chargement ? 'Connexion...' : 'Se connecter'}
+            </button>
           </div>
-          {erreur && <div className="text-red-600 text-sm">{erreur}</div>}
-          <button type="submit" className="w-full bg-primary-600 text-white py-2 rounded font-semibold hover:bg-primary-700 transition">Se connecter</button>
+
+          <div className="text-center">
+            <a href="#" className="text-sm text-blue-600 hover:text-blue-500">
+              Mot de passe oublié ?
+            </a>
+          </div>
         </form>
       </div>
     </div>
   );
 };
 
-export default Connexion; 
+export default Connexion;

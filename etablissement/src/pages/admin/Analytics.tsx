@@ -1,18 +1,17 @@
-import React, { useState } from "react";
-import { motion } from "framer-motion";
-import {
-  Users, BookOpen, Download, RefreshCw, ArrowUpRight, ArrowDownRight,
-  UserCheck, MessageSquare, Clock, Target,
-  Award, AlertTriangle, CheckCircle, School, Bell
-} from "lucide-react";
-import {
-  Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, Bar,
-  PieChart as RechartsPieChart, Cell, Pie, Area, AreaChart,
-  ComposedChart
-} from "recharts";
-import { useAuth } from "../../contexts/ContexteAuth";
-import { useTenant } from "../../contexts/ContexteTenant";
+import React, { useState, useEffect } from 'react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, PieChart, Pie, Cell, Area, AreaChart, ComposedChart,
+  PieChart as RechartsPieChart
+} from 'recharts';
+import { 
+  TrendingUp, TrendingDown, Users, BookOpen, 
+  Calendar, Award, Target, Activity, UserCheck, MessageSquare, 
+  Clock, ArrowUpRight, ArrowDownRight, School, RefreshCw, Download,
+  Bell, CheckCircle, AlertTriangle
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { useAuth } from '../../contexts/ContexteAuth';
 import MainLayout from "../../components/layout/MainLayout";
 
 // Types pour les données analytiques
@@ -485,7 +484,6 @@ const RepartitionRoles: React.FC = () => {
 // Composant principal
 const Analytics: React.FC = () => {
   const { utilisateur } = useAuth();
-  const { tenant } = useTenant();
   const [selectedPeriod, setSelectedPeriod] = useState("30j");
   const [loading, setLoading] = useState(false);
 
@@ -503,7 +501,7 @@ const Analytics: React.FC = () => {
     setTimeout(() => setLoading(false), 1000);
   };
 
-  if (!utilisateur || !tenant) {
+  if (!utilisateur) {
     return (
       <MainLayout>
         <div className="flex items-center justify-center min-h-96">
@@ -524,7 +522,7 @@ const Analytics: React.FC = () => {
           <div>
             <h1 className="text-2xl font-bold text-neutral-900">Analytics & Statistiques</h1>
             <p className="text-neutral-600 mt-1">
-              Tableau de bord analytique - {tenant?.nom}
+              Tableau de bord analytique de l'établissement
             </p>
           </div>
           

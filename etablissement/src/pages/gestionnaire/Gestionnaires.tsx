@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Gestionnaire } from "../../models/Gestionnaire";
+import { Gestionnaire } from "../../models/utilisateur.model";
 
 const Gestionnaires: React.FC = () => {
   const [gestionnaires, setGestionnaires] = useState<Gestionnaire[]>([]);
@@ -20,8 +20,7 @@ const Gestionnaires: React.FC = () => {
               <th className="px-2 py-1">Nom</th>
               <th className="px-2 py-1">Prénom</th>
               <th className="px-2 py-1">Email</th>
-              <th className="px-2 py-1">Département</th>
-              <th className="px-2 py-1">Responsabilités</th>
+              <th className="px-2 py-1">Sections</th>
             </tr>
           </thead>
           <tbody>
@@ -30,8 +29,7 @@ const Gestionnaires: React.FC = () => {
                 <td className="px-2 py-1">{g.nom}</td>
                 <td className="px-2 py-1">{g.prenom}</td>
                 <td className="px-2 py-1">{g.email}</td>
-                <td className="px-2 py-1">{g.departement || "-"}</td>
-                <td className="px-2 py-1">{g.responsabilites?.join(", ") || "-"}</td>
+                <td className="px-2 py-1">{g.sections?.join(", ") || "-"}</td>
               </tr>
             ))}
           </tbody>
@@ -41,4 +39,4 @@ const Gestionnaires: React.FC = () => {
   );
 };
 
-export default Gestionnaires; 
+export default Gestionnaires;

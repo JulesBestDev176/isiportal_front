@@ -1,438 +1,390 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import {
-  BookOpen, MessageSquare, Calendar, User, FileText, CheckCircle, TrendingUp, Bell, Users,
-  Award, Clock, Target, ArrowUpRight, ArrowDownRight, GraduationCap, UserCheck, AlertTriangle
-} from "lucide-react";
-import { useAuth } from "../../contexts/ContexteAuth";
-import { useTenant } from "../../contexts/ContexteTenant";
+import React, { useState, useEffect } from 'react';
+import { 
+  Users, 
+  GraduationCap, 
+  BookOpen, 
+  Calendar,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
+  Clock
+} from 'lucide-react';
+import { useAuth } from '../../contexts/ContexteAuth';
 
-// Définition des props pour DashboardCard amélioré
-interface PropsCarteTableauDeBord {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  color: string;
-  description?: string;
-  trend?: number;
-  delay?: number;
+interface StatistiqueCard {
+  titre: string;
+  valeur: string | number;
+  icone: React.ReactNode;
+  couleur: string;
+  evolution?: string;
 }
 
-const DashboardCard: React.FC<PropsCarteTableauDeBord> = ({ 
-  title, 
-  value, 
-  icon, 
-  color, 
-  description, 
-  trend,
-  delay = 0 
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5, delay }}
-    className="bg-white rounded-lg border border-neutral-200 p-6 hover:shadow-md transition-shadow"
-  >
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <div className={`w-12 h-12 rounded-lg ${color} flex items-center justify-center text-white`}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-sm font-medium text-neutral-600">{title}</p>
-          <p className="text-2xl font-bold text-neutral-900">{value}</p>
-          {description && (
-            <p className="text-sm text-neutral-500 mt-1">{description}</p>
-          )}
-        </div>
-      </div>
-      {trend !== undefined && (
-        <div className={`flex items-center gap-1 text-sm font-medium ${
-          trend >= 0 ? 'text-green-600' : 'text-red-600'
-        }`}>
-          {trend >= 0 ? (
-            <ArrowUpRight className="w-4 h-4" />
-          ) : (
-            <ArrowDownRight className="w-4 h-4" />
-          )}
-          {Math.abs(trend)}%
-        </div>
-      )}
-    </div>
-  </motion.div>
-);
-
-// Interface pour les activités
-interface Activity {
-  type: string;
-  text: string;
-  time: string;
-  user?: string;
-  status?: "success" | "warning" | "error" | "info";
+interface Notification {
+  id: string;
+  titre: string;
+  message: string;
+  type: 'info' | 'warning' | 'success';
+  date: string;
 }
-
-// Composant pour afficher une activité
-const ActivityItem: React.FC<{ activity: Activity; index: number }> = ({ activity, index }) => {
-  const getActivityIcon = (type: string) => {
-    const iconMap = {
-      user: <User className="w-5 h-5" />,
-      analytics: <TrendingUp className="w-5 h-5" />,
-      notif: <Bell className="w-5 h-5" />,
-      notification: <Bell className="w-5 h-5" />,
-      class: <BookOpen className="w-5 h-5" />,
-      discussion: <MessageSquare className="w-5 h-5" />,
-      document: <FileText className="w-5 h-5" />,
-      calendar: <Calendar className="w-5 h-5" />,
-      grade: <Award className="w-5 h-5" />,
-      chat: <MessageSquare className="w-5 h-5" />,
-      enrollment: <UserCheck className="w-5 h-5" />,
-      absence: <AlertTriangle className="w-5 h-5" />
-    };
-    return iconMap[type as keyof typeof iconMap] || <CheckCircle className="w-5 h-5" />;
-  };
-
-  const getStatusColor = (status?: string) => {
-    const colorMap = {
-      success: "bg-green-50 text-green-600",
-      warning: "bg-orange-50 text-orange-600", 
-      error: "bg-red-50 text-red-600",
-      info: "bg-primary-50 text-primary-600"
-    };
-    return colorMap[status as keyof typeof colorMap] || "bg-primary-50 text-primary-600";
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.1 }}
-      className="flex items-start gap-3 p-3 hover:bg-neutral-50 rounded-lg transition-colors cursor-pointer"
-    >
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getStatusColor(activity.status)}`}>
-        {getActivityIcon(activity.type)}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-neutral-900">{activity.text}</p>
-        {activity.user && (
-          <p className="text-xs text-neutral-500 mt-1">Par {activity.user}</p>
-        )}
-        <p className="text-xs text-neutral-500 mt-1">Il y a {activity.time}</p>
-      </div>
-    </motion.div>
-  );
-};
-
-// Interface pour les actions rapides
-interface QuickAction {
-  title: string;
-  icon: React.ReactNode;
-  color: string;
-  description?: string;
-}
-
-// Composant pour les actions rapides
-const QuickActionCard: React.FC<{ action: QuickAction; index: number }> = ({ action, index }) => (
-  <motion.button
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ duration: 0.3, delay: index * 0.1 }}
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
-    className="p-4 bg-white border border-neutral-200 rounded-lg hover:shadow-md transition-all group"
-  >
-    <div className={`w-12 h-12 rounded-lg ${action.color} flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform`}>
-      {action.icon}
-    </div>
-    <p className="text-sm font-medium text-neutral-900">{action.title}</p>
-    {action.description && (
-      <p className="text-xs text-neutral-500 mt-1">{action.description}</p>
-    )}
-  </motion.button>
-);
 
 const TableauDeBord: React.FC = () => {
   const { utilisateur } = useAuth();
-  const { tenant } = useTenant();
-  const [loading, setLoading] = useState(true);
+  const [statistiques, setStatistiques] = useState<StatistiqueCard[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [chargement, setChargement] = useState(true);
 
   useEffect(() => {
-    // Simulation du chargement
-    const timer = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Stats et activités selon le rôle
-  const getStats = () => {
-    switch (utilisateur?.role) {
-      case "adminEcole":
-        return {
-          users: { value: "120", trend: 8 },
-          teachers: { value: "24", trend: 12 },
-          students: { value: "248", trend: 15 },
-          subscription: { value: "Pro", trend: 0 },
-          analytics: { value: "98%", trend: 5 },
-          notifications: { value: "5", trend: -20 }
+    const chargerDonnees = async () => {
+      try {
+        // Simulation du chargement des données
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Statistiques simulées selon le rôle
+        const statsParRole = {
+          administrateur: [
+            {
+              titre: 'Total Utilisateurs',
+              valeur: 1247,
+              icone: <Users className="w-6 h-6" />,
+              couleur: 'bg-blue-500',
+              evolution: '+12%'
+            },
+            {
+              titre: 'Classes Actives',
+              valeur: 45,
+              icone: <GraduationCap className="w-6 h-6" />,
+              couleur: 'bg-green-500',
+              evolution: '+3%'
+            },
+            {
+              titre: 'Cours Programmés',
+              valeur: 234,
+              icone: <BookOpen className="w-6 h-6" />,
+              couleur: 'bg-purple-500',
+              evolution: '+8%'
+            },
+            {
+              titre: 'Événements',
+              valeur: 12,
+              icone: <Calendar className="w-6 h-6" />,
+              couleur: 'bg-orange-500',
+              evolution: '+2%'
+            }
+          ],
+          gestionnaire: [
+            {
+              titre: 'Élèves Inscrits',
+              valeur: 892,
+              icone: <Users className="w-6 h-6" />,
+              couleur: 'bg-blue-500',
+              evolution: '+5%'
+            },
+            {
+              titre: 'Classes Gérées',
+              valeur: 28,
+              icone: <GraduationCap className="w-6 h-6" />,
+              couleur: 'bg-green-500',
+              evolution: '+1%'
+            },
+            {
+              titre: 'Professeurs',
+              valeur: 67,
+              icone: <BookOpen className="w-6 h-6" />,
+              couleur: 'bg-purple-500',
+              evolution: '+3%'
+            }
+          ],
+          professeur: [
+            {
+              titre: 'Mes Classes',
+              valeur: 8,
+              icone: <GraduationCap className="w-6 h-6" />,
+              couleur: 'bg-blue-500'
+            },
+            {
+              titre: 'Élèves Total',
+              valeur: 187,
+              icone: <Users className="w-6 h-6" />,
+              couleur: 'bg-green-500'
+            },
+            {
+              titre: 'Cours Cette Semaine',
+              valeur: 24,
+              icone: <BookOpen className="w-6 h-6" />,
+              couleur: 'bg-purple-500'
+            },
+            {
+              titre: 'Devoirs à Corriger',
+              valeur: 45,
+              icone: <Clock className="w-6 h-6" />,
+              couleur: 'bg-orange-500'
+            }
+          ]
         };
-      case "gestionnaire":
-        return {
-          users: { value: "45", trend: 6 },
-          classes: { value: "12", trend: 0 },
-          students: { value: "248", trend: 10 },
-          analytics: { value: "92%", trend: 3 },
-          notifications: { value: "3", trend: -15 }
-        };
-      case "professeur":
-        return {
-          classes: { value: "6", trend: 0 },
-          students: { value: "142", trend: 5 },
-          discussions: { value: "14", trend: 25 },
-          progression: { value: "80%", trend: 8 },
-          notifications: { value: "2", trend: -10 }
-        };
-      case "eleve":
-        return {
-          documents: { value: "8", trend: 33 },
-          courses: { value: "12", trend: 0 },
-          discussions: { value: "5", trend: 15 },
-          progression: { value: "65%", trend: 12 },
-          notifications: { value: "2", trend: 0 }
-        };
-      case "parent":
-        return {
-          enfants: { value: "2", trend: 0 },
-          meetings: { value: "1", trend: 0 },
-          notifications: { value: "1", trend: -50 },
-          alerts: { value: "0", trend: -100 }
-        };
-      default:
-        return {};
-    }
-  };
 
-  const getActivities = (): Activity[] => {
-    switch (utilisateur?.role) {
-      case "adminEcole":
-        return [
-          { type: "enrollment", text: "Nouvelle inscription - Fatou Diallo en CE2", time: "2h", user: "Secrétariat", status: "success" },
-          { type: "user", text: "Nouveau professeur ajouté - M. Sow", time: "3h", user: "Direction", status: "success" },
-          { type: "analytics", text: "Rapport mensuel généré automatiquement", time: "5h", user: "Système", status: "info" },
-          { type: "notification", text: "Notification envoyée à tous les parents", time: "1j", user: "Administration", status: "info" }
-        ];
-      case "gestionnaire":
-        return [
-          { type: "class", text: "Emploi du temps CM1-B mis à jour", time: "3h", user: "Planning", status: "success" },
-          { type: "user", text: "Compte professeur suspendu temporairement", time: "6h", user: "Gestion", status: "warning" },
-          { type: "enrollment", text: "Transfert d'élève validé", time: "1j", user: "Scolarité", status: "success" }
-        ];
-      case "professeur":
-        return [
-          { type: "discussion", text: "Nouveau message de Aminata Ba", time: "1h", status: "info" },
-          { type: "grade", text: "Notes déposées pour CM1-A - Mathématiques", time: "4h", status: "success" },
-          { type: "calendar", text: "Réunion parents-professeurs programmée", time: "1j", status: "info" }
-        ];
-      case "eleve":
-        return [
-          { type: "document", text: "Nouveau cours : Les fractions en mathématiques", time: "2h", status: "info" },
-          { type: "grade", text: "Note reçue en Sciences : 15/20", time: "5h", status: "success" },
-          { type: "calendar", text: "Rappel : Devoir de français à rendre demain", time: "1j", status: "warning" }
-        ];
-      case "parent":
-        return [
-          { type: "notification", text: "Invitation réunion parents-professeurs", time: "2j", status: "info" },
-          { type: "grade", text: "Nouvelle note pour Aminata - Français: 16/20", time: "3j", status: "success" }
-        ];
-      default:
-        return [];
-    }
-  };
+        setStatistiques(statsParRole[utilisateur?.role as keyof typeof statsParRole] || []);
 
-  const getQuickActions = (): QuickAction[] => {
-    const baseActions = [
-      { title: "Messagerie", icon: <MessageSquare className="w-6 h-6" />, color: "bg-green-500", description: "Messages" },
-      { title: "Calendrier", icon: <Calendar className="w-6 h-6" />, color: "bg-purple-500", description: "Événements" },
-      { title: "Profil", icon: <User className="w-6 h-6" />, color: "bg-orange-500", description: "Mon compte" }
-    ];
+        // Notifications simulées
+        setNotifications([
+          {
+            id: '1',
+            titre: 'Nouvelle année scolaire',
+            message: 'Préparation de la rentrée 2024-2025',
+            type: 'info',
+            date: '2024-01-15'
+          },
+          {
+            id: '2',
+            titre: 'Maintenance programmée',
+            message: 'Maintenance du système prévue ce weekend',
+            type: 'warning',
+            date: '2024-01-14'
+          },
+          {
+            id: '3',
+            titre: 'Mise à jour terminée',
+            message: 'Nouvelles fonctionnalités disponibles',
+            type: 'success',
+            date: '2024-01-13'
+          }
+        ]);
 
-    switch (utilisateur?.role) {
-      case "adminEcole":
-      case "gestionnaire":
-        return [
-          { title: "Gestion", icon: <Users className="w-6 h-6" />, color: "bg-primary-500", description: "Utilisateurs" },
-          ...baseActions,
-          { title: "Rapports", icon: <FileText className="w-6 h-6" />, color: "bg-indigo-500", description: "Analytics" }
-        ];
-      case "professeur":
-        return [
-          { title: "Mes Classes", icon: <BookOpen className="w-6 h-6" />, color: "bg-primary-500", description: "Enseignement" },
-          { title: "Notes", icon: <Award className="w-6 h-6" />, color: "bg-green-500", description: "Évaluations" },
-          ...baseActions
-        ];
-      case "eleve":
-        return [
-          { title: "Mes Cours", icon: <BookOpen className="w-6 h-6" />, color: "bg-primary-500", description: "Matières" },
-          { title: "Devoirs", icon: <FileText className="w-6 h-6" />, color: "bg-green-500", description: "À rendre" },
-          ...baseActions
-        ];
-      case "parent":
-        return [
-          { title: "Mes Enfants", icon: <Users className="w-6 h-6" />, color: "bg-primary-500", description: "Suivi" },
-          ...baseActions
-        ];
-      default:
-        return baseActions;
-    }
-  };
-
-  const getWelcome = () => {
-    const roleNames = {
-      adminEcole: "Administrateur d'École",
-      gestionnaire: "Gestionnaire", 
-      professeur: "Professeur",
-      eleve: "Élève",
-      parent: "Parent"
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      } finally {
+        setChargement(false);
+      }
     };
 
-    return `Bienvenue ${utilisateur?.prenom || utilisateur?.email}, ${roleNames[utilisateur?.role as keyof typeof roleNames] || utilisateur?.role}`;
+    chargerDonnees();
+  }, [utilisateur?.role]);
+
+  const obtenirIconeNotification = (type: string) => {
+    switch (type) {
+      case 'warning':
+        return <AlertCircle className="w-5 h-5 text-orange-500" />;
+      case 'success':
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      default:
+        return <AlertCircle className="w-5 h-5 text-blue-500" />;
+    }
   };
 
-  if (loading) {
+  const obtenirCouleurNotification = (type: string) => {
+    switch (type) {
+      case 'warning':
+        return 'border-l-orange-500 bg-orange-50';
+      case 'success':
+        return 'border-l-green-500 bg-green-50';
+      default:
+        return 'border-l-blue-500 bg-blue-50';
+    }
+  };
+
+  if (chargement) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-neutral-600">Chargement du tableau de bord...</p>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
-  const stats = getStats();
-  const activities = getActivities();
-  const quickActions = getQuickActions();
-
   return (
     <div className="space-y-6">
-      {/* En-tête */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <motion.h1 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-2xl font-bold text-neutral-900"
-          >
-            {getWelcome()}
-          </motion.h1>
-          <motion.p 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-neutral-600 mt-1"
-          >
-            Établissement: {tenant?.nom || tenant?.idEcole || tenant?.sousDomaine}
-          </motion.p>
+      {/* En-tête de bienvenue */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Bonjour, {utilisateur?.prenom} {utilisateur?.nom}
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Bienvenue sur votre tableau de bord {utilisateur?.role}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-500">
+              {new Date().toLocaleDateString('fr-FR', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </p>
+          </div>
         </div>
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex items-center text-sm text-neutral-600"
-        >
-          <Clock className="w-4 h-4 mr-2" />
-          <span>Dernière mise à jour : Aujourd'hui</span>
-        </motion.div>
       </div>
 
-      {/* Cartes statistiques */}
+      {/* Cartes de statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {utilisateur?.role === "adminEcole" && (
-          <>
-            <DashboardCard title="Élèves" value={stats.students?.value || ""} icon={<Users className="w-6 h-6" />} color="bg-primary-500" description="Total inscrits" trend={stats.students?.trend} delay={0.1} />
-            <DashboardCard title="Professeurs" value={stats.teachers?.value || ""} icon={<GraduationCap className="w-6 h-6" />} color="bg-green-500" description="Équipe pédagogique" trend={stats.teachers?.trend} delay={0.2} />
-            <DashboardCard title="Activité" value={stats.analytics?.value || ""} icon={<TrendingUp className="w-6 h-6" />} color="bg-purple-500" description="Taux global" trend={stats.analytics?.trend} delay={0.3} />
-            <DashboardCard title="Notifications" value={stats.notifications?.value || ""} icon={<Bell className="w-6 h-6" />} color="bg-orange-500" description="Non lues" trend={stats.notifications?.trend} delay={0.4} />
-          </>
-        )}
-        
-        {utilisateur?.role === "gestionnaire" && (
-          <>
-            <DashboardCard title="Élèves" value={stats.students?.value || ""} icon={<Users className="w-6 h-6" />} color="bg-primary-500" description="Sous gestion" trend={stats.students?.trend} delay={0.1} />
-            <DashboardCard title="Classes" value={stats.classes?.value || ""} icon={<BookOpen className="w-6 h-6" />} color="bg-green-500" description="Gérées" trend={stats.classes?.trend} delay={0.2} />
-            <DashboardCard title="Activité" value={stats.analytics?.value || ""} icon={<TrendingUp className="w-6 h-6" />} color="bg-purple-500" description="Taux global" trend={stats.analytics?.trend} delay={0.3} />
-            <DashboardCard title="Notifications" value={stats.notifications?.value || ""} icon={<Bell className="w-6 h-6" />} color="bg-orange-500" description="Non lues" trend={stats.notifications?.trend} delay={0.4} />
-          </>
-        )}
-
-        {utilisateur?.role === "professeur" && (
-          <>
-            <DashboardCard title="Mes Classes" value={stats.classes?.value || ""} icon={<BookOpen className="w-6 h-6" />} color="bg-primary-500" description="Enseignées" trend={stats.classes?.trend} delay={0.1} />
-            <DashboardCard title="Élèves" value={stats.students?.value || ""} icon={<Users className="w-6 h-6" />} color="bg-green-500" description="Total élèves" trend={stats.students?.trend} delay={0.2} />
-            <DashboardCard title="Progression" value={stats.progression?.value || ""} icon={<Target className="w-6 h-6" />} color="bg-purple-500" description="Objectifs" trend={stats.progression?.trend} delay={0.3} />
-            <DashboardCard title="Messages" value={stats.notifications?.value || ""} icon={<MessageSquare className="w-6 h-6" />} color="bg-orange-500" description="Non lus" trend={stats.notifications?.trend} delay={0.4} />
-          </>
-        )}
-
-        {utilisateur?.role === "eleve" && (
-          <>
-            <DashboardCard title="Cours" value={stats.documents?.value || ""} icon={<BookOpen className="w-6 h-6" />} color="bg-primary-500" description="Disponibles" trend={stats.documents?.trend} delay={0.1} />
-            <DashboardCard title="Matières" value={stats.courses?.value || ""} icon={<GraduationCap className="w-6 h-6" />} color="bg-green-500" description="Inscrit" trend={stats.courses?.trend} delay={0.2} />
-            <DashboardCard title="Progression" value={stats.progression?.value || ""} icon={<Target className="w-6 h-6" />} color="bg-purple-500" description="Compétences" trend={stats.progression?.trend} delay={0.3} />
-            <DashboardCard title="Messages" value={stats.notifications?.value || ""} icon={<MessageSquare className="w-6 h-6" />} color="bg-orange-500" description="Non lus" trend={stats.notifications?.trend} delay={0.4} />
-          </>
-        )}
-
-        {utilisateur?.role === "parent" && (
-          <>
-            <DashboardCard title="Enfants" value={stats.enfants?.value || ""} icon={<Users className="w-6 h-6" />} color="bg-primary-500" description="Suivis" trend={stats.enfants?.trend} delay={0.1} />
-            <DashboardCard title="RDV" value={stats.meetings?.value || ""} icon={<Calendar className="w-6 h-6" />} color="bg-green-500" description="Programmés" trend={stats.meetings?.trend} delay={0.2} />
-            <DashboardCard title="Messages" value={stats.notifications?.value || ""} icon={<MessageSquare className="w-6 h-6" />} color="bg-purple-500" description="Non lus" trend={stats.notifications?.trend} delay={0.3} />
-            <DashboardCard title="Alertes" value={stats.alerts?.value || ""} icon={<Bell className="w-6 h-6" />} color="bg-orange-500" description="Importantes" trend={stats.alerts?.trend} delay={0.4} />
-          </>
-        )}
+        {statistiques.map((stat, index) => (
+          <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">{stat.titre}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{stat.valeur}</p>
+                {stat.evolution && (
+                  <p className="text-sm text-green-600 mt-1 flex items-center">
+                    <TrendingUp className="w-4 h-4 mr-1" />
+                    {stat.evolution}
+                  </p>
+                )}
+              </div>
+              <div className={`${stat.couleur} p-3 rounded-lg text-white`}>
+                {stat.icone}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Contenu principal */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Activités récentes */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="lg:col-span-2 bg-white rounded-lg border border-neutral-200"
-        >
-          <div className="p-6 border-b border-neutral-200">
-            <h2 className="text-lg font-semibold text-neutral-900">Activités récentes</h2>
-          </div>
-          <div className="p-3">
-            {activities.length > 0 ? (
-              activities.map((activity, index) => (
-                <ActivityItem key={index} activity={activity} index={index} />
-              ))
-            ) : (
-              <div className="text-center py-8 text-neutral-500">
-                Aucune activité récente
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Raccourcis rapides */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.7 }}
-          className="bg-white rounded-lg border border-neutral-200"
-        >
-          <div className="p-6 border-b border-neutral-200">
-            <h2 className="text-lg font-semibold text-neutral-900">Accès rapide</h2>
+      {/* Section notifications et activités récentes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Notifications */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-2 gap-4">
-              {quickActions.map((action, index) => (
-                <QuickActionCard key={index} action={action} index={index} />
+            <div className="space-y-4">
+              {notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`border-l-4 p-4 rounded-r-lg ${obtenirCouleurNotification(notification.type)}`}
+                >
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      {obtenirIconeNotification(notification.type)}
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <h4 className="text-sm font-medium text-gray-900">
+                        {notification.titre}
+                      </h4>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {notification.message}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {new Date(notification.date).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
-        </motion.div>
+        </div>
+
+        {/* Données récentes */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">
+              {utilisateur?.role === 'administrateur' ? 'Données de l\'établissement' : 'Données récentes'}
+            </h3>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              {utilisateur?.role === 'administrateur' && (
+                <>
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <Users className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Nouvelles inscriptions</p>
+                        <p className="text-xs text-gray-500">Cette semaine</p>
+                      </div>
+                    </div>
+                    <span className="text-lg font-bold text-blue-600">23</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <BookOpen className="w-5 h-5 text-green-600" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Cours actifs</p>
+                        <p className="text-xs text-gray-500">En cours ce semestre</p>
+                      </div>
+                    </div>
+                    <span className="text-lg font-bold text-green-600">156</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <AlertCircle className="w-5 h-5 text-orange-600" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Absences non justifiées</p>
+                        <p className="text-xs text-gray-500">À traiter</p>
+                      </div>
+                    </div>
+                    <span className="text-lg font-bold text-orange-600">12</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <GraduationCap className="w-5 h-5 text-purple-600" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Bulletins générés</p>
+                        <p className="text-xs text-gray-500">Ce trimestre</p>
+                      </div>
+                    </div>
+                    <span className="text-lg font-bold text-purple-600">892</span>
+                  </div>
+                </>
+              )}
+              
+              {utilisateur?.role === 'gestionnaire' && (
+                <>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900">Nouvelle classe créée</p>
+                      <p className="text-xs text-gray-500">Il y a 1 heure</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900">Emploi du temps validé</p>
+                      <p className="text-xs text-gray-500">Il y a 3 heures</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900">Professeur assigné</p>
+                      <p className="text-xs text-gray-500">Hier</p>
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {utilisateur?.role === 'professeur' && (
+                <>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900">Notes saisies</p>
+                      <p className="text-xs text-gray-500">Il y a 30 min</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900">Appel effectué</p>
+                      <p className="text-xs text-gray-500">Il y a 2 heures</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-900">Cours planifié</p>
+                      <p className="text-xs text-gray-500">Hier</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

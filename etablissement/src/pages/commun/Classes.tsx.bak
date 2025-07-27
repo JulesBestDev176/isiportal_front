@@ -12,7 +12,7 @@ const Classes: React.FC = () => {
   const [profs, setProfs] = useState<Professeur[]>([]);
 
   useEffect(() => {
-    if (utilisateur?.role === "adminEcole") {
+    if (utilisateur?.role === "administrateur") {
       navigate("/dashboard", { replace: true });
     }
   }, [utilisateur, navigate]);
@@ -71,4 +71,4 @@ const Classes: React.FC = () => {
   );
 };
 
-export default Classes; 
+export default Classes;

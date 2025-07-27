@@ -1,43 +1,22 @@
-import React from "react";
-import { motion } from "framer-motion";
-import { useAuth } from "../../contexts/ContexteAuth";
-import { useTenant } from "../../contexts/ContexteTenant";
-import {
-  Shield, Users, BookOpen, GraduationCap, User, Heart,
-  School, Settings, BarChart3, MessageSquare, Calendar,
-  FileText, Award, Target, Clock
-} from "lucide-react";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { 
+  School, Users, GraduationCap, BookOpen, BarChart3, MessageSquare, 
+  Target, FileText, Calendar, Clock, Award 
+} from 'lucide-react';
+import { useAuth } from '../../contexts/ContexteAuth';
+import TableauDeBord from './TableauDeBord';
 
-// Labels des rôles
+// Labels des rôles - Uniquement les 3 rôles de l'établissement
 const roleLabels: Record<string, string> = {
-  superAdmin: "Super Administrateur",
-  adminEcole: "Administrateur d'École", 
+  administrateur: "Administrateur d'École",
   gestionnaire: "Gestionnaire",
-  professeur: "Professeur",
-  eleve: "Élève",
-  parent: "Parent/Tuteur"
+  professeur: "Professeur"
 };
 
 // Configuration des rôles avec leurs spécificités
 const roleConfigurations = {
-  superAdmin: {
-    icon: <Shield className="w-8 h-8" />,
-    color: "bg-red-500",
-    description: "Gestion complète de la plateforme SaaS",
-    responsibilities: [
-      "Gestion de tous les établissements",
-      "Configuration des abonnements",
-      "Support technique global",
-      "Analytics de la plateforme"
-    ],
-    features: [
-      "Dashboard global multi-tenant",
-      "Gestion des écoles clientes", 
-      "Facturation et abonnements",
-      "Support et maintenance"
-    ]
-  },
-  adminEcole: {
+  administrateur: {
     icon: <School className="w-8 h-8" />,
     color: "bg-blue-500",
     description: "Administration complète de l'établissement",
@@ -87,40 +66,6 @@ const roleConfigurations = {
       "Messagerie intégrée",
       "Ressources pédagogiques"
     ]
-  },
-  eleve: {
-    icon: <BookOpen className="w-8 h-8" />,
-    color: "bg-orange-500",
-    description: "Apprentissage et suivi personnel",
-    responsibilities: [
-      "Consultation des notes",
-      "Accès aux cours",
-      "Communication enseignants",
-      "Suivi personnel"
-    ],
-    features: [
-      "Espace personnel sécurisé", 
-      "Cours et ressources",
-      "Messagerie étudiante",
-      "Suivi des progrès"
-    ]
-  },
-  parent: {
-    icon: <Heart className="w-8 h-8" />,
-    color: "bg-pink-500",
-    description: "Suivi et accompagnement familial",
-    responsibilities: [
-      "Suivi multi-enfants",
-      "Communication école",
-      "Rendez-vous professeurs",
-      "Notifications importantes"
-    ],
-    features: [
-      "Dashboard familial consolidé",
-      "Messagerie parent-école",
-      "Planification RDV",
-      "Alertes personnalisées"
-    ]
   }
 };
 
@@ -158,13 +103,7 @@ const FeatureCard: React.FC<{ title: string; features: string[]; delay: number }
 const RoleStats: React.FC<{ role: string; delay: number }> = ({ role, delay }) => {
   const getStatsForRole = (userRole: string) => {
     switch (userRole) {
-      case "superAdmin":
-        return [
-          { label: "Établissements", value: "25", icon: <School className="w-5 h-5" /> },
-          { label: "Utilisateurs totaux", value: "3,247", icon: <Users className="w-5 h-5" /> },
-          { label: "Revenus mensuels", value: "45K€", icon: <BarChart3 className="w-5 h-5" /> }
-        ];
-      case "adminEcole":
+      case "administrateur":
         return [
           { label: "Utilisateurs", value: "120", icon: <Users className="w-5 h-5" /> },
           { label: "Classes", value: "12", icon: <BookOpen className="w-5 h-5" /> },
@@ -181,18 +120,6 @@ const RoleStats: React.FC<{ role: string; delay: number }> = ({ role, delay }) =
           { label: "Mes classes", value: "6", icon: <BookOpen className="w-5 h-5" /> },
           { label: "Élèves", value: "142", icon: <Users className="w-5 h-5" /> },
           { label: "Progression", value: "80%", icon: <Target className="w-5 h-5" /> }
-        ];
-      case "eleve":
-        return [
-          { label: "Matières", value: "8", icon: <BookOpen className="w-5 h-5" /> },
-          { label: "Devoirs", value: "5", icon: <FileText className="w-5 h-5" /> },
-          { label: "Moyenne", value: "14.2", icon: <Award className="w-5 h-5" /> }
-        ];
-      case "parent":
-        return [
-          { label: "Enfants", value: "2", icon: <Users className="w-5 h-5" /> },
-          { label: "RDV", value: "1", icon: <Calendar className="w-5 h-5" /> },
-          { label: "Messages", value: "3", icon: <MessageSquare className="w-5 h-5" /> }
         ];
       default:
         return [];
@@ -234,13 +161,7 @@ const RoleStats: React.FC<{ role: string; delay: number }> = ({ role, delay }) =
 const RecommendedActions: React.FC<{ role: string; delay: number }> = ({ role, delay }) => {
   const getActionsForRole = (userRole: string) => {
     switch (userRole) {
-      case "superAdmin":
-        return [
-          { title: "Consulter les analytics", icon: <BarChart3 className="w-5 h-5" />, urgent: false },
-          { title: "Vérifier les abonnements", icon: <Settings className="w-5 h-5" />, urgent: true },
-          { title: "Support client", icon: <MessageSquare className="w-5 h-5" />, urgent: false }
-        ];
-      case "adminEcole":
+      case "administrateur":
         return [
           { title: "Valider les inscriptions", icon: <Users className="w-5 h-5" />, urgent: true },
           { title: "Consulter les rapports", icon: <FileText className="w-5 h-5" />, urgent: false },
@@ -257,18 +178,6 @@ const RecommendedActions: React.FC<{ role: string; delay: number }> = ({ role, d
           { title: "Saisir les notes", icon: <Award className="w-5 h-5" />, urgent: true },
           { title: "Prendre les présences", icon: <Clock className="w-5 h-5" />, urgent: true },
           { title: "Répondre aux messages", icon: <MessageSquare className="w-5 h-5" />, urgent: false }
-        ];
-      case "eleve":
-        return [
-          { title: "Consulter les nouveaux cours", icon: <BookOpen className="w-5 h-5" />, urgent: false },
-          { title: "Rendre les devoirs", icon: <FileText className="w-5 h-5" />, urgent: true },
-          { title: "Vérifier l'emploi du temps", icon: <Calendar className="w-5 h-5" />, urgent: false }
-        ];
-      case "parent":
-        return [
-          { title: "Consulter les notes", icon: <Award className="w-5 h-5" />, urgent: false },
-          { title: "Planifier un RDV", icon: <Calendar className="w-5 h-5" />, urgent: false },
-          { title: "Répondre aux messages", icon: <MessageSquare className="w-5 h-5" />, urgent: true }
         ];
       default:
         return [];
@@ -318,9 +227,9 @@ const RecommendedActions: React.FC<{ role: string; delay: number }> = ({ role, d
 
 export const RoleDashboard: React.FC = () => {
   const { utilisateur } = useAuth();
-  const { tenant } = useTenant();
 
-  if (!utilisateur || !tenant) {
+
+  if (!utilisateur) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="text-center">
@@ -377,7 +286,7 @@ export const RoleDashboard: React.FC = () => {
               transition={{ delay: 0.2 }}
               className="text-lg text-neutral-600 mb-4"
             >
-              Établissement: <span className="font-semibold">{tenant.nom || tenant.idEcole || tenant.sousDomaine}</span>
+              Établissement: <span className="font-semibold">Mon Établissement</span>
             </motion.p>
             
             <motion.p
@@ -427,7 +336,7 @@ export const RoleDashboard: React.FC = () => {
             Conseils pour optimiser votre usage
           </h3>
           <div className="space-y-3 text-sm text-primary-800">
-            {utilisateur.role === "adminEcole" && (
+            {utilisateur.role === "administrateur" && (
               <>
                 <p>• Configurez d'abord les paramètres de votre établissement</p>
                 <p>• Créez les classes et assignez les professeurs</p>
@@ -446,20 +355,6 @@ export const RoleDashboard: React.FC = () => {
                 <p>• Saisissez les notes régulièrement pour un suivi optimal</p>
                 <p>• Utilisez la messagerie pour communiquer avec les parents</p>
                 <p>• Consultez les ressources pédagogiques disponibles</p>
-              </>
-            )}
-            {utilisateur.role === "eleve" && (
-              <>
-                <p>• Consultez régulièrement vos cours et devoirs</p>
-                <p>• Suivez votre progression dans chaque matière</p>
-                <p>• N'hésitez pas à contacter vos professeurs en cas de besoin</p>
-              </>
-            )}
-            {utilisateur.role === "parent" && (
-              <>
-                <p>• Consultez régulièrement les notes et absences</p>
-                <p>• Planifiez des rendez-vous avec les professeurs si nécessaire</p>
-                <p>• Activez les notifications pour rester informé</p>
               </>
             )}
           </div>

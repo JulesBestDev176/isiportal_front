@@ -1,349 +1,466 @@
-import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState } from "react";
+import { motion } from "framer-motion";
 import {
-  Search, Plus, Send, Paperclip, Smile, MoreVertical,
-  Phone, Video, Info, Archive, Trash2, Star, Reply,
-  Forward, Download, User, Circle, CheckCircle2,
-  Users, Filter, Settings, X, Edit3, Clock
+  Plus, Send, Paperclip, X, Clock, Bell,
+  AlertCircle, Calendar, FileText,
+  Target, CheckCircle2, GraduationCap, Briefcase,
+  Heart, User, Filter, Trash2, Info, Users, BookOpen
 } from "lucide-react";
+
 import { useAuth } from "../../contexts/ContexteAuth";
-import { useTenant } from "../../contexts/ContexteTenant";
-import MainLayout from "../../components/layout/MainLayout";
+import { Contact, Notification } from "../../models/communication.model";
 
-// Types pour la messagerie
-interface Contact {
-  id: string;
-  nom: string;
-  prenom: string;
-  role: "adminEcole" | "gestionnaire" | "professeur" | "eleve" | "parent";
-  avatar?: string;
+// Interface locale pour les données de contact étendues (statut en ligne, etc.)
+interface ContactEtendu extends Contact {
   statut: "en_ligne" | "absent" | "occupe" | "invisible";
-  derniereConnexion: string;
-}
-
-interface Message {
-  id: string;
-  expediteurId: string;
-  destinataireId: string;
-  contenu: string;
-  dateEnvoi: string;
-  lu: boolean;
-  type: "texte" | "fichier" | "image";
-  fichierUrl?: string;
-  fichierNom?: string;
-  repondA?: string; // ID du message auquel on répond
-}
-
-interface Conversation {
-  id: string;
-  participantId: string;
-  dernierMessage?: Message;
-  messagesNonLus: number;
-  epingle: boolean;
-  archive: boolean;
-  derniereMiseAJour: string;
+  derniereConnexion?: string;
+  dernierMessage?: string;
+  heureMessage?: string;
 }
 
 // Données mockées
-const contactsMock: Contact[] = [
+const contactsMock: ContactEtendu[] = [
   {
-    id: "1",
+    id: 1,
     nom: "Diop",
-    prenom: "Fatou",
+    prenom: "Aminata",
     role: "professeur",
+    email: "aminata.diop@groupeisi.com",
     statut: "en_ligne",
-    derniereConnexion: "Maintenant"
+    derniereConnexion: "2024-01-15T14:30:00Z",
+    dernierMessage: "Merci pour les documents",
+    heureMessage: "14:30",
+    classe: "6ème A",
+    matiere: "Mathématiques"
   },
   {
-    id: "2", 
-    nom: "Ba",
+    id: 2, 
+    nom: "Ndiaye",
     prenom: "Moussa",
     role: "gestionnaire",
+    email: "moussa.ndiaye@groupeisi.com",
     statut: "absent",
-    derniereConnexion: "Il y a 5 min"
+    derniereConnexion: "2024-01-15T12:15:00Z",
+    dernierMessage: "La réunion est confirmée",
+    heureMessage: "12:15",
+    sectionId: 1
   },
   {
-    id: "3",
+    id: 3,
     nom: "Fall",
-    prenom: "Aminata",
-    role: "parent",
-    statut: "en_ligne",
-    derniereConnexion: "Maintenant"
-  },
-  {
-    id: "4",
-    nom: "Sow",
-    prenom: "Ibrahima",
-    role: "eleve",
+    prenom: "Fatou",
+    role: "administrateur",
+    email: "fatou.fall@groupeisi.com",
     statut: "occupe",
-    derniereConnexion: "Il y a 2h"
-  },
-  {
-    id: "5",
-    nom: "Ndiaye",
-    prenom: "Coumba",
-    role: "adminEcole",
-    statut: "en_ligne",
-    derniereConnexion: "Maintenant"
+    derniereConnexion: "2024-01-15T09:45:00Z",
+    dernierMessage: "Rapport envoyé",
+    heureMessage: "09:45"
   }
 ];
 
-const messagesMock: Message[] = [
+const notificationsMock: Notification[] = [
   {
-    id: "1",
-    expediteurId: "1",
-    destinataireId: "current_user",
-    contenu: "Bonjour, pouvez-vous me confirmer l'horaire de la réunion de demain ?",
-    dateEnvoi: "2024-07-07T10:30:00",
-    lu: false,
-    type: "texte"
+    id: 1,
+    titre: "Réunion pédagogique",
+    contenu: "Réunion prévue demain à 14h en salle de conférence pour discuter des nouveaux programmes.",
+    type: "evenement",
+    expediteurId: 3,
+    expediteurRole: "administrateur",
+    destinataireType: "role",
+    destinataires: [],
+    destinataireRoles: ["gestionnaire"],
+    dateCreation: "2024-01-15T10:30:00Z",
+    dateEnvoi: "2024-01-15T10:30:00Z",
+    active: true,
+    nbDestinataires: 1,
+    nbLues: 0,
+    priorite: "normale"
   },
   {
-    id: "2",
-    expediteurId: "current_user",
-    destinataireId: "1",
-    contenu: "Bonjour Mme Diop, la réunion est prévue à 14h en salle de conférence.",
-    dateEnvoi: "2024-07-07T10:35:00",
-    lu: true,
-    type: "texte"
-  },
-  {
-    id: "3",
-    expediteurId: "1",
-    destinataireId: "current_user",
-    contenu: "Parfait, merci pour la confirmation. À demain !",
-    dateEnvoi: "2024-07-07T10:37:00",
-    lu: false,
-    type: "texte"
-  },
-  {
-    id: "4",
-    expediteurId: "2",
-    destinataireId: "current_user",
-    contenu: "Voici le rapport que vous m'aviez demandé.",
-    dateEnvoi: "2024-07-07T09:15:00",
-    lu: true,
-    type: "fichier",
-    fichierUrl: "#",
-    fichierNom: "rapport_mensuel.pdf"
+    id: 2,
+    titre: "Mise à jour système",
+    contenu: "Le système sera mis à jour ce soir entre 20h et 22h. Merci de sauvegarder vos travaux.",
+    type: "info",
+    expediteurId: 3,
+    expediteurRole: "administrateur",
+    destinataireType: "role",
+    destinataires: [],
+    destinataireRoles: ["professeur", "gestionnaire"],
+    dateCreation: "2024-01-14T16:45:00Z",
+    dateEnvoi: "2024-01-14T16:45:00Z",
+    active: true,
+    nbDestinataires: 2,
+    nbLues: 0,
+    priorite: "normale"
   }
 ];
 
-// Composant pour afficher le statut en ligne
-const StatutEnLigne: React.FC<{ statut: Contact["statut"]; taille?: "sm" | "md" }> = ({ 
-  statut, 
-  taille = "sm" 
-}) => {
-  const couleurs = {
-    en_ligne: "bg-green-500",
-    absent: "bg-gray-400",
-    occupe: "bg-red-500",
-    invisible: "bg-gray-300"
-  };
+// Composant pour créer une notification
+const CreerNotification: React.FC<{
+  onCreer: (notification: Omit<Notification, "id" | "dateCreation">) => void;
+  onAnnuler: () => void;
+  roleUtilisateur?: string;
+}> = ({ onCreer, onAnnuler, roleUtilisateur }) => {
+  const { utilisateur } = useAuth();
+  const [titre, setTitre] = useState("");
+  const [contenu, setContenu] = useState("");
+  const [type, setType] = useState<Notification["type"]>("info");
+  const [destinataireRoles, setDestinataireRoles] = useState<("administrateur" | "gestionnaire" | "professeur" | "eleve" | "parent")[]>([]);
+  const [programmee, setProgrammee] = useState(false);
+  const [dateEnvoi, setDateEnvoi] = useState("");
+  const [pieceJointe, setPieceJointe] = useState<File | null>(null);
 
-  const tailles = {
-    sm: "w-2 h-2",
-    md: "w-3 h-3"
-  };
+  const typesNotification = [
+    { value: "info", label: "Information", icon: Info, couleur: "blue" },
+    { value: "urgent", label: "Urgent", icon: AlertCircle, couleur: "red" },
+    { value: "evenement", label: "Événement", icon: Calendar, couleur: "purple" }
+  ];
 
-  return (
-    <div className={`${tailles[taille]} ${couleurs[statut]} rounded-full border border-white`} />
-  );
-};
-
-// Composant Avatar avec statut
-const AvatarAvecStatut: React.FC<{ 
-  contact: Contact; 
-  taille?: "sm" | "md" | "lg";
-  afficherStatut?: boolean;
-}> = ({ contact, taille = "md", afficherStatut = true }) => {
-  const tailles = {
-    sm: "w-8 h-8",
-    md: "w-10 h-10", 
-    lg: "w-12 h-12"
-  };
-
-  const initiaux = `${contact.prenom.charAt(0)}${contact.nom.charAt(0)}`;
-
-  return (
-    <div className="relative">
-      <div className={`${tailles[taille]} bg-primary-600 rounded-full flex items-center justify-center text-white font-medium`}>
-        {contact.avatar ? (
-          <img src={contact.avatar} alt={`${contact.prenom} ${contact.nom}`} className="w-full h-full rounded-full object-cover" />
-        ) : (
-          <span className={taille === "sm" ? "text-xs" : "text-sm"}>{initiaux}</span>
-        )}
-      </div>
-      {afficherStatut && (
-        <div className="absolute -bottom-0.5 -right-0.5">
-          <StatutEnLigne statut={contact.statut} taille={taille === "lg" ? "md" : "sm"} />
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Composant Liste des conversations
-const ListeConversations: React.FC<{
-  conversations: Conversation[];
-  contacts: Contact[];
-  conversationActive?: string;
-  onSelectConversation: (conversationId: string) => void;
-  searchTerm: string;
-}> = ({ conversations, contacts, conversationActive, onSelectConversation, searchTerm }) => {
-  
-  const conversationsFiltrees = conversations.filter(conv => {
-    const contact = contacts.find(c => c.id === conv.participantId);
-    if (!contact) return false;
+  const groupesDestinataires = [
+    { value: "gestionnaire", label: "Gestionnaires", icon: Users, couleur: "blue" },
+    { value: "professeur", label: "Professeurs", icon: BookOpen, couleur: "green" },
+    { value: "administrateur", label: "Administrateurs", icon: User, couleur: "purple" }
+  ].filter(groupe => {
+    const roleUser = utilisateur?.role;
     
-    const nomComplet = `${contact.prenom} ${contact.nom}`.toLowerCase();
-    return nomComplet.includes(searchTerm.toLowerCase());
+    // Logique de filtrage selon le rôle
+    if (roleUser === "administrateur") return true; // Admin peut contacter tout le monde
+    if (roleUser === "gestionnaire") return groupe.value === "professeur";
+    if (roleUser === "professeur") return groupe.value === "gestionnaire";
+    
+    return false;
   });
 
-  const formatageHeure = (date: string) => {
-    const maintenant = new Date();
-    const dateMessage = new Date(date);
-    const diffJours = Math.floor((maintenant.getTime() - dateMessage.getTime()) / (1000 * 60 * 60 * 24));
+  const toggleDestinataire = (groupe: string) => {
+    setDestinataireRoles(prev => 
+      prev.includes(groupe as any)
+        ? prev.filter(d => d !== groupe)
+        : [...prev, groupe as any]
+    );
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     
-    if (diffJours === 0) {
-      return dateMessage.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    } else if (diffJours === 1) {
-      return "Hier";
-    } else if (diffJours < 7) {
-      return dateMessage.toLocaleDateString('fr-FR', { weekday: 'short' });
-    } else {
-      return dateMessage.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    if (!titre.trim() || !contenu.trim() || destinataireRoles.length === 0) return;
+
+    onCreer({
+      titre: titre.trim(),
+      contenu: contenu.trim(),
+      type,
+      expediteurId: utilisateur?.id || 1,
+      expediteurRole: utilisateur?.role as "administrateur" | "gestionnaire" | "professeur",
+      destinataireType: "role",
+      destinataires: [],
+      destinataireRoles,
+      dateEnvoi: programmee ? dateEnvoi : new Date().toISOString(),
+      active: true,
+      nbDestinataires: destinataireRoles.length,
+      nbLues: 0,
+      priorite: type === "urgent" ? "haute" : "normale"
+    });
+
+    // Reset form
+    setTitre("");
+    setContenu("");
+    setType("info");
+    setDestinataireRoles([]);
+    setProgrammee(false);
+    setDateEnvoi("");
+    setPieceJointe(null);
+  };
+
+  const getBadgeColor = (role: string) => {
+    switch (role) {
+      case "administrateur": return "bg-purple-100 text-purple-800";
+      case "gestionnaire": return "bg-blue-100 text-blue-800";
+      case "professeur": return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-800";
     }
   };
 
   return (
-    <div className="space-y-1">
-      {conversationsFiltrees.map((conversation) => {
-        const contact = contacts.find(c => c.id === conversation.participantId);
-        if (!contact) return null;
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-lg border border-neutral-200 p-6"
+    >
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-bold text-neutral-900">Nouvelle notification</h3>
+        <button 
+          onClick={onAnnuler}
+          className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+        >
+          <X className="w-5 h-5 text-neutral-600" />
+        </button>
+      </div>
 
-        const estActive = conversationActive === conversation.id;
-
-        return (
-          <motion.div
-            key={conversation.id}
-            whileHover={{ backgroundColor: "rgb(249 250 251)" }}
-            onClick={() => onSelectConversation(conversation.id)}
-            className={`p-3 rounded-lg cursor-pointer transition-colors ${
-              estActive ? 'bg-primary-50 border border-primary-200' : 'hover:bg-neutral-50'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <AvatarAvecStatut contact={contact} />
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <h4 className={`font-medium truncate ${estActive ? 'text-primary-700' : 'text-neutral-900'}`}>
-                    {contact.prenom} {contact.nom}
-                  </h4>
-                  <div className="flex items-center gap-2">
-                    {conversation.messagesNonLus > 0 && (
-                      <span className="bg-primary-600 text-white text-xs rounded-full px-2 py-0.5 min-w-[20px] text-center">
-                        {conversation.messagesNonLus > 99 ? "99+" : conversation.messagesNonLus}
-                      </span>
-                    )}
-                    <span className="text-xs text-neutral-500">
-                      {formatageHeure(conversation.derniereMiseAJour)}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    contact.role === "professeur" ? "bg-blue-100 text-blue-700" :
-                    contact.role === "gestionnaire" ? "bg-green-100 text-green-700" :
-                    contact.role === "parent" ? "bg-purple-100 text-purple-700" :
-                    contact.role === "eleve" ? "bg-orange-100 text-orange-700" :
-                    "bg-gray-100 text-gray-700"
-                  }`}>
-                    {contact.role === "adminEcole" ? "Admin" : contact.role}
-                  </span>
-                </div>
-
-                {conversation.dernierMessage && (
-                  <p className="text-sm text-neutral-600 truncate mt-1">
-                    {conversation.dernierMessage.type === "fichier" 
-                      ? `📎 ${conversation.dernierMessage.fichierNom}`
-                      : conversation.dernierMessage.contenu
-                    }
-                  </p>
-                )}
-              </div>
-
-              {conversation.epingle && (
-                <Star className="w-4 h-4 text-yellow-500 fill-current" />
-              )}
-            </div>
-          </motion.div>
-        );
-      })}
-
-      {conversationsFiltrees.length === 0 && (
-        <div className="text-center py-8 text-neutral-500">
-          <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
-          <p>Aucune conversation trouvée</p>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Titre */}
+        <div>
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            Titre de la notification
+          </label>
+          <input
+            type="text"
+            value={titre}
+            onChange={(e) => setTitre(e.target.value)}
+            className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Entrez le titre..."
+            required
+          />
         </div>
-      )}
-    </div>
+
+        {/* Type */}
+        <div>
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            Type de notification
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            {typesNotification.map((typeNotif) => (
+              <button
+                key={typeNotif.value}
+                type="button"
+                onClick={() => setType(typeNotif.value as Notification["type"])}
+                className={`p-3 border rounded-lg text-center transition-colors ${
+                  type === typeNotif.value
+                    ? `border-${typeNotif.couleur}-500 bg-${typeNotif.couleur}-50 text-${typeNotif.couleur}-700`
+                    : "border-neutral-300 hover:border-neutral-400"
+                }`}
+              >
+                <typeNotif.icon className="w-5 h-5 mx-auto mb-1" />
+                <span className="text-sm font-medium">{typeNotif.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Destinataires */}
+        <div>
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            Destinataires
+          </label>
+          <div className="space-y-2">
+            {groupesDestinataires.map((groupe) => (
+              <button
+                key={groupe.value}
+                type="button"
+                onClick={() => toggleDestinataire(groupe.value)}
+                className={`w-full p-3 border rounded-lg text-left transition-colors flex items-center gap-3 ${
+                  destinataireRoles.includes(groupe.value as any)
+                    ? `border-${groupe.couleur}-500 bg-${groupe.couleur}-50`
+                    : "border-neutral-300 hover:border-neutral-400"
+                }`}
+              >
+                <groupe.icon className="w-5 h-5" />
+                <span className="font-medium">{groupe.label}</span>
+                {destinataireRoles.includes(groupe.value as any) && (
+                  <CheckCircle2 className="w-5 h-5 ml-auto text-green-600" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Contenu */}
+        <div>
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            Contenu de la notification
+          </label>
+          <textarea
+            value={contenu}
+            onChange={(e) => setContenu(e.target.value)}
+            rows={4}
+            className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Rédigez votre message..."
+            required
+          />
+        </div>
+
+        {/* Programmation */}
+        <div>
+          <label className="flex items-center gap-2 text-sm font-medium text-neutral-700">
+            <input
+              type="checkbox"
+              checked={programmee}
+              onChange={(e) => setProgrammee(e.target.checked)}
+              className="rounded border-neutral-300"
+            />
+            Programmer l'envoi
+          </label>
+          {programmee && (
+            <div className="mt-2">
+              <input
+                type="datetime-local"
+                value={dateEnvoi}
+                onChange={(e) => setDateEnvoi(e.target.value)}
+                className="px-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                required={programmee}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Pièce jointe */}
+        <div>
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            Pièce jointe (optionnel)
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="file"
+              onChange={(e) => setPieceJointe(e.target.files?.[0] || null)}
+              className="hidden"
+              id="piece-jointe"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+            />
+            <label
+              htmlFor="piece-jointe"
+              className="flex items-center gap-2 px-4 py-2 border border-neutral-300 rounded-lg cursor-pointer hover:bg-neutral-50"
+            >
+              <Paperclip className="w-4 h-4" />
+              Choisir un fichier
+            </label>
+            {pieceJointe && (
+              <span className="text-sm text-neutral-600">{pieceJointe.name}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Boutons */}
+        <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
+          <button
+            type="button"
+            onClick={onAnnuler}
+            className="px-6 py-2 border border-neutral-300 rounded-lg text-neutral-700 hover:bg-neutral-50 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            type="submit"
+            disabled={!titre.trim() || !contenu.trim() || destinataireRoles.length === 0}
+            className="flex items-center gap-2 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Send className="w-4 h-4" />
+            {programmee ? "Programmer" : "Envoyer"}
+          </button>
+        </div>
+      </form>
+    </motion.div>
   );
 };
 
-// Composant Message
-const ComposantMessage: React.FC<{
-  message: Message;
-  expediteur: Contact;
-  estMonMessage: boolean;
-  afficherAvatar: boolean;
-}> = ({ message, expediteur, estMonMessage, afficherAvatar }) => {
-  
-  const formatageHeure = (date: string) => {
-    return new Date(date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+// Composant pour afficher une notification
+const CarteNotification: React.FC<{
+  notification: Notification;
+  onSupprimer: (id: number) => void;
+}> = ({ notification, onSupprimer }) => {
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "urgent": return <AlertCircle className="w-5 h-5 text-red-600" />;
+      case "evenement": return <Calendar className="w-5 h-5 text-purple-600" />;
+      case "rappel": return <Clock className="w-5 h-5 text-orange-600" />;
+      default: return <Info className="w-5 h-5 text-blue-600" />;
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "urgent": return "bg-red-50 border-red-200";
+      case "evenement": return "bg-purple-50 border-purple-200";
+      case "rappel": return "bg-orange-50 border-orange-200";
+      default: return "bg-blue-50 border-blue-200";
+    }
+  };
+
+  const getBadgeColor = (dest: string) => {
+    const colors = {
+      professeur: "bg-blue-100 text-blue-700",
+      gestionnaire: "bg-green-100 text-green-700"
+    };
+    return colors[dest as keyof typeof colors] || "bg-neutral-100 text-neutral-700";
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex gap-3 ${estMonMessage ? 'flex-row-reverse' : 'flex-row'} group`}
+      className={`p-6 rounded-lg border-2 ${getTypeColor(notification.type)}`}
     >
-      {afficherAvatar && !estMonMessage && (
-        <AvatarAvecStatut contact={expediteur} taille="sm" afficherStatut={false} />
-      )}
-      
-      <div className={`max-w-[70%] ${estMonMessage ? 'items-end' : 'items-start'} flex flex-col`}>
-        <div className={`p-3 rounded-lg ${
-          estMonMessage 
-            ? 'bg-primary-600 text-white' 
-            : 'bg-neutral-100 text-neutral-900'
-        }`}>
-          {message.type === "fichier" ? (
-            <div className="flex items-center gap-2">
-              <Paperclip className="w-4 h-4" />
-              <span className="text-sm font-medium">{message.fichierNom}</span>
-              <Download className="w-4 h-4 cursor-pointer hover:opacity-70" />
-            </div>
-          ) : (
-            <p className="text-sm">{message.contenu}</p>
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          {getTypeIcon(notification.type)}
+          <div>
+            <h3 className="font-semibold text-neutral-900">{notification.titre}</h3>
+            <p className="text-sm text-neutral-600">
+              {notification.dateEnvoi && new Date(notification.dateEnvoi) > new Date()
+                ? `Programmée pour le ${formatDate(notification.dateEnvoi)}`
+                : `Envoyée le ${formatDate(notification.dateCreation)}`
+              }
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => onSupprimer(notification.id)}
+          className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      <p className="text-neutral-700 mb-4">{notification.contenu}</p>
+
+      {/* Destinataires */}
+      <div className="flex flex-wrap gap-1">
+        {notification.destinataireRoles?.map((dest, index) => (
+          <span
+            key={index}
+            className={`px-2 py-1 rounded-full text-xs font-medium ${
+              dest === "gestionnaire" ? "bg-blue-100 text-blue-700" :
+              dest === "professeur" ? "bg-green-100 text-green-700" :
+              dest === "administrateur" ? "bg-purple-100 text-purple-700" :
+              "bg-gray-100 text-gray-700"
+            }`}
+          >
+            {dest === "gestionnaire" ? "Gestionnaire" : 
+             dest === "professeur" ? "Professeur" : 
+             dest === "administrateur" ? "Administrateur" : dest}
+          </span>
+        ))}
+      </div>
+
+      {/* Statut et fichiers */}
+      <div className="flex items-center justify-between text-sm text-neutral-600 mt-4">
+        <div className="flex items-center gap-4">
+          {notification.pieceJointe && (
+            <span className="flex items-center gap-1">
+              <Paperclip className="w-3 h-3" />
+              {notification.pieceJointe.nom}
+            </span>
           )}
         </div>
-        
-        <div className={`flex items-center gap-2 mt-1 text-xs text-neutral-500 ${
-          estMonMessage ? 'flex-row-reverse' : 'flex-row'
-        }`}>
-          <span>{formatageHeure(message.dateEnvoi)}</span>
-          {estMonMessage && (
-            <div className="flex items-center">
-              {message.lu ? (
-                <CheckCircle2 className="w-3 h-3 text-blue-500" />
-              ) : (
-                <Circle className="w-3 h-3" />
-              )}
-            </div>
+        <div className="flex items-center gap-2">
+          {notification.dateEnvoi && new Date(notification.dateEnvoi) > new Date() && (
+            <span className="flex items-center gap-1 text-orange-600">
+              <Clock className="w-3 h-3" />
+              Programmée
+            </span>
+          )}
+          {notification.active && (
+            <span className="flex items-center gap-1 text-green-600">
+              <CheckCircle2 className="w-3 h-3" />
+              Envoyée
+            </span>
           )}
         </div>
       </div>
@@ -351,325 +468,119 @@ const ComposantMessage: React.FC<{
   );
 };
 
-// Composant Zone de conversation
-const ZoneConversation: React.FC<{
-  contact?: Contact;
-  messages: Message[];
-  onEnvoyerMessage: (contenu: string) => void;
-  onFermerConversation: () => void;
-}> = ({ contact, messages, onEnvoyerMessage, onFermerConversation }) => {
-  const [messageEnCours, setMessageEnCours] = useState("");
-  const [estEnTrainDeTaper, setEstEnTrainDeTaper] = useState(false);
-  const messagesRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (messagesRef.current) {
-      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  const handleEnvoyer = () => {
-    if (messageEnCours.trim()) {
-      onEnvoyerMessage(messageEnCours.trim());
-      setMessageEnCours("");
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleEnvoyer();
-    }
-  };
-
-  if (!contact) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-neutral-50">
-        <div className="text-center">
-          <Users className="w-16 h-16 text-neutral-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-neutral-600 mb-2">
-            Sélectionnez une conversation
-          </h3>
-          <p className="text-neutral-500">
-            Choisissez un contact pour commencer à discuter
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex-1 flex flex-col">
-      {/* Header de conversation */}
-      <div className="bg-white border-b border-neutral-200 p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <AvatarAvecStatut contact={contact} taille="lg" />
-            <div>
-              <h3 className="font-semibold text-neutral-900">
-                {contact.prenom} {contact.nom}
-              </h3>
-              <p className="text-sm text-neutral-500">
-                {contact.statut === "en_ligne" ? "En ligne" : contact.derniereConnexion}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-neutral-100 rounded-lg transition-colors">
-              <Phone className="w-5 h-5 text-neutral-600" />
-            </button>
-            <button className="p-2 hover:bg-neutral-100 rounded-lg transition-colors">
-              <Video className="w-5 h-5 text-neutral-600" />
-            </button>
-            <button className="p-2 hover:bg-neutral-100 rounded-lg transition-colors">
-              <Info className="w-5 h-5 text-neutral-600" />
-            </button>
-            <button 
-              onClick={onFermerConversation}
-              className="p-2 hover:bg-neutral-100 rounded-lg transition-colors lg:hidden"
-            >
-              <X className="w-5 h-5 text-neutral-600" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Zone des messages */}
-      <div 
-        ref={messagesRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4 bg-neutral-50"
-      >
-        {messages.map((message, index) => {
-          const expediteur = contactsMock.find(c => c.id === message.expediteurId);
-          const estMonMessage = message.expediteurId === "current_user";
-          const messagePrecedent = messages[index - 1];
-          const afficherAvatar = !messagePrecedent || messagePrecedent.expediteurId !== message.expediteurId;
-
-          return expediteur ? (
-            <ComposantMessage
-              key={message.id}
-              message={message}
-              expediteur={expediteur}
-              estMonMessage={estMonMessage}
-              afficherAvatar={afficherAvatar}
-            />
-          ) : null;
-        })}
-
-        {estEnTrainDeTaper && (
-          <div className="flex gap-3">
-            <AvatarAvecStatut contact={contact} taille="sm" afficherStatut={false} />
-            <div className="bg-neutral-100 p-3 rounded-lg">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-neutral-400 rounded-full animate-pulse"></div>
-                <div className="w-2 h-2 bg-neutral-400 rounded-full animate-pulse" style={{animationDelay: '0.2s'}}></div>
-                <div className="w-2 h-2 bg-neutral-400 rounded-full animate-pulse" style={{animationDelay: '0.4s'}}></div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Zone de saisie */}
-      <div className="bg-white border-t border-neutral-200 p-4">
-        <div className="flex items-end gap-3">
-          <button className="p-2 hover:bg-neutral-100 rounded-lg transition-colors">
-            <Paperclip className="w-5 h-5 text-neutral-600" />
-          </button>
-          
-          <div className="flex-1 relative">
-            <textarea
-              value={messageEnCours}
-              onChange={(e) => setMessageEnCours(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Tapez votre message..."
-              rows={1}
-              className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-              style={{ minHeight: "44px", maxHeight: "120px" }}
-            />
-          </div>
-
-          <button className="p-2 hover:bg-neutral-100 rounded-lg transition-colors">
-            <Smile className="w-5 h-5 text-neutral-600" />
-          </button>
-          
-          <button
-            onClick={handleEnvoyer}
-            disabled={!messageEnCours.trim()}
-            className="p-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Send className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // Composant principal
 const Messagerie: React.FC = () => {
   const { utilisateur } = useAuth();
-  const { tenant } = useTenant();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [conversationActive, setConversationActive] = useState<string>();
-  const [showMobileConversation, setShowMobileConversation] = useState(false);
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: "1",
-      participantId: "1",
-      messagesNonLus: 2,
-      epingle: false,
-      archive: false,
-      derniereMiseAJour: "2024-07-07T10:37:00"
-    },
-    {
-      id: "2", 
-      participantId: "2",
-      messagesNonLus: 0,
-      epingle: true,
-      archive: false,
-      derniereMiseAJour: "2024-07-07T09:15:00"
-    },
-    {
-      id: "3",
-      participantId: "3", 
-      messagesNonLus: 1,
-      epingle: false,
-      archive: false,
-      derniereMiseAJour: "2024-07-06T16:45:00"
-    }
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>(notificationsMock);
+  const [afficherFormulaire, setAfficherFormulaire] = useState(false);
+  const [filtreType, setFiltreType] = useState<string>("tous");
 
-  const [messages, setMessages] = useState<Message[]>(messagesMock);
-
-  const conversationActiveObj = conversations.find(c => c.id === conversationActive);
-  const contactActif = conversationActiveObj ? 
-    contactsMock.find(c => c.id === conversationActiveObj.participantId) : undefined;
-
-  const messagesConversation = messages.filter(m => 
-    (m.expediteurId === contactActif?.id && m.destinataireId === "current_user") ||
-    (m.expediteurId === "current_user" && m.destinataireId === contactActif?.id)
-  );
-
-  const handleSelectConversation = (conversationId: string) => {
-    setConversationActive(conversationId);
-    setShowMobileConversation(true);
-    
-    // Marquer les messages comme lus
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.id === conversationId 
-          ? { ...conv, messagesNonLus: 0 }
-          : conv
-      )
-    );
-  };
-
-  const handleEnvoyerMessage = (contenu: string) => {
-    if (!contactActif) return;
-
-    const nouveauMessage: Message = {
-      id: Date.now().toString(),
-      expediteurId: "current_user", 
-      destinataireId: contactActif.id,
-      contenu,
-      dateEnvoi: new Date().toISOString(),
-      lu: false,
-      type: "texte"
+  const creerNotification = (nouvelleNotification: Omit<Notification, "id" | "dateCreation">) => {
+    const notification: Notification = {
+      ...nouvelleNotification,
+      id: Date.now(),
+      dateCreation: new Date().toISOString()
     };
 
-    setMessages(prev => [...prev, nouveauMessage]);
-    
-    // Mettre à jour la conversation
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.id === conversationActive
-          ? { ...conv, dernierMessage: nouveauMessage, derniereMiseAJour: nouveauMessage.dateEnvoi }
-          : conv
-      )
-    );
+    setNotifications(prev => [notification, ...prev]);
+    setAfficherFormulaire(false);
   };
 
-  const handleFermerConversation = () => {
-    setShowMobileConversation(false);
-    setConversationActive(undefined);
+  const supprimerNotification = (id: number) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  if (!utilisateur || !tenant) {
-    return (
-      <MainLayout>
-        <div className="flex items-center justify-center min-h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <p className="text-neutral-600">Chargement...</p>
-          </div>
-        </div>
-      </MainLayout>
-    );
-  }
+  const notificationsFiltrees = notifications.filter(notification => {
+    if (filtreType === "tous") return true;
+    return notification.type === filtreType;
+  });
+
+  const typesFiltre = [
+    { value: "tous", label: "Toutes", count: notifications.length },
+    { value: "info", label: "Informations", count: notifications.filter(n => n.type === "info").length },
+    { value: "urgent", label: "Urgentes", count: notifications.filter(n => n.type === "urgent").length },
+    { value: "evenement", label: "Événements", count: notifications.filter(n => n.type === "evenement").length },
+    { value: "rappel", label: "Rappels", count: notifications.filter(n => n.type === "rappel").length }
+  ];
 
   return (
-    <MainLayout>
-      <div className="h-[calc(100vh-120px)] bg-white rounded-lg border border-neutral-200 overflow-hidden">
-        <div className="flex h-full">
-          {/* Sidebar des conversations */}
-          <div className={`w-full lg:w-80 border-r border-neutral-200 flex flex-col ${
-            showMobileConversation ? 'hidden lg:flex' : 'flex'
-          }`}>
-            {/* Header sidebar */}
-            <div className="p-4 border-b border-neutral-200">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-neutral-900">Messagerie</h2>
-                <div className="flex items-center gap-2">
-                  <button className="p-2 hover:bg-neutral-100 rounded-lg transition-colors">
-                    <Settings className="w-5 h-5 text-neutral-600" />
-                  </button>
-                  <button className="p-2 hover:bg-neutral-100 rounded-lg transition-colors">
-                    <Plus className="w-5 h-5 text-neutral-600" />
-                  </button>
-                </div>
-              </div>
+    <div className="space-y-6">
+        {/* En-tête */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900">Messagerie</h1>
+            <p className="text-neutral-600 mt-1">
+              Gérez vos notifications et communications
+            </p>
+          </div>
+          <button
+            onClick={() => setAfficherFormulaire(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle notification
+          </button>
+        </div>
 
-              {/* Barre de recherche */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                <input
-                  type="text"
-                  placeholder="Rechercher une conversation..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-            </div>
+        {/* Filtres */}
+        <div className="flex flex-wrap gap-2">
+          {typesFiltre.map((type) => (
+            <button
+              key={type.value}
+              onClick={() => setFiltreType(type.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filtreType === type.value
+                  ? 'bg-primary-100 text-primary-700 border border-primary-200'
+                  : 'bg-white text-neutral-600 border border-neutral-200 hover:bg-neutral-50'
+              }`}
+            >
+              {type.label} ({type.count})
+            </button>
+          ))}
+        </div>
 
-            {/* Liste des conversations */}
-            <div className="flex-1 overflow-y-auto p-4">
-              <ListeConversations
-                conversations={conversations}
-                contacts={contactsMock}
-                conversationActive={conversationActive}
-                onSelectConversation={handleSelectConversation}
-                searchTerm={searchTerm}
+        {/* Formulaire de création */}
+        {afficherFormulaire && (
+          <CreerNotification
+            onCreer={creerNotification}
+            onAnnuler={() => setAfficherFormulaire(false)}
+            roleUtilisateur={utilisateur?.role}
+          />
+        )}
+
+        {/* Liste des notifications */}
+        <div className="space-y-4">
+          {notificationsFiltrees.length > 0 ? (
+            notificationsFiltrees.map((notification) => (
+              <CarteNotification
+                key={notification.id}
+                notification={notification}
+                onSupprimer={supprimerNotification}
               />
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <Bell className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-neutral-900 mb-2">
+                Aucune notification
+              </h3>
+              <p className="text-neutral-600 mb-4">
+                {filtreType === "tous" 
+                  ? "Vous n'avez pas encore créé de notifications."
+                  : `Aucune notification de type "${typesFiltre.find(t => t.value === filtreType)?.label}".`
+                }
+              </p>
+              <button
+                onClick={() => setAfficherFormulaire(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Créer une notification
+              </button>
             </div>
-          </div>
-
-          {/* Zone de conversation */}
-          <div className={`flex-1 ${
-            showMobileConversation ? 'flex' : 'hidden lg:flex'
-          }`}>
-            <ZoneConversation
-              contact={contactActif}
-              messages={messagesConversation}
-              onEnvoyerMessage={handleEnvoyerMessage}
-              onFermerConversation={handleFermerConversation}
-            />
-          </div>
+          )}
         </div>
       </div>
-    </MainLayout>
   );
 };
 
