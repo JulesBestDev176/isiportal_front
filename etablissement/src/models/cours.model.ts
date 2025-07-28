@@ -1,76 +1,140 @@
-// Modèles pour la gestion des cours
+// Modèle pour les cours et leurs assignations
 
-export interface Creneau {
+export interface Ressource {
   id: number;
-  jour: "lundi" | "mardi" | "mercredi" | "jeudi" | "vendredi" | "samedi";
-  heureDebut: string; // Format "HH:MM"
-  heureFin: string; // Format "HH:MM"
-  salleId: number; // Référence à la salle
-  salleNom?: string; // Nom de la salle pour l'affichage
-  classeId: number;
-  professeurId: number;
-  classeNom?: string;
-  professeurNom?: string;
+  nom: string;
+  type: "document" | "video" | "lien" | "image";
+  url?: string;
+  description?: string;
+  taille?: number;
+  dateCreation: string;
 }
 
 export interface Cours {
   id: number;
   titre: string;
-  description: string;
-  matiereId: number; // Référence à la matière
-  niveauId: number; // Référence au niveau (6ème, 5ème, etc.)
-  anneeScolaireId: number; // Référence à l'année scolaire
-  semestresIds: number[]; // Un ou deux semestres (1 ou 2 éléments max)
+  description?: string;
+  matiereId: number;
+  matiereNom: string;
+  niveauId: number;
+  niveauNom: string;
+  anneeScolaireId: number;
+  anneeScolaireNom: string;
+  heuresParSemaine: number;
+  coefficient: number;
+  statut: "active" | "terminee" | "annulee" | "en_cours" | "planifie";
   dateCreation: string;
   dateModification?: string;
-  statut: "planifie" | "en_cours" | "termine" | "annule";
-  coefficient?: number;
-  heuresParSemaine: number;
+  professeurId?: number;
+  professeurNom?: string;
+  classes?: ClasseCours[];
+  creneaux?: CreneauCours[];
+  assignations?: AssignationCours[];
   ressources?: Ressource[];
-  creneaux?: Creneau[]; // Créneaux horaires par classe
-  
-  // Champs calculés pour l'affichage
-  matiereNom?: string;
-  niveauNom?: string;
-  anneeScolaireNom?: string;
-  
-  // Assignations par classe (remplace professeurId unique)
-  assignations?: AssignationCoursClasse[];
+  semestresIds?: number[];
+  progression?: number;
+  prochaineCeance?: string;
+  salle?: string;
+  notes?: string;
+  dateDebut?: string;
+  dateFin?: string;
+}
+
+export interface Creneau {
+  id: number;
+  jour: string;
+  heureDebut: string;
+  heureFin: string;
+  salleId?: number;
+  salleNom?: string;
+  classeId?: number;
+  classeNom?: string;
+  professeurId?: number;
+  professeurNom?: string;
+  coursId?: number;
+  coursTitre?: string;
+  statut: "planifie" | "en_cours" | "termine" | "annule";
+  dateCreation: string;
 }
 
 export interface AssignationCoursClasse {
   id: number;
+  coursId: number;
   classeId: number;
-  professeurId: number;
+  anneeScolaireId: number;
+  heuresParSemaine: number;
+  statut: "active" | "terminee" | "annulee" | "en_cours" | "planifie";
+  remarques?: string;
+  progression?: number;
+  prochaineCeance?: string;
+  salle?: string;
+  notes?: string;
+  creneaux?: CreneauCours[];
+}
+
+export interface AssignationCours {
+  id: number;
+  coursId: number;
+  classeId: number;
+  anneeScolaireId: number;
+  heuresParSemaine: number;
+  statut: "active" | "terminee" | "annulee" | "en_cours" | "planifie";
+  remarques?: string;
+  progression?: number;
+  prochaineCeance?: string;
+  salle?: string;
+  notes?: string;
+  creneaux?: CreneauCours[];
+  professeurId?: number;
+  professeurNom?: string;
+  classeNom?: string;
+  dateDebut?: string;
+  dateFin?: string;
+}
+
+export interface ProgressionSeance {
+  id: number;
+  assignationId: number;
+  seance: number;
+  progression: number;
+  date: string;
+  remarques?: string;
+}
+
+export interface ClasseCours {
+  id: number;
+  nom: string;
+  niveauNom: string;
+  nombreEleves: number;
+}
+
+export interface CreneauCours {
+  id: number;
+  jour: string;
+  heureDebut: string;
+  heureFin: string;
+  salleNom?: string;
   classeNom?: string;
   professeurNom?: string;
-  statut: "active" | "inactive";
+  classeId?: number;
+  statut?: "planifie" | "en_cours" | "termine" | "annule";
+  dateCreation?: string;
 }
 
-export interface Ressource {
-  id: number;
-  type: "document" | "video" | "lien" | "image";
-  titre: string;
-  url?: string;
-  description?: string;
-  dateAjout: string;
-}
-
-// Interface pour les données du formulaire
 export interface FormDataCours {
   titre: string;
-  description: string;
-  matiereId: string;
-  niveauId: string;
-  anneeScolaireId: string;
-  semestresIds: number[];
+  description?: string;
+  matiereId: number;
+  niveauId: number;
+  anneeScolaireId: number;
   heuresParSemaine: number;
-  statut: "planifie" | "en_cours" | "termine" | "annule";
   coefficient: number;
+  professeurId?: number;
   creneaux?: Creneau[];
+  semestresIds?: number[];
+  statut?: "active" | "terminee" | "annulee" | "en_cours" | "planifie";
 }
 
-// Interface pour les erreurs de validation
 export interface CoursErrors {
   titre?: string;
   description?: string;
@@ -79,6 +143,7 @@ export interface CoursErrors {
   anneeScolaireId?: string;
   heuresParSemaine?: string;
   coefficient?: string;
+  professeurId?: string;
   semestresIds?: string;
   assignations?: string;
   creneaux?: string;
@@ -86,56 +151,21 @@ export interface CoursErrors {
 
 // Constantes
 export const STATUTS_COURS = [
-  { value: "planifie", label: "Planifié", couleur: "blue" },
-  { value: "en_cours", label: "En cours", couleur: "green" },
-  { value: "termine", label: "Terminé", couleur: "gray" },
-  { value: "annule", label: "Annulé", couleur: "red" }
-] as const;
-
-export const TYPES_RESSOURCE = [
-  { value: "document", label: "Document", icone: "FileText" },
-  { value: "video", label: "Vidéo", icone: "Video" },
-  { value: "lien", label: "Lien", icone: "Link" },
-  { value: "image", label: "Image", icone: "Image" }
-] as const;
-
-export const JOURS_SEMAINE = [
-  { value: "lundi", label: "Lundi" },
-  { value: "mardi", label: "Mardi" },
-  { value: "mercredi", label: "Mercredi" },
-  { value: "jeudi", label: "Jeudi" },
-  { value: "vendredi", label: "Vendredi" },
-  { value: "samedi", label: "Samedi" }
+  { value: "active", label: "Active", couleur: "green" },
+  { value: "terminee", label: "Terminée", couleur: "blue" },
+  { value: "annulee", label: "Annulée", couleur: "red" },
+  { value: "en_cours", label: "En cours", couleur: "orange" },
+  { value: "planifie", label: "Planifiée", couleur: "yellow" }
 ] as const;
 
 export type StatutCours = typeof STATUTS_COURS[number]["value"];
-export type TypeRessource = typeof TYPES_RESSOURCE[number]["value"];
-export type JourSemaine = typeof JOURS_SEMAINE[number]["value"];
 
-// Interface pour l'assignation d'un cours à une classe
-export interface AssignationCours {
-  id: number;
-  coursId: number;
-  classeId: number;
-  professeurId: number;
-  classeNom: string;
-  professeurNom: string;
-  dateDebut: string;
-  dateFin?: string;
-  statut: "active" | "terminee" | "annulee";
-}
+// Fonctions utilitaires
+export const getStatutInfo = (statut: StatutCours) => {
+  return STATUTS_COURS.find(s => s.value === statut);
+};
 
-// Interface pour la progression d'une séance
-export interface ProgressionSeance {
-  id: number;
-  coursId: number;
-  classeId: number;
-  date: string;
-  heureDebut: string;
-  heureFin: string;
-  objectifs: string[];
-  activites: string[];
-  evaluation: string;
-  remarques: string;
-  statut: "planifiee" | "en_cours" | "terminee" | "annulee";
-}
+export const getCoursColorClass = (statut: StatutCours): string => {
+  const statutInfo = getStatutInfo(statut);
+  return statutInfo ? `bg-${statutInfo.couleur}-100 text-${statutInfo.couleur}-800` : 'bg-gray-100 text-gray-800';
+};

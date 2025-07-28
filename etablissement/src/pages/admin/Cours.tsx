@@ -126,14 +126,18 @@ const FormulaireCours: React.FC<{
   const [formData, setFormData] = useState<FormDataCours>({
     titre: coursAModifier?.titre || "",
     description: coursAModifier?.description || "",
-    matiereId: coursAModifier?.matiereId?.toString() || "",
-    niveauId: coursAModifier?.niveauId?.toString() || "",
-    anneeScolaireId: coursAModifier?.anneeScolaireId?.toString() || "",
+    matiereId: coursAModifier?.matiereId || 0,
+    niveauId: coursAModifier?.niveauId || 0,
+    anneeScolaireId: coursAModifier?.anneeScolaireId || 0,
     semestresIds: coursAModifier?.semestresIds || [1, 2],
     heuresParSemaine: coursAModifier?.heuresParSemaine || 0,
     coefficient: coursAModifier?.coefficient || 0,
     statut: coursAModifier?.statut || "planifie" as const,
-    creneaux: coursAModifier?.creneaux || []
+    creneaux: coursAModifier?.creneaux?.map(creneau => ({
+      ...creneau,
+      statut: creneau.statut || "planifie",
+      dateCreation: creneau.dateCreation || new Date().toISOString()
+    })) || []
   });
 
   const [errors, setErrors] = useState<CoursErrors>({});
@@ -152,11 +156,11 @@ const FormulaireCours: React.FC<{
 
   // Récupérer les matières disponibles pour le niveau sélectionné
   const matieresDuNiveau = formData.niveauId ? 
-    matieres.filter((m: any) => m.niveaux && m.niveaux.includes(parseInt(formData.niveauId))) : [];
+    matieres.filter((m: any) => m.niveaux && m.niveaux.includes(formData.niveauId)) : [];
 
   // Récupérer les informations de la matière sélectionnée
   const matiereNiveauSelectionnee = formData.matiereId && formData.niveauId ?
-    matieres.find((m: any) => m.id === parseInt(formData.matiereId) && m.niveaux && m.niveaux.includes(parseInt(formData.niveauId))) : null;
+    matieres.find((m: any) => m.id === formData.matiereId && m.niveaux && m.niveaux.includes(formData.niveauId)) : null;
 
   // Mettre à jour automatiquement les heures et coefficient quand la matière change
   useEffect(() => {
@@ -170,11 +174,11 @@ const FormulaireCours: React.FC<{
   }, [matiereNiveauSelectionnee]);
 
   // Obtenir les classes du niveau sélectionné
-  const classesDuNiveau = classes.filter(classe => classe.niveauId === parseInt(formData.niveauId));
+  const classesDuNiveau = classes.filter(classe => classe.niveauId === formData.niveauId);
 
   // Obtenir les professeurs de la matière sélectionnée
   const professeursDeLaMatiere = professeurs.filter(prof => 
-    prof.matieres && prof.matieres.includes(parseInt(formData.matiereId))
+    prof.matieres && prof.matieres.includes(formData.matiereId)
   );
 
   // Initialiser les assignations quand le niveau change
@@ -209,10 +213,12 @@ const FormulaireCours: React.FC<{
       heureFin: "10:00",
       salleId: 1, // ID de la première salle par défaut
       salleNom: "Salle 101", // Nom de la salle par défaut
-      classeId: parseInt(formData.niveauId),
+      classeId: formData.niveauId,
       professeurId: 1,
       classeNom: "Classe",
-      professeurNom: "Professeur"
+      professeurNom: "Professeur",
+      statut: "planifie",
+      dateCreation: new Date().toISOString()
     };
     setFormData({
       ...formData,
@@ -241,10 +247,10 @@ const FormulaireCours: React.FC<{
   const validateForm = () => {
     const newErrors: CoursErrors = {};
     if (!formData.titre.trim()) newErrors.titre = "Le titre est requis";
-    if (!formData.description.trim()) newErrors.description = "La description est requise";
-    if (!formData.matiereId || formData.matiereId === "") newErrors.matiereId = "La matière est requise";
-    if (!formData.niveauId || formData.niveauId === "") newErrors.niveauId = "Le niveau est requis";
-    if (!formData.anneeScolaireId || formData.anneeScolaireId === "") newErrors.anneeScolaireId = "L'année scolaire est requise";
+    if (!formData.description?.trim()) newErrors.description = "La description est requise";
+    if (!formData.matiereId || formData.matiereId === 0) newErrors.matiereId = "La matière est requise";
+    if (!formData.niveauId || formData.niveauId === 0) newErrors.niveauId = "Le niveau est requis";
+    if (!formData.anneeScolaireId || formData.anneeScolaireId === 0) newErrors.anneeScolaireId = "L'année scolaire est requise";
     if (!formData.semestresIds || formData.semestresIds.length === 0) {
       newErrors.semestresIds = "Au moins un semestre doit être sélectionné";
     }
@@ -276,40 +282,46 @@ const FormulaireCours: React.FC<{
     if (!validateForm()) return;
 
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const nouveauCours = {
-      ...formData,
+    try {
+      const nouveauCours: Cours = {
       id: modeEdition ? (coursAModifier?.id || Date.now()) : Date.now(),
-      matiereId: parseInt(formData.matiereId),
-      niveauId: parseInt(formData.niveauId),
-      anneeScolaireId: parseInt(formData.anneeScolaireId),
+        titre: formData.titre,
+        description: formData.description,
+        matiereId: formData.matiereId,
+        niveauId: formData.niveauId,
+        anneeScolaireId: formData.anneeScolaireId,
       semestresIds: [1, 2], // Valeur par défaut
       dateCreation: modeEdition ? (coursAModifier?.dateCreation || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
       dateModification: modeEdition ? new Date().toISOString().split('T')[0] : undefined,
-      matiereNom: matieres.find(m => m.id === parseInt(formData.matiereId))?.nom || "",
-      niveauNom: niveaux.find(n => n.id === parseInt(formData.niveauId))?.nom || "",
-      anneeScolaireNom: anneesScolaires.find(a => a.id === parseInt(formData.anneeScolaireId))?.nom || "",
+        matiereNom: matieres.find(m => m.id === formData.matiereId)?.nom || "",
+        niveauNom: niveaux.find(n => n.id === formData.niveauId)?.nom || "",
+        anneeScolaireNom: anneesScolaires.find(a => a.id === formData.anneeScolaireId)?.nom || "",
       ressources: modeEdition ? (coursAModifier?.ressources || []) : [],
-      statut: formData.statut as "en_cours" | "planifie" | "termine" | "annule",
+        statut: formData.statut || "planifie",
       assignations: assignationsProfesseurs.map((assignation, index) => ({
         id: index + 1,
         classeId: assignation.classeId,
-        professeurId: assignation.professeurId,
-        classeNom: assignation.classeNom,
-        professeurNom: assignation.professeurNom,
+          coursId: modeEdition ? (coursAModifier?.id || Date.now()) : Date.now(),
+          anneeScolaireId: formData.anneeScolaireId,
+          heuresParSemaine: formData.heuresParSemaine,
         statut: "active" as const
       })),
       creneaux: (formData.creneaux || []).map((creneau: Creneau, index: number) => ({
         ...creneau,
         id: index + 1,
         classeNom: classesDuNiveau.find(c => c.id === creneau.classeId)?.nom || "",
-        professeurNom: assignationsProfesseurs.find(a => a.classeId === creneau.classeId)?.professeurNom || ""
-      }))
+          professeurNom: professeursDeLaMatiere.find(p => p.id === creneau.professeurId)?.nom || ""
+        })),
+        heuresParSemaine: formData.heuresParSemaine,
+        coefficient: formData.coefficient
     };
 
     onSubmit(nouveauCours);
     setLoading(false);
+    } catch (error) {
+      console.error('Erreur lors de la soumission:', error);
+      setLoading(false);
+    }
   };
 
   return (
@@ -359,7 +371,7 @@ const FormulaireCours: React.FC<{
             </label>
             <select
               value={formData.matiereId}
-              onChange={(e) => setFormData({...formData, matiereId: e.target.value})}
+              onChange={(e) => setFormData({...formData, matiereId: parseInt(e.target.value) || 0})}
               className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.matiereId ? 'border-red-500' : 'border-neutral-300'
               }`}
@@ -382,8 +394,8 @@ const FormulaireCours: React.FC<{
               Niveau *
             </label>
             <select
-              value={formData.niveauId}
-              onChange={(e) => setFormData({...formData, niveauId: e.target.value})}
+              value={formData.niveauId.toString()}
+              onChange={(e) => setFormData({...formData, niveauId: parseInt(e.target.value) || 0})}
               className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.niveauId ? 'border-red-500' : 'border-neutral-300'
               }`}
@@ -405,8 +417,8 @@ const FormulaireCours: React.FC<{
               Année Scolaire *
             </label>
             <select
-              value={formData.anneeScolaireId}
-              onChange={(e) => setFormData({...formData, anneeScolaireId: e.target.value})}
+              value={formData.anneeScolaireId.toString()}
+              onChange={(e) => setFormData({...formData, anneeScolaireId: parseInt(e.target.value) || 0})}
               className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 errors.anneeScolaireId ? 'border-red-500' : 'border-neutral-300'
               }`}
@@ -427,7 +439,7 @@ const FormulaireCours: React.FC<{
             </label>
             <select
               value={formData.statut}
-              onChange={(e) => setFormData({...formData, statut: e.target.value as "planifie" | "en_cours" | "termine" | "annule"})}
+              onChange={(e) => setFormData({...formData, statut: e.target.value as "active" | "terminee" | "annulee" | "en_cours" | "planifie"})}
               className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               {STATUTS_COURS.map(statut => (

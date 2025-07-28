@@ -1,17 +1,48 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus, Search, Filter, Edit, Trash2, Users, BookOpen, 
-  GraduationCap, Calendar, Save, X, Eye, ChevronDown,
-  UserCheck, Clock, MapPin, AlertCircle, CheckCircle, School,
-  FileText, Target, PlayCircle, PauseCircle, Zap, Award,
-  ChevronRight, Globe, BarChart, TrendingUp, Bookmark,
-  CheckSquare, Square, Info
+  BookOpen, 
+  Clock, 
+  UserCheck, 
+  Calendar, 
+  MapPin, 
+  Edit, 
+  Trash2, 
+  Eye, 
+  Plus,
+  Search,
+  Filter,
+  X,
+  Check,
+  AlertCircle,
+  Info,
+  Users,
+  GraduationCap,
+  Target,
+  TrendingUp,
+  BarChart3,
+  Settings,
+  Download,
+  Upload,
+  RefreshCw,
+  Save,
+  Play,
+  Pause,
+  Square,
+  CheckCircle,
+  XCircle,
+  Clock as ClockIcon,
+  User,
+  Building,
+  FileText,
+  Video,
+  Link,
+  Image
 } from "lucide-react";
 import { useAuth } from "../../contexts/ContexteAuth";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
-import { Cours, Ressource } from "../../models/cours.model";
+import { Cours } from "../../models/cours.model";
 import { Classe } from "../../models/classe.model";
 import { Utilisateur } from "../../models/utilisateur.model";
 import { matiereService } from "../../services/matiereService";
@@ -44,12 +75,36 @@ type Professeur = Utilisateur;
 
 // Constantes
 const matieresList = [
-  "Mathématiques", "Français", "Histoire-Géographie", "Sciences",
-  "Anglais", "Espagnol", "Allemand", "EPS", "Arts plastiques",
-  "Musique", "Technologie", "SVT", "Physique-Chimie"
+  { id: 1, nom: "Mathématiques" },
+  { id: 2, nom: "Français" },
+  { id: 3, nom: "Histoire-Géographie" },
+  { id: 4, nom: "Sciences" },
+  { id: 5, nom: "Anglais" },
+  { id: 6, nom: "Espagnol" },
+  { id: 7, nom: "Allemand" },
+  { id: 8, nom: "EPS" },
+  { id: 9, nom: "Arts plastiques" },
+  { id: 10, nom: "Musique" },
+  { id: 11, nom: "Technologie" },
+  { id: 12, nom: "SVT" },
+  { id: 13, nom: "Physique-Chimie" }
 ];
 
-const niveauxList = ["6ème", "5ème", "4ème", "3ème", "2nde", "1ère", "Terminale"];
+const niveauxList = [
+  { id: 1, nom: "6ème" },
+  { id: 2, nom: "5ème" },
+  { id: 3, nom: "4ème" },
+  { id: 4, nom: "3ème" },
+  { id: 5, nom: "2nde" },
+  { id: 6, nom: "1ère" },
+  { id: 7, nom: "Terminale" }
+];
+
+const anneesScolairesList = [
+  { id: 1, nom: "2023-2024" },
+  { id: 2, nom: "2024-2025" },
+  { id: 3, nom: "2025-2026" }
+];
 
 const joursList: Creneau["jour"][] = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
 
@@ -96,10 +151,10 @@ const CarteCours: React.FC<{
           <div className="flex items-center gap-3 text-sm text-gray-600 flex-wrap">
             <span className="flex items-center gap-1">
               <BookOpen className="w-4 h-4" />
-              Matière {cours.matiereId} {/* TODO: Récupérer le nom de la matière */}
+              {matieresList.find(m => m.id === cours.matiereId)?.nom || 'Matière inconnue'}
             </span>
             <span className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
+              <ClockIcon className="w-4 h-4" />
               {cours.heuresParSemaine}h/sem
             </span>
             {professeur && (
@@ -116,7 +171,7 @@ const CarteCours: React.FC<{
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="text-sm text-gray-600">Classe:</span>
         <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-          Niveau {cours.niveauId} {/* TODO: Récupérer le nom du niveau */}
+          {niveauxList.find(n => n.id === cours.niveauId)?.nom || 'Niveau inconnu'}
         </span>
       </div>
 
@@ -223,9 +278,16 @@ const FormulaireCours: React.FC<{
       try {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
+        // Récupérer les informations manquantes
+        const matiere = matieresList.find(m => m.id === formData.matiereId);
+        const niveau = niveauxList.find(n => n.id === formData.niveauId);
+        const anneeScolaire = anneesScolairesList.find(a => a.id === formData.anneeScolaireId);
+
         const coursData = {
           ...formData,
-
+          matiereNom: matiere?.nom || 'Matière inconnue',
+          niveauNom: niveau?.nom || 'Niveau inconnu',
+          anneeScolaireNom: anneeScolaire?.nom || 'Année inconnue',
           id: cours?.id?.toString(),
           dateCreation: cours?.dateCreation || new Date().toISOString().split('T')[0],
           dateModification: cours ? new Date().toISOString().split('T')[0] : undefined
@@ -290,8 +352,8 @@ const FormulaireCours: React.FC<{
                 disabled={isLoading}
               >
                 <option value={0}>Sélectionner un niveau</option>
-                {niveauxList.map((niveau, index) => (
-                  <option key={niveau} value={index + 1}>{niveau}</option>
+                {niveauxList.map((niveau) => (
+                  <option key={niveau.id} value={niveau.id}>{niveau.nom}</option>
                 ))}
               </select>
               {errors.niveauId && <p className="text-red-500 text-xs mt-1">{errors.niveauId}</p>}
@@ -311,8 +373,8 @@ const FormulaireCours: React.FC<{
                 disabled={isLoading}
               >
                 <option value={0}>Sélectionner une matière</option>
-                {matieresList.map((matiere, index) => (
-                  <option key={matiere} value={index + 1}>{matiere}</option>
+                {matieresList.map((matiere) => (
+                  <option key={matiere.id} value={matiere.id}>{matiere.nom}</option>
                 ))}
               </select>
               {errors.matiereId && <p className="text-red-500 text-xs mt-1">{errors.matiereId}</p>}
@@ -390,8 +452,10 @@ const FormulaireCours: React.FC<{
             }`}
             disabled={isLoading}
           >
-            <option value={1}>2023-2024</option>
-            <option value={2}>2024-2025</option>
+            <option value={0}>Sélectionner une année scolaire</option>
+            {anneesScolairesList.map((annee) => (
+              <option key={annee.id} value={annee.id}>{annee.nom}</option>
+            ))}
           </select>
           {errors.anneeScolaireId && <p className="text-red-500 text-xs mt-1">{errors.anneeScolaireId}</p>}
         </div>
@@ -543,11 +607,11 @@ const ModalDetailsCours: React.FC<{
                 </div>
                 <div>
                   <span className="text-sm font-medium text-gray-600">Matière:</span>
-                  <p className="text-gray-900 mt-1">{matieresList[cours.matiereId - 1] || 'Matière inconnue'}</p>
+                  <p className="text-gray-900 mt-1">{matieresList.find(m => m.id === cours.matiereId)?.nom || 'Matière inconnue'}</p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-gray-600">Niveau:</span>
-                  <p className="text-gray-900 mt-1">{niveauxList[cours.niveauId - 1] || 'Niveau inconnu'}</p>
+                  <p className="text-gray-900 mt-1">{niveauxList.find(n => n.id === cours.niveauId)?.nom || 'Niveau inconnu'}</p>
                 </div>
                 <div>
                   <span className="text-sm font-medium text-gray-600">Année scolaire:</span>
@@ -558,7 +622,7 @@ const ModalDetailsCours: React.FC<{
 
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Clock className="w-5 h-5" />
+                <ClockIcon className="w-5 h-5" />
                 Configuration horaire
               </h3>
               <div className="space-y-3">
@@ -573,7 +637,7 @@ const ModalDetailsCours: React.FC<{
                 <div>
                   <span className="text-sm font-medium text-gray-600">Semestres:</span>
                   <p className="text-gray-900 mt-1">
-                    {cours.semestresIds.map(sem => `Semestre ${sem}`).join(', ')}
+                    {cours.semestresIds?.map(sem => `Semestre ${sem}`).join(', ') || 'Non défini'}
                   </p>
                 </div>
                 <div>
@@ -581,7 +645,7 @@ const ModalDetailsCours: React.FC<{
                   <span className={`inline-block px-2 py-1 rounded-full text-sm font-medium mt-1 ${getStatutColor(cours.statut)}`}>
                     {cours.statut === "planifie" ? "Planifié" :
                      cours.statut === "en_cours" ? "En cours" :
-                     cours.statut === "termine" ? "Terminé" : "Annulé"}
+                     cours.statut === "terminee" ? "Terminé" : "Annulé"}
                   </span>
                 </div>
               </div>
@@ -656,7 +720,7 @@ const ModalDetailsCours: React.FC<{
                 {cours.ressources.map((ressource, index) => (
                   <div key={index} className="border border-gray-200 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-medium text-gray-900">{ressource.titre}</span>
+                      <span className="text-sm font-medium text-gray-900">{ressource.nom}</span>
                       <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded capitalize">
                         {ressource.type}
                       </span>
@@ -665,7 +729,7 @@ const ModalDetailsCours: React.FC<{
                       <p className="text-sm text-gray-600 mb-2">{ressource.description}</p>
                     )}
                     <p className="text-xs text-gray-500">
-                      Ajouté le {formatDate(ressource.dateAjout)}
+                      Ajouté le {formatDate(ressource.dateCreation)}
                     </p>
                   </div>
                 ))}
@@ -1253,7 +1317,7 @@ const ListeAssignations: React.FC<{
       {assignations.map((assignation) => {
         const coursInfo = getCoursInfo(assignation.coursId);
         const classeInfo = getClasseInfo(assignation.classeId);
-        const professeurInfo = coursInfo && coursInfo.assignations && coursInfo.assignations.length > 0 ? getProfesseurInfo(coursInfo.assignations[0].professeurId) : null;
+        const professeurInfo = coursInfo && coursInfo.professeurId ? getProfesseurInfo(coursInfo.professeurId) : null;
 
         if (!coursInfo || !classeInfo) return null;
 
@@ -1271,12 +1335,12 @@ const ListeAssignations: React.FC<{
                 </h3>
                 <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                   <span className="flex items-center gap-1">
-                    <School className="w-4 h-4" />
+                    <Building className="w-4 h-4" />
                     {classeInfo.nom}
                   </span>
                   <span className="flex items-center gap-1">
                     <BookOpen className="w-4 h-4" />
-                    {matieresList[coursInfo.matiereId - 1] || 'Matière inconnue'}
+                    {matieresList.find(m => m.id === coursInfo.matiereId)?.nom || 'Matière inconnue'}
                   </span>
                   {professeurInfo && (
                     <span className="flex items-center gap-1">
@@ -1423,7 +1487,7 @@ const CoursGestionnaire: React.FC = () => {
 
   const loadProfesseurs = async () => {
     try {
-      const response = await adminService.getUtilisateurs({
+      const response = await adminService.getUsers({
         page: 1,
         limit: 100,
         filters: { role: 'professeur' }
@@ -1448,7 +1512,7 @@ const CoursGestionnaire: React.FC = () => {
   // Filtrage des cours
   const coursFiltres = cours.filter(c => {
     const matchTexte = c.titre.toLowerCase().includes(rechercheTexte.toLowerCase()) ||
-                      c.description.toLowerCase().includes(rechercheTexte.toLowerCase());
+                      c.description?.toLowerCase().includes(rechercheTexte.toLowerCase()) || false;
     const matchMatiere = !filtreMatiere || c.matiereNom === filtreMatiere;
     const matchNiveau = !filtreNiveau || c.niveauNom === filtreNiveau;
     const matchStatut = !filtreStatut || c.statut === filtreStatut;
@@ -1469,16 +1533,30 @@ const CoursGestionnaire: React.FC = () => {
   };
 
   const handleSaveCours = (coursData: Omit<Cours, "id"> & { id?: string }) => {
+    // Récupérer les informations manquantes
+    const matiere = matieresList.find(m => m.id === coursData.matiereId);
+    const niveau = niveauxList.find(n => n.id === coursData.niveauId);
+    const anneeScolaire = anneesScolairesList.find(a => a.id === coursData.anneeScolaireId);
+
+    const coursComplet = {
+      ...coursData,
+      matiereNom: matiere?.nom || 'Matière inconnue',
+      niveauNom: niveau?.nom || 'Niveau inconnu',
+      anneeScolaireNom: anneeScolaire?.nom || 'Année inconnue',
+      dateCreation: new Date().toISOString(),
+      dateModification: new Date().toISOString()
+    };
+
     if (coursData.id) {
       // Modification
       const courseId = parseInt(coursData.id);
       setCours(prev => prev.map(c => 
-        c.id === courseId ? { ...coursData, id: courseId } : c
+        c.id === courseId ? { ...coursComplet, id: courseId } : c
       ));
     } else {
       // Ajout
       const nouveauCours: Cours = {
-        ...coursData,
+        ...coursComplet,
         id: Date.now()
       };
       setCours(prev => [...prev, nouveauCours]);
@@ -1737,7 +1815,7 @@ const CoursGestionnaire: React.FC = () => {
                       >
                         <option value="">Toutes les matières</option>
                         {matieresList.map(matiere => (
-                          <option key={matiere} value={matiere}>{matiere}</option>
+                          <option key={matiere.id} value={matiere.nom}>{matiere.nom}</option>
                         ))}
                       </select>
 
@@ -1748,7 +1826,7 @@ const CoursGestionnaire: React.FC = () => {
                       >
                         <option value="">Tous les niveaux</option>
                         {niveauxList.map(niveau => (
-                          <option key={niveau} value={niveau}>{niveau}</option>
+                          <option key={niveau.id} value={niveau.nom}>{niveau.nom}</option>
                         ))}
                       </select>
 

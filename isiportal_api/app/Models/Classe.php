@@ -16,6 +16,7 @@ class Classe extends Model
         'nom',
         'niveau_id',
         'effectif_max',
+        'effectif_actuel',
         'description',
         'professeur_principal_id',
         'statut',
@@ -25,6 +26,7 @@ class Classe extends Model
 
     protected $casts = [
         'effectif_max' => 'integer',
+        'effectif_actuel' => 'integer',
         'date_creation' => 'datetime'
     ];
 
@@ -65,7 +67,7 @@ class Classe extends Model
      */
     public function cours(): BelongsToMany
     {
-        return $this->belongsToMany(Cours::class, 'classe_cours');
+        return $this->belongsToMany(Cours::class, 'cours_classes');
     }
 
     /**

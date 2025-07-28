@@ -115,6 +115,7 @@ export interface Etudiant {
   classeNom: string;
   niveauNom: string;
   numeroEtudiant: string;
+  numeroMatricule: string;
   statut: "actif" | "inactif" | "suspendu";
   dateInscription: string;
   moyenne: number;

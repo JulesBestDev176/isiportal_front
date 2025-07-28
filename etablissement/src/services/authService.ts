@@ -1,59 +1,5 @@
-import axios from 'axios';
+import { buildApiUrl, getAuthHeaders, API_CONFIG } from './config';
 
-// Configuration de base pour l'API
-const API_BASE_URL = 'http://localhost:8000/api';
-
-// Instance axios configurée
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
-});
-
-// Intercepteur pour ajouter le token aux requêtes
-apiClient.interceptors.request.use(
-  (config: any) => {
-    const token = localStorage.getItem('auth_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error: any) => {
-    return Promise.reject(error);
-  }
-);
-
-// Intercepteur pour gérer les réponses et les erreurs
-apiClient.interceptors.response.use(
-  (response: any) => response,
-  async (error: any) => {
-    if (error.response?.status === 401) {
-      // Token expiré, essayer de le rafraîchir
-      try {
-        const refreshResponse = await apiClient.post('/auth/refresh');
-        const newToken = refreshResponse.data.data.token;
-        localStorage.setItem('auth_token', newToken);
-        
-        // Retry la requête originale avec le nouveau token
-        if (error.config && error.config.headers) {
-          error.config.headers.Authorization = `Bearer ${newToken}`;
-          return apiClient.request(error.config);
-        }
-      } catch (refreshError) {
-        // Échec du refresh, déconnecter l'utilisateur
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('utilisateur');
-        window.location.href = '/connexion';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Types pour l'authentification
 export interface LoginCredentials {
   email: string;
   password: string;
@@ -62,148 +8,201 @@ export interface LoginCredentials {
 export interface AuthResponse {
   success: boolean;
   message: string;
-  data: {
+  data?: {
     user: {
       id: number;
       nom: string;
       prenom: string;
       email: string;
       role: string;
-      full_name: string;
+      doitChangerMotDePasse: boolean;
     };
     token: string;
-    token_type: string;
-    expires_in: number;
+    refresh_token: string;
   };
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data?: T;
-  errors?: any;
+export interface ChangePasswordData {
+  current_password: string;
+  new_password: string;
+  new_password_confirmation: string;
 }
 
 // Service d'authentification
-export class AuthService {
-  
-  /**
-   * Connexion utilisateur
-   */
-  static async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    try {
-      const response = await apiClient.post<AuthResponse>('/auth/login', credentials);
-      
-      if (response.data.success) {
-        // Stocker le token et les infos utilisateur
-        localStorage.setItem('auth_token', response.data.data.token);
-        localStorage.setItem('utilisateur', JSON.stringify({
-          id: response.data.data.user.id.toString(),
-          email: response.data.data.user.email,
-          role: response.data.data.user.role,
-          prenom: response.data.data.user.prenom,
-          nom: response.data.data.user.nom
-        }));
-      }
-      
-      return response.data;
-    } catch (error: any) {
-      throw new Error(
-        error.response?.data?.message || 
-        'Erreur lors de la connexion'
-      );
-    }
-  }
+export const authService = {
+  // Connexion
+  async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    const response = await fetch(buildApiUrl('/auth/login'), {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(credentials)
+    });
 
-  /**
-   * Déconnexion
-   */
-  static async logout(): Promise<void> {
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Erreur de connexion');
+    }
+
+    // Stocker le token
+    if (data.data?.token) {
+      localStorage.setItem('auth_token', data.data.token);
+      localStorage.setItem('refresh_token', data.data.refresh_token);
+    }
+
+    return data;
+  },
+
+  // Déconnexion
+  async logout(): Promise<void> {
     try {
-      await apiClient.post('/auth/logout');
-    } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
+      await fetch(buildApiUrl('/auth/logout'), {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
     } finally {
-      // Nettoyer le stockage local
       localStorage.removeItem('auth_token');
-      localStorage.removeItem('utilisateur');
+      localStorage.removeItem('refresh_token');
     }
-  }
+  },
 
-  /**
-   * Obtenir le profil utilisateur
-   */
-  static async getProfile(): Promise<any> {
+  // Déconnexion de tous les appareils
+  async logoutFromAllDevices(): Promise<void> {
     try {
-      const response = await apiClient.get('/auth/profile');
-      return response.data;
-    } catch (error: any) {
-      throw new Error(
-        error.response?.data?.message || 
-        'Erreur lors de la récupération du profil'
-      );
+      await fetch(buildApiUrl('/auth/logout-all'), {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+    } finally {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('refresh_token');
     }
-  }
+  },
 
-  /**
-   * Rafraîchir le token
-   */
-  static async refreshToken(): Promise<string> {
-    try {
-      const response = await apiClient.post('/auth/refresh');
-      const newToken = response.data.data.token;
-      localStorage.setItem('auth_token', newToken);
-      return newToken;
-    } catch (error: any) {
-      throw new Error(
-        error.response?.data?.message || 
-        'Erreur lors du rafraîchissement du token'
-      );
+  // Rafraîchir le token
+  async refreshToken(): Promise<AuthResponse> {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (!refreshToken) {
+      throw new Error('Aucun token de rafraîchissement disponible');
     }
-  }
 
-  /**
-   * Vérifier si l'utilisateur est connecté
-   */
-  static isAuthenticated(): boolean {
-    const token = localStorage.getItem('auth_token');
-    const user = localStorage.getItem('utilisateur');
-    return !!(token && user);
-  }
+    const response = await fetch(buildApiUrl('/auth/refresh'), {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
 
-  /**
-   * Obtenir le token actuel
-   */
-  static getToken(): string | null {
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Erreur de rafraîchissement du token');
+    }
+
+    // Mettre à jour les tokens
+    if (data.data?.token) {
+      localStorage.setItem('auth_token', data.data.token);
+      localStorage.setItem('refresh_token', data.data.refresh_token);
+    }
+
+    return data;
+  },
+
+  // Obtenir le profil utilisateur
+  async getProfile(): Promise<AuthResponse> {
+    const response = await fetch(buildApiUrl('/auth/profile'), {
+      headers: getAuthHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error('Erreur lors de la récupération du profil');
+    }
+
+    return response.json();
+  },
+
+  // Changer le mot de passe
+  async changePassword(data: ChangePasswordData): Promise<AuthResponse> {
+    const response = await fetch(buildApiUrl('/auth/change-password'), {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data)
+    });
+
+    const responseData = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(responseData.message || 'Erreur lors du changement de mot de passe');
+    }
+
+    return responseData;
+  },
+
+  // Vérifier si l'utilisateur est connecté
+  isAuthenticated(): boolean {
+    return !!localStorage.getItem('auth_token');
+  },
+
+  // Obtenir le token actuel
+  getToken(): string | null {
     return localStorage.getItem('auth_token');
-  }
+  },
 
-  /**
-   * Obtenir l'utilisateur actuel
-   */
-  static getCurrentUser(): any | null {
-    const userStr = localStorage.getItem('utilisateur');
-    return userStr ? JSON.parse(userStr) : null;
-  }
-
-  /**
-   * Change le mot de passe de l'utilisateur
-   */
-  static async changePassword(data: {
-    motDePasseActuel: string;
-    nouveauMotDePasse: string;
-  }): Promise<ApiResponse<{ success: boolean }>> {
+  // Obtenir le rôle de l'utilisateur
+  getUserRole(): string | null {
+    const token = this.getToken();
+    if (!token) return null;
+    
     try {
-      const response = await apiClient.post<ApiResponse<{ success: boolean }>>('/auth/change-password', data);
-      return response.data;
-    } catch (error: any) {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.role || null;
+    } catch {
+      return null;
+    }
+  },
+
+  // Obtenir l'utilisateur actuel depuis le localStorage
+  getCurrentUser(): any {
+    const token = this.getToken();
+    if (!token) return null;
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
       return {
-        success: false,
-        message: error.response?.data?.message || 'Erreur lors du changement de mot de passe'
+        id: payload.sub || payload.id,
+        nom: payload.nom,
+        prenom: payload.prenom,
+        email: payload.email,
+        role: payload.role,
+        doitChangerMotDePasse: payload.doitChangerMotDePasse || false
       };
+    } catch {
+      return null;
     }
   }
-}
+};
 
-// Export de l'instance axios pour d'autres services
-export { apiClient };
+// Intercepteur pour rafraîchir automatiquement le token
+const originalFetch = window.fetch;
+window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const response = await originalFetch(input, init);
+  
+  if (response.status === 401) {
+    try {
+      await authService.refreshToken();
+      // Réessayer la requête originale avec le nouveau token
+      return originalFetch(input, {
+        ...init,
+        headers: {
+          ...init?.headers,
+          ...getAuthHeaders()
+        }
+      });
+    } catch {
+      // Si le rafraîchissement échoue, rediriger vers la page de connexion
+      authService.logout();
+      window.location.href = '/login';
+    }
+  }
+  
+  return response;
+};

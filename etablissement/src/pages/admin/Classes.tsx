@@ -488,6 +488,7 @@ const Classes: React.FC = () => {
     loadEleves();
     loadAnneesScolaires();
     loadNotifications();
+    loadReglesTransfert();
   }, []);
 
   const loadClasses = async () => {
@@ -608,6 +609,35 @@ const Classes: React.FC = () => {
     }
   };
 
+  // Charger les règles de transfert depuis l'API
+  const loadReglesTransfert = async () => {
+    try {
+      const response = await adminService.getReglesTransfert();
+      if (response.success && response.data) {
+        setReglesTransfert(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des règles de transfert:', error);
+    }
+  };
+
+  // Sauvegarder les règles de transfert
+  const saveReglesTransfert = async () => {
+    try {
+      const response = await adminService.updateReglesTransfert(reglesTransfert);
+      if (response.success) {
+        console.log('Règles de transfert sauvegardées avec succès');
+        setModalReglesTransfert(false);
+        // Recharger les règles pour avoir les données mises à jour
+        await loadReglesTransfert();
+      } else {
+        console.error('Erreur lors de la sauvegarde des règles de transfert:', response.error);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des règles de transfert:', error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* En-tête */}
@@ -621,7 +651,7 @@ const Classes: React.FC = () => {
         
         {/* Bouton règles de transfert (admin seulement) */}
         <button
-          onClick={() => setShowModalDetails(true)}
+          onClick={() => setModalReglesTransfert(true)}
           className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
           title="Gérer les règles de transfert automatique"
         >
@@ -933,7 +963,7 @@ const Classes: React.FC = () => {
               Vers le niveau : <strong>{classeSource ? getNiveauSuperieur(classeSource.niveauNom) : ''}</strong>
             </p>
             <p className="text-xs text-blue-600 mt-2">
-              Règles appliquées : Moyenne ≥ {reglesTransfert.moyenneMinimale}/20, Transfert direct : {reglesTransfert.transfertDirect ? 'Oui' : 'Non'}
+              Règles appliquées : Moyenne ≥ {reglesTransfert.moyenne_minimale}/20, Transfert direct : {reglesTransfert.transfert_direct ? 'Oui' : 'Non'}
             </p>
           </div>
 
@@ -947,7 +977,7 @@ const Classes: React.FC = () => {
                     <span className="text-sm text-gray-600 ml-2">(Moyenne: {eleve.moyenneAnnuelle}/20)</span>
                   </div>
                   <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    eleve.moyenneAnnuelle >= reglesTransfert.moyenneMinimale 
+                    eleve.moyenneAnnuelle >= reglesTransfert.moyenne_minimale 
                       ? 'bg-green-100 text-green-800' 
                       : 'bg-red-100 text-red-800'
                   }`}>
@@ -997,10 +1027,10 @@ const Classes: React.FC = () => {
                 min="0"
                 max="20"
                 step="0.1"
-                value={reglesTransfert.moyenneMinimale}
+                value={reglesTransfert.moyenne_minimale}
                 onChange={(e) => setReglesTransfert(prev => ({
                   ...prev,
-                  moyenneMinimale: parseFloat(e.target.value)
+                  moyenne_minimale: parseFloat(e.target.value)
                 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
@@ -1010,10 +1040,10 @@ const Classes: React.FC = () => {
                 Statut requis
               </label>
               <select
-                value={reglesTransfert.statutRequis}
+                value={reglesTransfert.statut_requis}
                 onChange={(e) => setReglesTransfert(prev => ({
                   ...prev,
-                  statutRequis: e.target.value as "inscrit" | "desinscrit" | "transfere" | "termine"
+                  statut_requis: e.target.value as "inscrit" | "desinscrit" | "transfere" | "termine"
                 }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
@@ -1029,10 +1059,10 @@ const Classes: React.FC = () => {
             <label className="flex items-center">
               <input
                 type="checkbox"
-                checked={reglesTransfert.transfertDirect}
+                checked={reglesTransfert.transfert_direct}
                 onChange={(e) => setReglesTransfert(prev => ({
                   ...prev,
-                  transfertDirect: e.target.checked
+                  transfert_direct: e.target.checked
                 }))}
                 className="mr-2"
               />
@@ -1044,10 +1074,10 @@ const Classes: React.FC = () => {
             <label className="flex items-center">
               <input
                 type="checkbox"
-                checked={reglesTransfert.desactiverAnneeApresTransfert}
+                checked={reglesTransfert.desactiver_annee_apres_transfert}
                 onChange={(e) => setReglesTransfert(prev => ({
                   ...prev,
-                  desactiverAnneeApresTransfert: e.target.checked
+                  desactiver_annee_apres_transfert: e.target.checked
                 }))}
                 className="mr-2"
               />
@@ -1056,6 +1086,8 @@ const Classes: React.FC = () => {
               </span>
             </label>
           </div>
+
+
           
           <div className="flex justify-end gap-3 pt-4">
             <button
@@ -1065,7 +1097,7 @@ const Classes: React.FC = () => {
               Annuler
             </button>
             <button
-              onClick={() => setModalReglesTransfert(false)}
+              onClick={saveReglesTransfert}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Enregistrer
@@ -1283,8 +1315,8 @@ const ModalDetailsClasse: React.FC<{
   );
 
   const elevesTransferables = elevesAnnee.filter(eleve => 
-    eleve.statut === reglesTransfert.statutRequis && 
-    eleve.moyenneAnnuelle >= reglesTransfert.moyenneMinimale
+    eleve.statut === reglesTransfert.statut_requis && 
+    eleve.moyenneAnnuelle >= reglesTransfert.moyenne_minimale
   );
 
   const handleTransfert = (eleve: EleveClasse) => {
@@ -1433,11 +1465,11 @@ const ModalDetailsClasse: React.FC<{
                         {elevesTransferables.length} élève(s) éligible(s) pour le transfert vers le niveau supérieur
                       </p>
                       <div className="text-xs text-orange-600">
-                        <p>• Moyenne minimale requise : {reglesTransfert.moyenneMinimale}/20</p>
-                        <p>• Statut requis : {reglesTransfert.statutRequis}</p>
-                        <p>• Transfert direct : {reglesTransfert.transfertDirect ? 'Oui' : 'Non'}</p>
+                        <p>• Moyenne minimale requise : {reglesTransfert.moyenne_minimale}/20</p>
+                        <p>• Statut requis : {reglesTransfert.statut_requis}</p>
+                        <p>• Transfert direct : {reglesTransfert.transfert_direct ? 'Oui' : 'Non'}</p>
                         <p>• Niveau de destination : {getNiveauSuperieur(classe.niveauNom) || 'Non disponible'}</p>
-                        {reglesTransfert.desactiverAnneeApresTransfert && (
+                        {reglesTransfert.desactiver_annee_apres_transfert && (
                           <p>• L'année sera désactivée après transfert</p>
                         )}
                       </div>
@@ -1450,7 +1482,7 @@ const ModalDetailsClasse: React.FC<{
                       Transférer automatiquement {elevesTransferables.length} élève(s) vers le niveau supérieur
                     </button>
                     <p className="text-xs text-gray-600 mt-2 text-center">
-                      Seuls les élèves avec une moyenne ≥ {reglesTransfert.moyenneMinimale}/20 seront transférés
+                      Seuls les élèves avec une moyenne ≥ {reglesTransfert.moyenne_minimale}/20 seront transférés
                     </p>
                   </div>
                 )}

@@ -14,6 +14,7 @@ export interface Utilisateur {
   email: string;
   motDePasse?: string; // Pour l'envoi d'email de connexion
   role: "administrateur" | "gestionnaire" | "professeur" | "eleve" | "parent";
+  type_parent?: "mere" | "pere" | "tuteur"; // Nouveau champ pour les parents
   dateCreation: string;
   dateModification?: string;
   actif: boolean;
@@ -56,6 +57,7 @@ export interface Eleve extends Utilisateur {
 
 export interface Parent extends Utilisateur {
   role: "parent";
+  type_parent: "mere" | "pere" | "tuteur"; // Type de parent obligatoire
   enfantsIds: number[];
   telephone?: string;
   adresse?: string;
@@ -67,9 +69,11 @@ export interface FormDataUtilisateur {
   prenom: string;
   email: string;
   role: "administrateur" | "gestionnaire" | "professeur" | "eleve" | "parent";
+  type_parent?: "mere" | "pere" | "tuteur"; // Type de parent pour les parents
   sections?: ("college" | "lycee")[];
   matieres?: number[];
   cours?: number[];
+  niveauId?: number;
   classeId?: number;
   dateNaissance?: string;
   lieuNaissance?: string;
@@ -133,6 +137,15 @@ export const ROLES_UTILISATEUR = [
   { value: "eleve", label: "Élève" },
   { value: "parent", label: "Parent" }
 ] as const;
+
+// Constantes pour les types de parents
+export const TYPES_PARENT = [
+  { value: "mere", label: "Mère" },
+  { value: "pere", label: "Père" },
+  { value: "tuteur", label: "Tuteur" }
+] as const;
+
+export type TypeParent = typeof TYPES_PARENT[number]["value"];
 
 // Fonctions utilitaires
 export const getRoleInfo = (role: RoleUtilisateur) => {

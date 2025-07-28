@@ -494,34 +494,25 @@ const Analytics: React.FC = () => {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      // Charger les KPIs
-      const kpisResponse = await adminService.getDashboardKPIs();
-      if (kpisResponse.success && kpisResponse.data) {
-        setKpis(kpisResponse.data);
+      // Charger les statistiques du dashboard
+      const statsResponse = await adminService.getDashboardStats();
+      if (statsResponse.success && statsResponse.data) {
+        setKpis(statsResponse.data.kpis || []);
+        setTendances(statsResponse.data.tendances || []);
+        setPerformanceClasses(statsResponse.data.performanceClasses || []);
+        setActiviteData(statsResponse.data.activiteData || []);
+        setRoleData(statsResponse.data.roleData || []);
       }
 
-      // Charger les tendances
-      const tendancesResponse = await adminService.getDashboardTrends();
-      if (tendancesResponse.success && tendancesResponse.data) {
-        setTendances(tendancesResponse.data);
-      }
-
-      // Charger les performances
-      const performancesResponse = await adminService.getClassPerformances();
-      if (performancesResponse.success && performancesResponse.data) {
-        setPerformanceClasses(performancesResponse.data);
-      }
-
-      // Charger l'activité utilisateur
-      const activitesResponse = await adminService.getUserActivity();
-      if (activitesResponse.success && activitesResponse.data) {
-        setActiviteData(activitesResponse.data);
-      }
-
-      // Charger les statistiques par rôle
-      const statistiquesResponse = await adminService.getRoleStatistics();
-      if (statistiquesResponse.success && statistiquesResponse.data) {
-        setRoleData(statistiquesResponse.data);
+      // Charger les analytics détaillées
+      const analyticsResponse = await adminService.getAnalytics();
+      if (analyticsResponse.success && analyticsResponse.data) {
+        // Mettre à jour les données si nécessaire
+        if (analyticsResponse.data.kpis) setKpis(analyticsResponse.data.kpis);
+        if (analyticsResponse.data.tendances) setTendances(analyticsResponse.data.tendances);
+        if (analyticsResponse.data.performanceClasses) setPerformanceClasses(analyticsResponse.data.performanceClasses);
+        if (analyticsResponse.data.activiteData) setActiviteData(analyticsResponse.data.activiteData);
+        if (analyticsResponse.data.roleData) setRoleData(analyticsResponse.data.roleData);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);

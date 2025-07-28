@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -13,11 +11,36 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            // Seeders de base
+            BatimentSeeder::class,
+            SalleSeeder::class,
+            NiveauSeeder::class,
+            MatiereSeeder::class,
+            AnneeScolaireSeeder::class,
+            ClasseSeeder::class,
+            UserSeeder::class,
+            CoursSeeder::class,
+            
+            // Seeders de données métier
+            NotificationSeeder::class,
+            BulletinSeeder::class,
+            HistoriqueEleveSeeder::class,
+            RegleTransfertSeeder::class,
+            NoteSeeder::class,
+            AbsenceSeeder::class,
+            EmploiDuTempsSeeder::class,
+            SectionSeeder::class,
+            CreneauSeeder::class,
+            AssignationCoursClasseSeeder::class,
+            RessourceSeeder::class,
+            HistoriqueConnexionSeeder::class,
         ]);
+
+        $this->command->info('Base de données initialisée avec succès !');
+        $this->command->info('Comptes de test créés :');
+        $this->command->info('- Administrateur: admin@isiportal.com / password123');
+        $this->command->info('- Gestionnaire: gestionnaire@isiportal.com / password123');
+        $this->command->info('- Professeur: professeur@isiportal.com / password123');
     }
 }

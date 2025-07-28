@@ -1,6 +1,5 @@
 // Export des modèles de communication
 export type {
-  Message,
   Contact,
   Notification,
   NotificationLocale,
@@ -47,6 +46,7 @@ export type {
   RoleUtilisateur,
   SectionType,
   PrivilegeAdmin,
+  TypeParent,
   NoteDetails,
   SemestreNotes,
   AnneeNotes,
@@ -59,6 +59,7 @@ export {
   CLASSES_LIST,
   PRIVILEGES_ADMIN,
   ROLES_UTILISATEUR,
+  TYPES_PARENT,
   getRoleInfo,
   getRoleColorClass,
   getStatutColorClass
@@ -113,11 +114,6 @@ export {
   getStatutInfo as getBatimentStatutInfo,
   getBatimentColorClass
 } from './batiment.model';
-
-// Export des modèles d'élève
-export type {
-  EleveClasse
-} from './eleve.model';
 
 // Export des modèles de règles de transfert
 export type {

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Utilisateur } from '../models/utilisateur.model';
-import { AuthService } from '../services/authService';
+import { authService } from '../services/authService';
 
 interface ContexteAuthType {
   utilisateur: Utilisateur | null;
@@ -26,8 +26,8 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
   useEffect(() => {
     const verifierAuth = async () => {
       try {
-        const utilisateurActuel = AuthService.getCurrentUser();
-        if (utilisateurActuel && AuthService.isAuthenticated()) {
+        const utilisateurActuel = authService.getCurrentUser();
+        if (utilisateurActuel && authService.isAuthenticated()) {
           setUtilisateur({
             id: parseInt(utilisateurActuel.id),
             nom: utilisateurActuel.nom,
@@ -51,8 +51,8 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
 
   const connexion = async (email: string, motDePasse: string) => {
     try {
-      const response = await AuthService.login({ email, password: motDePasse });
-      if (response.success) {
+      const response = await authService.login({ email, password: motDePasse });
+      if (response.success && response.data) {
         const role = response.data.user.role;
         
         // Vérifier si le rôle est autorisé sur cette plateforme
@@ -81,7 +81,7 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
 
   const deconnexion = async () => {
     try {
-      await AuthService.logout();
+      await authService.logout();
       setUtilisateur(null);
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);

@@ -75,20 +75,20 @@ const ListeNiveaux: React.FC<{
 }> = ({ liste, searchTerm, setSearchTerm, onModifierNiveau, onSupprimerNiveau, onVoirMatieres }) => {
   const [niveauDetails, setNiveauDetails] = useState<Niveau | null>(null);
 
-  const getSectionBadge = (section: string) => {
+  const getSectionBadge = (cycle: string) => {
     const colors = {
       college: "bg-blue-100 text-blue-800",
       lycee: "bg-green-100 text-green-800"
     };
     return (
-      <span className={`px-2 py-1 rounded text-xs font-medium ${colors[section as keyof typeof colors] || "bg-gray-100 text-gray-800"}`}>
-        {section === "college" ? "Collège" : "Lycée"}
+      <span className={`px-2 py-1 rounded text-xs font-medium ${colors[cycle as keyof typeof colors] || "bg-gray-100 text-gray-800"}`}>
+        {cycle === "college" ? "Collège" : "Lycée"}
       </span>
     );
   };
 
-  const getStatutBadge = (actif: boolean) => {
-    return actif ? (
+  const getStatutBadge = (statut: string) => {
+    return statut === "active" ? (
       <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
         Actif
       </span>
@@ -125,6 +125,9 @@ const ListeNiveaux: React.FC<{
                   Niveau
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Code
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Section
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -153,45 +156,52 @@ const ListeNiveaux: React.FC<{
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">{niveau.nom}</div>
-                        <div className="text-sm text-gray-500">{niveau.description}</div>
+                        <div className="text-sm text-gray-500">{niveau.description || `Niveau ${niveau.nom}`}</div>
                       </div>
                     </div>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {niveau.code}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {getSectionBadge(niveau.section)}
+                    {getSectionBadge(niveau.cycle)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {niveau.cycle}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-900">{niveau.matieres.length} matière(s)</span>
-                      <button
-                        onClick={() => onVoirMatieres(niveau)}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        Voir
-                      </button>
+                      <BookOpen className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm text-gray-900">
+                        {niveau.matieres_ids ? niveau.matieres_ids.length : 0} matières
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatutBadge(niveau.actif)}
+                    {getStatutBadge(niveau.statut)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onVoirMatieres(niveau)}
+                        className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                        title="Gérer les matières"
+                      >
+                        <BookOpen className="h-4 w-4" />
+                      </button>
                       <button
                         onClick={() => onModifierNiveau(niveau)}
                         className="text-indigo-600 hover:text-indigo-900 p-1 rounded hover:bg-indigo-50"
-                        title="Modifier"
+                        title="Modifier le niveau"
                       >
-                        <Edit3 className="w-4 h-4" />
+                        <Edit3 className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => onSupprimerNiveau(niveau)}
                         className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
-                        title="Supprimer"
+                        title="Supprimer le niveau"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -201,48 +211,6 @@ const ListeNiveaux: React.FC<{
           </table>
         </div>
       </div>
-
-      {/* Modal de détails du niveau */}
-      {niveauDetails && (
-        <Modal
-          isOpen={!!niveauDetails}
-          onClose={() => setNiveauDetails(null)}
-          title={`Détails du niveau ${niveauDetails.nom}`}
-          size="lg"
-        >
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h3 className="font-semibold text-gray-900">Informations générales</h3>
-                <div className="mt-2 space-y-2 text-sm">
-                  <p><strong>Nom:</strong> {niveauDetails.nom}</p>
-                  <p><strong>Section:</strong> {niveauDetails.section === "college" ? "Collège" : "Lycée"}</p>
-                  <p><strong>Cycle:</strong> {niveauDetails.cycle}</p>
-                  <p><strong>Description:</strong> {niveauDetails.description}</p>
-                  <p><strong>Statut:</strong> {niveauDetails.actif ? "Actif" : "Inactif"}</p>
-                </div>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Matières enseignées</h3>
-                <div className="mt-2 space-y-2">
-                  {niveauDetails.matieres.map((matiere) => (
-                    <div key={matiere.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <span className="text-sm font-medium">{matiere.matiereNom}</span>
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <span>{matiere.heuresParSemaine}h/sem</span>
-                        <span>Coef: {matiere.coefficient}</span>
-                        {matiere.obligatoire && (
-                          <span className="bg-blue-100 text-blue-800 px-1 rounded">Obligatoire</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 };
@@ -253,193 +221,267 @@ const GestionMatieres: React.FC<{
   onClose: () => void;
   onSave: (niveau: Niveau) => void;
 }> = ({ niveau, onClose, onSave }) => {
-  const [matieres, setMatieres] = useState<MatiereNiveauNiveau[]>(niveau.matieres);
-  const [nouvelleMatiere, setNouvelleMatiere] = useState<Partial<MatiereNiveauNiveau>>({
-    matiereId: 0,
-    matiereNom: "",
-    heuresParSemaine: 1,
-    coefficient: 1,
-    obligatoire: true
-  });
+  const [matieresIds, setMatieresIds] = useState<number[]>(niveau.matieres_ids || []);
+  const [nouvelleMatiereId, setNouvelleMatiereId] = useState<number>(0);
+  const [matieres, setMatieres] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [expandedMatieres, setExpandedMatieres] = useState<Set<number>>(new Set());
+  const [saving, setSaving] = useState(false);
+
+  // Charger les matières au montage
+  useEffect(() => {
+    loadMatieres();
+  }, []);
+
+  // Surveiller les changements dans matieres
+  useEffect(() => {
+    // Les matières ont été mises à jour
+  }, [matieres]);
+
+  const loadMatieres = async () => {
+    setLoading(true);
+    try {
+      const response = await adminService.getMatieres();
+      
+      if (response.success && response.data) {
+        setMatieres(response.data);
+      } else {
+        console.error('Réponse invalide:', response);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des matières:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getMatiereById = (id: number) => {
+    const matiere = matieres.find(m => m.id === id);
+    return matiere;
+  };
+
+  // Filtrer les matières disponibles (celles qui ne sont pas encore ajoutées)
+  const getMatieresDisponibles = () => {
+    return matieres.filter(matiere => !matieresIds.includes(matiere.id));
+  };
+
+  const toggleMatiereExpansion = (matiereId: number) => {
+    setExpandedMatieres(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(matiereId)) {
+        newSet.delete(matiereId);
+      } else {
+        newSet.add(matiereId);
+      }
+      return newSet;
+    });
+  };
 
   const ajouterMatiere = () => {
-    if (nouvelleMatiere.matiereNom && nouvelleMatiere.heuresParSemaine && nouvelleMatiere.coefficient) {
-      const matiere: MatiereNiveauNiveau = {
-        id: Date.now(),
-        matiereId: nouvelleMatiere.matiereId || 0,
-        matiereNom: nouvelleMatiere.matiereNom,
-        niveauId: niveau.id,
-        heuresParSemaine: nouvelleMatiere.heuresParSemaine,
-        coefficient: nouvelleMatiere.coefficient,
-        obligatoire: nouvelleMatiere.obligatoire || true,
-        dateCreation: new Date().toISOString()
-      };
-      setMatieres([...matieres, matiere]);
-      setNouvelleMatiere({
-        matiereId: 0,
-        matiereNom: "",
-        heuresParSemaine: 1,
-        coefficient: 1,
-        obligatoire: true
-      });
+    if (nouvelleMatiereId && !matieresIds.includes(nouvelleMatiereId)) {
+      setMatieresIds(prev => [...prev, nouvelleMatiereId]);
+      setNouvelleMatiereId(0);
     }
   };
 
   const supprimerMatiere = (id: number) => {
-    setMatieres(matieres.filter(m => m.id !== id));
+    setMatieresIds(prev => prev.filter(matiereId => matiereId !== id));
   };
 
-  const modifierMatiere = (id: number, field: keyof MatiereNiveauNiveau, value: any) => {
-    setMatieres(matieres.map(m => m.id === id ? { ...m, [field]: value } : m));
+  const modifierMatiere = (id: number, field: keyof number, value: any) => {
+    // Pour les IDs de matières, on ne peut pas vraiment modifier, on peut juste ajouter/supprimer
+    console.log('Modification de matière:', id, field, value);
   };
 
-  const sauvegarder = () => {
-    onSave({ ...niveau, matieres });
-    onClose();
+  const sauvegarder = async () => {
+    setSaving(true);
+    try {
+      // Appeler l'API pour mettre à jour le niveau avec les nouvelles matières
+      const response = await adminService.updateNiveau(niveau.id, {
+        matieres_ids: matieresIds
+      });
+      
+      if (response.success) {
+        console.log('Matières mises à jour avec succès');
+        onSave({ ...niveau, matieres_ids: matieresIds });
+        onClose();
+      } else {
+        console.error('Erreur lors de la mise à jour des matières:', response.error);
+        alert('Erreur lors de la sauvegarde des matières');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error);
+      alert('Erreur lors de la sauvegarde des matières');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const matieresDisponibles = getMatieresDisponibles();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Gestion des matières - {niveau.nom}</h3>
         <button
           onClick={onClose}
           className="text-gray-500 hover:text-gray-700"
         >
-          <X className="w-5 h-5" />
+          <X className="h-5 w-5" />
         </button>
       </div>
 
-      {/* Formulaire d'ajout de matière */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <h4 className="font-medium mb-3">Ajouter une matière</h4>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <select
-            value={nouvelleMatiere.matiereNom}
-            onChange={(e) => setNouvelleMatiere({ ...nouvelleMatiere, matiereNom: e.target.value })}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Sélectionner une matière</option>
-            {MATIERES_LIST.map((matiere, index) => (
-              <option key={index} value={matiere}>{matiere}</option>
-            ))}
-          </select>
-          <input
-            type="number"
-            placeholder="Heures/semaine"
-            value={nouvelleMatiere.heuresParSemaine}
-            onChange={(e) => setNouvelleMatiere({ ...nouvelleMatiere, heuresParSemaine: parseInt(e.target.value) || 1 })}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <input
-            type="number"
-            placeholder="Coefficient"
-            value={nouvelleMatiere.coefficient}
-            onChange={(e) => setNouvelleMatiere({ ...nouvelleMatiere, coefficient: parseInt(e.target.value) || 1 })}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={nouvelleMatiere.obligatoire}
-              onChange={(e) => setNouvelleMatiere({ ...nouvelleMatiere, obligatoire: e.target.checked })}
-              className="mr-2"
-            />
-            Obligatoire
-          </label>
+      <div className="space-y-4">
+        {/* Ajouter une nouvelle matière */}
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h4 className="font-medium text-blue-900 mb-3">Ajouter une matière</h4>
+          <div className="flex gap-2">
+            <select
+              value={nouvelleMatiereId || ''}
+              onChange={(e) => setNouvelleMatiereId(parseInt(e.target.value) || 0)}
+              className="flex-1 p-2 border border-gray-300 rounded-md"
+              disabled={matieresDisponibles.length === 0}
+            >
+              <option value="">
+                {matieresDisponibles.length === 0 
+                  ? "Aucune matière disponible à ajouter" 
+                  : "Sélectionner une matière"
+                }
+              </option>
+              {matieresDisponibles.map((matiere) => (
+                <option key={matiere.id} value={matiere.id}>
+                  {matiere.nom}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={ajouterMatiere}
+              disabled={!nouvelleMatiereId || matieresDisponibles.length === 0}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            >
+              Ajouter
+            </button>
+          </div>
+          {matieresDisponibles.length === 0 && (
+            <p className="text-sm text-blue-700 mt-2">
+              Toutes les matières disponibles ont déjà été ajoutées à ce niveau.
+            </p>
+          )}
+        </div>
+
+        {/* Liste des matières */}
+        <div className="space-y-2">
+          <h4 className="font-medium">Matières assignées ({matieresIds.length})</h4>
+          {loading ? (
+            <p className="text-gray-500">Chargement des matières...</p>
+          ) : matieresIds.length === 0 ? (
+            <p className="text-gray-500">Aucune matière assignée</p>
+          ) : (
+            <div className="space-y-2">
+              {matieresIds.map((matiereId) => {
+                const matiere = getMatiereById(matiereId);
+                const isExpanded = expandedMatieres.has(matiereId);
+                
+                return (
+                  <div key={matiereId} className="border rounded-md overflow-hidden">
+                    <div className="flex items-center justify-between p-3 bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => toggleMatiereExpansion(matiereId)}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          <ChevronDown 
+                            className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                          />
+                        </button>
+                        <div>
+                          <span className="text-sm font-medium">
+                            {matiere ? matiere.nom : `Matière ID: ${matiereId}`}
+                          </span>
+                          {matiere && (
+                            <p className="text-xs text-gray-500">
+                              Coefficient: {matiere.coefficient || 'N/A'} • {matiere.heures_par_semaine || 'N/A'}h/sem
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => supprimerMatiere(matiereId)}
+                        className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
+                        title="Supprimer cette matière"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    
+                    {/* Détails de la matière (accordéon) */}
+                    {isExpanded && matiere && (
+                      <div className="p-3 bg-white border-t">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-700">Nom:</span>
+                            <p className="text-gray-900">{matiere.nom}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Code:</span>
+                            <p className="text-gray-900">{matiere.code || 'N/A'}</p>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="font-medium text-gray-700">Description:</span>
+                            <p className="text-gray-900">{matiere.description || 'Aucune description disponible'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Coefficient:</span>
+                            <p className="text-gray-900">{matiere.coefficient || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Heures par semaine:</span>
+                            <p className="text-gray-900">{matiere.heures_par_semaine || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700">Statut:</span>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              matiere.statut === 'active' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {matiere.statut === 'active' ? 'Actif' : 'Inactif'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Boutons d'action */}
+        <div className="flex justify-end gap-2 pt-4 border-t">
           <button
-            onClick={ajouterMatiere}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center justify-center gap-2"
+            onClick={onClose}
+            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+            disabled={saving}
           >
-            <Plus className="w-4 h-4" />
-            Ajouter
+            Annuler
+          </button>
+          <button
+            onClick={sauvegarder}
+            disabled={saving}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {saving ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Sauvegarde...
+              </>
+            ) : (
+              'Sauvegarder'
+            )}
           </button>
         </div>
-      </div>
-
-      {/* Liste des matières */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Matière
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Heures/semaine
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Coefficient
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Statut
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {matieres.map((matiere) => (
-              <tr key={matiere.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {matiere.matiereNom}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <input
-                    type="number"
-                    value={matiere.heuresParSemaine}
-                    onChange={(e) => modifierMatiere(matiere.id, 'heuresParSemaine', parseInt(e.target.value) || 1)}
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                  />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <input
-                    type="number"
-                    value={matiere.coefficient}
-                    onChange={(e) => modifierMatiere(matiere.id, 'coefficient', parseInt(e.target.value) || 1)}
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
-                  />
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={matiere.obligatoire}
-                      onChange={(e) => modifierMatiere(matiere.id, 'obligatoire', e.target.checked)}
-                      className="mr-2"
-                    />
-                    Obligatoire
-                  </label>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() => supprimerMatiere(matiere.id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Actions */}
-      <div className="flex justify-end gap-3">
-        <button
-          onClick={onClose}
-          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-        >
-          Annuler
-        </button>
-        <button
-          onClick={sauvegarder}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          Sauvegarder
-        </button>
       </div>
     </div>
   );
@@ -447,87 +489,165 @@ const GestionMatieres: React.FC<{
 
 // Composant FormulaireNiveau
 const FormulaireNiveau: React.FC<{
-  onSubmit: (niveau: Niveau) => void;
+  onSubmit: (niveau: Niveau, niveauxToUpdate: Niveau[]) => void;
   onClose: () => void;
   niveauAModifier?: Niveau;
   modeEdition?: boolean;
   utilisateurRole?: string;
   utilisateurSection?: string;
-}> = ({ onSubmit, onClose, niveauAModifier, modeEdition = false, utilisateurRole, utilisateurSection }) => {
+  niveaux: Niveau[]; // Added niveaux prop
+}> = ({ onSubmit, onClose, niveauAModifier, modeEdition = false, utilisateurRole, utilisateurSection, niveaux }) => {
   const [formData, setFormData] = useState<FormDataNiveau>({
-    nom: niveauAModifier?.nom || "",
-    ordre: niveauAModifier?.ordre || 1,
-    section: niveauAModifier?.section || "college",
-    description: niveauAModifier?.description || "",
-    matieres: niveauAModifier?.matieres || []
+    nom: '',
+    code: '',
+    description: '',
+    cycle: 'college',
+    position: '',
+    statut: 'active',
+    matieres_ids: []
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [matieres, setMatieres] = useState<any[]>([]);
+  const [loadingMatieres, setLoadingMatieres] = useState(false);
 
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  // Charger les matières au montage
+  useEffect(() => {
+    loadMatieres();
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validation
+  const loadMatieres = async () => {
+    setLoadingMatieres(true);
+    try {
+      const response = await adminService.getMatieres();
+      
+      if (response.success && response.data) {
+        setMatieres(response.data);
+      } else {
+        console.error('Réponse invalide FormulaireNiveau:', response);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des matières FormulaireNiveau:', error);
+    } finally {
+      setLoadingMatieres(false);
+    }
+  };
+
+  const getMatiereById = (id: number) => {
+    const matiere = matieres.find(m => m.id === id);
+    return matiere;
+  };
+
+  // Initialiser le formulaire avec les données du niveau à modifier
+  useEffect(() => {
+    if (niveauAModifier) {
+      setFormData({
+        nom: niveauAModifier.nom || "",
+        code: niveauAModifier.code || "",
+        description: niveauAModifier.description || "",
+        cycle: niveauAModifier.cycle || "college",
+        position: modeEdition ? "" : "", // Pas de position en mode édition
+        statut: niveauAModifier.statut || "active",
+        matieres_ids: niveauAModifier.matieres_ids || []
+      });
+    } else {
+      // Reset form for new niveau
+      setFormData({
+        nom: '',
+        code: '',
+        description: '',
+        cycle: 'college',
+        position: '',
+        statut: 'active',
+        matieres_ids: []
+      });
+    }
+  }, [niveauAModifier, modeEdition]);
+
+  const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
+
     if (!formData.nom.trim()) newErrors.nom = "Le nom est requis";
-    if (formData.ordre <= 0) newErrors.ordre = "L'ordre doit être positif";
-    if (!formData.section) newErrors.section = "La section est requise";
+    if (!formData.code.trim()) newErrors.code = "Le code est requis";
+    if (!modeEdition && !formData.position) newErrors.position = "La position est requise";
+    if (!formData.cycle) newErrors.cycle = "Le cycle est requis";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const calculateOrder = (position: string, cycle: string): number => {
+    // En mode édition, garder l'ordre existant
+    if (modeEdition && niveauAModifier) {
+      return niveauAModifier.ordre;
+    }
+
+    const niveauxCycle = niveaux.filter(n => n.cycle === cycle).sort((a, b) => a.ordre - b.ordre);
+    
+    if (position === "first") {
+      return 1;
+    } else if (position === "last") {
+      return niveauxCycle.length > 0 ? Math.max(...niveauxCycle.map(n => n.ordre)) + 1 : 1;
+    } else if (position.startsWith("after_")) {
+      const niveauId = parseInt(position.replace("after_", ""));
+      const niveauCible = niveauxCycle.find(n => n.id === niveauId);
+      if (niveauCible) {
+        return niveauCible.ordre + 1;
+      }
+    }
+    return 1; // Fallback
+  };
+
+  const getNiveauxToUpdate = (nouvelOrdre: number, cycle: string): Niveau[] => {
+    // Retourner tous les niveaux du même cycle qui ont un ordre >= au nouvel ordre
+    return niveaux
+      .filter(n => n.cycle === cycle && n.ordre >= nouvelOrdre)
+      .map(n => ({
+        ...n,
+        ordre: n.ordre + 1 // Décaler d'un rang
+      }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    // Calculer l'ordre basé sur la position
+    const ordre = calculateOrder(formData.position!, formData.cycle);
 
     const nouveauNiveau: Niveau = {
       ...formData,
-      cycle: formData.nom, // Utilise le nom comme cycle par défaut
+      ordre, // Utiliser l'ordre calculé
       id: modeEdition && niveauAModifier ? niveauAModifier.id : Date.now(),
-      actif: true,
-      dateCreation: modeEdition && niveauAModifier ? niveauAModifier.dateCreation : new Date().toISOString().split('T')[0],
-      dateModification: modeEdition ? new Date().toISOString().split('T')[0] : undefined
+      date_creation: modeEdition && niveauAModifier ? niveauAModifier.date_creation : new Date().toISOString(),
+      created_at: modeEdition && niveauAModifier ? niveauAModifier.created_at : new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    onSubmit(nouveauNiveau);
-    onClose();
-  };
+    // Si c'est un nouveau niveau, calculer les niveaux à mettre à jour
+    const niveauxToUpdate = !modeEdition ? getNiveauxToUpdate(ordre, formData.cycle) : [];
 
-  const ajouterMatiere = () => {
-    const nouvelleMatiere: MatiereNiveauNiveau = {
-      id: Date.now(),
-      matiereId: 0,
-      matiereNom: MATIERES_LIST[0],
-      niveauId: niveauAModifier?.id || 0,
-      heuresParSemaine: 2,
-      coefficient: 1,
-      obligatoire: true,
-      dateCreation: new Date().toISOString().split('T')[0]
-    };
-
-    setFormData(prev => ({
-      ...prev,
-      matieres: [...prev.matieres, nouvelleMatiere]
-    }));
+    onSubmit(nouveauNiveau, niveauxToUpdate);
   };
 
   const supprimerMatiere = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      matieres: prev.matieres.filter((_, i) => i !== index)
+      matieres_ids: prev.matieres_ids.filter((_, i) => i !== index)
     }));
   };
 
-  const modifierMatiere = (index: number, field: keyof MatiereNiveauNiveau, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      matieres: prev.matieres.map((matiere, i) => 
-        i === index ? { ...matiere, [field]: value } : matiere
-      )
-    }));
+  const modifierMatiere = (index: number, field: keyof number, value: any) => {
+    // Pour les IDs de matières, on ne peut pas vraiment modifier, on peut juste ajouter/supprimer
+    console.log('Modification de matière:', index, field, value);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
+        {/* Nom */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Nom du niveau *
@@ -537,56 +657,89 @@ const FormulaireNiveau: React.FC<{
             value={formData.nom}
             onChange={(e) => setFormData(prev => ({ ...prev, nom: e.target.value }))}
             className={`w-full p-2 border rounded-md ${errors.nom ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="Ex: 6ème, 5ème, 2nde"
           />
-          {errors.nom && <p className="text-red-500 text-sm mt-1">{errors.nom}</p>}
+          {errors.nom && <p className="text-red-500 text-xs mt-1">{errors.nom}</p>}
         </div>
 
+        {/* Code */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Ordre *
+            Code *
           </label>
           <input
-            type="number"
-            value={formData.ordre}
-            onChange={(e) => setFormData(prev => ({ ...prev, ordre: parseInt(e.target.value) || 1 }))}
-            className={`w-full p-2 border rounded-md ${errors.ordre ? 'border-red-500' : 'border-gray-300'}`}
+            type="text"
+            value={formData.code}
+            onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value.toUpperCase() }))}
+            className={`w-full p-2 border rounded-md ${errors.code ? 'border-red-500' : 'border-gray-300'}`}
+            placeholder="Ex: 6EME, 5EME, 2NDE"
           />
-          {errors.ordre && <p className="text-red-500 text-sm mt-1">{errors.ordre}</p>}
+          {errors.code && <p className="text-red-500 text-xs mt-1">{errors.code}</p>}
         </div>
 
+        {/* Cycle */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Section *
+            Cycle *
           </label>
           <select
-            value={formData.section}
-            onChange={(e) => setFormData(prev => ({ ...prev, section: e.target.value as "college" | "lycee" }))}
-            className={`w-full p-2 border rounded-md ${errors.section ? 'border-red-500' : 'border-gray-300'}`}
+            value={formData.cycle}
+            onChange={(e) => setFormData(prev => ({ ...prev, cycle: e.target.value as "college" | "lycee" }))}
+            className={`w-full p-2 border rounded-md ${errors.cycle ? 'border-red-500' : 'border-gray-300'}`}
             disabled={utilisateurRole === 'gestionnaire'}
           >
-            {NIVEAUX_SECTIONS.map(section => {
-              // Les gestionnaires ne peuvent sélectionner que leur section
-              if (utilisateurRole === 'gestionnaire' && section.value !== utilisateurSection) {
-                return null;
-              }
-              return (
-                <option key={section.value} value={section.value}>
-                  {section.label}
-                </option>
-              );
-            })}
+            <option value="college">Collège</option>
+            <option value="lycee">Lycée</option>
           </select>
-          {errors.section && <p className="text-red-500 text-sm mt-1">{errors.section}</p>}
-          {utilisateurRole === 'gestionnaire' && (
-            <p className="text-sm text-blue-600 mt-1">
-              Vous ne pouvez gérer que les niveaux de votre section.
-            </p>
-          )}
+          {errors.cycle && <p className="text-red-500 text-xs mt-1">{errors.cycle}</p>}
         </div>
 
+        {/* Position - seulement en mode création */}
+        {!modeEdition && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Position *
+            </label>
+            <select
+              value={formData.position || ""}
+              onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
+              className={`w-full p-2 border rounded-md ${errors.position ? 'border-red-500' : 'border-gray-300'}`}
+              disabled={utilisateurRole === 'gestionnaire'}
+            >
+              <option value="">Sélectionner une position...</option>
+              <option value="first">En premier</option>
+              {niveaux
+                .filter(n => n.cycle === formData.cycle)
+                .sort((a, b) => a.ordre - b.ordre)
+                .map((niveau, index) => (
+                  <option key={niveau.id} value={`after_${niveau.id}`}>
+                    Après {niveau.nom} (ordre {niveau.ordre})
+                  </option>
+                ))
+              }
+              <option value="last">En dernier</option>
+            </select>
+            {errors.position && <p className="text-red-500 text-xs mt-1">{errors.position}</p>}
+          </div>
+        )}
 
+        {/* Statut */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Statut
+          </label>
+          <select
+            value={formData.statut}
+            onChange={(e) => setFormData(prev => ({ ...prev, statut: e.target.value as "active" | "inactive" }))}
+            className="w-full p-2 border border-gray-300 rounded-md"
+          >
+            <option value="active">Actif</option>
+            <option value="inactive">Inactif</option>
+          </select>
+        </div>
       </div>
 
+      {/* Description */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Description
@@ -596,128 +749,108 @@ const FormulaireNiveau: React.FC<{
           onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
           className="w-full p-2 border border-gray-300 rounded-md"
           rows={3}
+          placeholder="Description du niveau..."
         />
       </div>
 
-      {/* Gestion des matières */}
+      {/* Matières */}
       <div>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Matières enseignées</h3>
-          <button
-            type="button"
-            onClick={ajouterMatiere}
-            className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600"
-          >
-            + Ajouter une matière
-          </button>
+        <div className="flex justify-between items-center mb-3">
+          <label className="block text-sm font-medium text-gray-700">
+            Matières assignées
+          </label>
+        </div>
+
+        {/* Sélecteur de matière */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Ajouter une matière
+          </label>
+          <div className="flex gap-2">
+            <select
+              value=""
+              onChange={(e) => {
+                const matiereId = parseInt(e.target.value);
+                if (matiereId && !formData.matieres_ids.includes(matiereId)) {
+                  setFormData(prev => ({
+                    ...prev,
+                    matieres_ids: [...prev.matieres_ids, matiereId]
+                  }));
+                  e.target.value = ""; // Reset le sélecteur
+                }
+              }}
+              className="flex-1 p-2 border border-gray-300 rounded-md"
+              disabled={loadingMatieres}
+            >
+              <option value="">Sélectionner une matière...</option>
+              {matieres
+                .filter(matiere => !formData.matieres_ids.includes(matiere.id))
+                .map(matiere => (
+                  <option key={matiere.id} value={matiere.id}>
+                    {matiere.nom} - Coef: {matiere.coefficient || 'N/A'} - {matiere.heures_par_semaine || 'N/A'}h/sem
+                  </option>
+                ))
+              }
+            </select>
+            {loadingMatieres && (
+              <div className="flex items-center text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="ml-2 text-sm">Chargement...</span>
+              </div>
+            )}
+          </div>
+          {matieres.filter(m => !formData.matieres_ids.includes(m.id)).length === 0 && (
+            <p className="text-sm text-blue-700 mt-2">
+              Toutes les matières disponibles ont déjà été ajoutées à ce niveau.
+            </p>
+          )}
         </div>
 
         <div className="space-y-3">
-          {formData.matieres.map((matiere, index) => (
-            <div key={matiere.id} className="border p-4 rounded-md bg-gray-50">
-              <div className="grid grid-cols-6 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Matière
-                  </label>
-                  <select
-                    value={matiere.matiereNom}
-                    onChange={(e) => {
-                      const matiereIndex = MATIERES_LIST.indexOf(e.target.value);
-                      modifierMatiere(index, 'matiereNom', e.target.value);
-                      modifierMatiere(index, 'matiereId', matiereIndex);
-                    }}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                  >
-                    {MATIERES_LIST.map((matiereNom, idx) => (
-                      <option key={idx} value={matiereNom}>
-                        {matiereNom}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Heures/semaine
-                  </label>
-                  <input
-                    type="number"
-                    value={matiere.heuresParSemaine}
-                    onChange={(e) => modifierMatiere(index, 'heuresParSemaine', parseInt(e.target.value) || 1)}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    min="1"
-                    max="10"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Coefficient
-                  </label>
-                  <input
-                    type="number"
-                    value={matiere.coefficient}
-                    onChange={(e) => modifierMatiere(index, 'coefficient', parseInt(e.target.value) || 1)}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    min="1"
-                    max="10"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Obligatoire
-                  </label>
-                  <select
-                    value={matiere.obligatoire ? "true" : "false"}
-                    onChange={(e) => modifierMatiere(index, 'obligatoire', e.target.value === "true")}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="true">Oui</option>
-                    <option value="false">Non</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <input
-                    type="text"
-                    value={matiere.description || ""}
-                    onChange={(e) => modifierMatiere(index, 'description', e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    placeholder="Optionnel"
-                  />
-                </div>
-
-                <div className="flex items-end">
+          {formData.matieres_ids.map((matiereId, index) => {
+            const matiere = getMatiereById(matiereId);
+            return (
+              <div key={index} className="border p-4 rounded-md bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-medium">
+                      {matiere ? matiere.nom : `Matière ID: ${matiereId}`}
+                    </span>
+                    {matiere && (
+                      <p className="text-xs text-gray-500">
+                        Coefficient: {matiere.coefficient || 'N/A'} • {matiere.heures_par_semaine || 'N/A'}h/sem
+                      </p>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => supprimerMatiere(index)}
-                    className="bg-red-500 text-white px-3 py-2 rounded-md hover:bg-red-600"
+                    className="text-red-600 hover:text-red-800"
                   >
-                    Supprimer
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
+          {formData.matieres_ids.length === 0 && (
+            <p className="text-gray-500 text-sm">Aucune matière assignée</p>
+          )}
         </div>
       </div>
 
-      <div className="flex justify-end space-x-3 pt-4">
+      {/* Boutons d'action */}
+      <div className="flex justify-end gap-2 pt-4 border-t">
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
         >
           Annuler
         </button>
         <button
           type="submit"
-          className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
         >
           {modeEdition ? "Modifier" : "Créer"}
         </button>
@@ -752,15 +885,59 @@ const Niveaux: React.FC = () => {
     loadNotifications();
   }, []);
 
+  // Filtrer les niveaux quand ils changent ou quand les filtres changent
+  useEffect(() => {
+    let filtered = niveaux;
+
+    // Filtre par section
+    if (sectionFilter !== "Toutes les sections") {
+      const sectionMap = {
+        "Collège": "college",
+        "Lycée": "lycee"
+      };
+      const cycleFilter = sectionMap[sectionFilter as keyof typeof sectionMap];
+      if (cycleFilter) {
+        filtered = filtered.filter(niveau => niveau.cycle === cycleFilter);
+      }
+    }
+
+    // Filtre par recherche
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(niveau => 
+        niveau.nom.toLowerCase().includes(term) ||
+        niveau.code.toLowerCase().includes(term) ||
+        (niveau.description && niveau.description.toLowerCase().includes(term))
+      );
+    }
+
+    // Pour les gestionnaires, filtrer par leur section
+    if (utilisateur?.role === "gestionnaire") {
+      filtered = filtered.filter(niveau => niveau.cycle === "college");
+    }
+
+    setFilteredNiveaux(filtered);
+  }, [niveaux, sectionFilter, searchTerm, utilisateur?.role]);
+
   const loadNiveaux = async () => {
     setLoading(true);
     try {
       const response = await adminService.getNiveaux();
+      
       if (response.success && response.data) {
-        setNiveaux(response.data);
+        if (Array.isArray(response.data)) {
+          setNiveaux(response.data);
+        } else {
+          console.warn('Structure de données inattendue:', response.data);
+          setNiveaux([]);
+        }
+      } else {
+        console.warn('Réponse API sans succès:', response);
+        setNiveaux([]);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des niveaux:', error);
+      setNiveaux([]);
     } finally {
       setLoading(false);
     }
@@ -779,11 +956,20 @@ const Niveaux: React.FC = () => {
     }
   };
 
-  const handleCreateNiveau = async (niveau: Omit<Niveau, 'id' | 'dateCreation'>) => {
+  const handleCreateNiveau = async (niveau: Omit<Niveau, 'id' | 'dateCreation'>, niveauxToUpdate: Niveau[] = []) => {
     try {
       const response = await adminService.createNiveau(niveau);
       if (response.success) {
-        setShowModalAjout(false);
+        // Mettre à jour les niveaux existants si nécessaire
+        if (niveauxToUpdate.length > 0) {
+          // Mettre à jour chaque niveau décalé
+          for (const niveauToUpdate of niveauxToUpdate) {
+            await adminService.updateNiveau(niveauToUpdate.id, { ordre: niveauToUpdate.ordre });
+          }
+        }
+        
+        setNiveauAModifier(null);
+        setActiveTab("liste"); // Rediriger vers la liste
         loadNiveaux(); // Recharger la liste
         console.log('Niveau créé avec succès');
       } else {
@@ -798,8 +984,8 @@ const Niveaux: React.FC = () => {
     try {
       const response = await adminService.updateNiveau(id, updates);
       if (response.success) {
-        setShowModalModification(false);
         setNiveauAModifier(null);
+        setActiveTab("liste"); // Rediriger vers la liste
         loadNiveaux(); // Recharger la liste
         console.log('Niveau mis à jour avec succès');
       } else {
@@ -814,6 +1000,8 @@ const Niveaux: React.FC = () => {
     try {
       const response = await adminService.deleteNiveau(id);
       if (response.success) {
+        setShowModalSuppression(false); // Fermer le modal de confirmation
+        setNiveauASupprimer(null); // Réinitialiser le niveau à supprimer
         loadNiveaux(); // Recharger la liste
         console.log('Niveau supprimé avec succès');
       } else {
@@ -826,7 +1014,8 @@ const Niveaux: React.FC = () => {
 
   const ouvrirModalModification = (niveau: Niveau) => {
     setNiveauAModifier(niveau);
-    setShowModalModification(true);
+    setShowModalModification(false); // Fermer le modal de modification
+    setActiveTab("ajouter"); // Rediriger vers l'onglet ajouter
   };
 
   const ouvrirModalAjout = () => {
@@ -852,11 +1041,13 @@ const Niveaux: React.FC = () => {
     setNiveauPourMatieres(null);
   };
 
-  const handleSubmit = (niveau: Niveau) => {
-    if (showModalModification) { // Changed to showModalModification
-      handleUpdateNiveau(niveau.id, niveau);
+  const handleSubmit = (niveau: Niveau, niveauxToUpdate: Niveau[] = []) => {
+    if (niveauAModifier) {
+      // Mode modification
+      handleUpdateNiveau(niveauAModifier.id, niveau);
     } else {
-      handleCreateNiveau(niveau);
+      // Mode création
+      handleCreateNiveau(niveau, niveauxToUpdate);
     }
   };
 
@@ -961,19 +1152,20 @@ const Niveaux: React.FC = () => {
         <div>
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">
-              {showModalModification ? "Modifier le niveau" : "Ajouter un nouveau niveau"}
+              {niveauAModifier ? "Modifier le niveau" : "Ajouter un nouveau niveau"}
             </h2>
             <FormulaireNiveau
               onSubmit={handleSubmit}
               onClose={() => {
                 setActiveTab("liste");
                 setNiveauAModifier(null);
-                setShowModalModification(false); // Changed to showModalModification
+                setShowModalModification(false);
               }}
               niveauAModifier={niveauAModifier || undefined}
-              modeEdition={showModalModification} // Changed to showModalModification
+              modeEdition={!!niveauAModifier}
               utilisateurRole={utilisateur?.role}
               utilisateurSection={"college"}
+              niveaux={niveaux} // Pass niveaux to FormulaireNiveau
             />
           </div>
         </div>

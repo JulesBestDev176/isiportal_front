@@ -34,7 +34,7 @@ const libellesRole: Record<string, string> = {
 };
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  const { utilisateur } = useAuth();
+  const { utilisateur, deconnexion } = useAuth();
   const [sidebarReduite, setSidebarReduite] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
@@ -67,9 +67,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     );
   }
 
-  const deconnexion = () => {
-    // Logique de déconnexion
-    console.log('Déconnexion');
+  const handleDeconnexion = async () => {
+    try {
+      await deconnexion();
+      // Redirection vers la page de connexion après déconnexion
+      window.location.href = '/connexion';
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    }
   };
 
   return (
@@ -93,7 +98,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             tenant={{ nom: 'Établissement Scolaire' }}
             libellesRole={libellesRole}
             notifications={notifications}
-            deconnexion={deconnexion}
+            deconnexion={handleDeconnexion}
             sidebarRéduite={sidebarReduite}
             onToggleSidebar={() => setSidebarReduite((v) => !v)}
             onMenuToggle={() => {}}

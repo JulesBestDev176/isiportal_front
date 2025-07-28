@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/ContexteAuth';
-import { AuthService } from '../../services/authService';
+import { authService } from '../../services/authService';
 import { Eye, EyeOff, Lock, Shield, CheckCircle } from 'lucide-react';
 
 const ChangerMotDePasse: React.FC = () => {
@@ -67,9 +67,10 @@ const ChangerMotDePasse: React.FC = () => {
 
     try {
       // Appel au service pour changer le mot de passe
-      const response = await AuthService.changePassword({
-        motDePasseActuel,
-        nouveauMotDePasse
+      const response = await authService.changePassword({
+        current_password: motDePasseActuel,
+        new_password: nouveauMotDePasse,
+        new_password_confirmation: confirmationMotDePasse
       });
       
       if (response.success) {

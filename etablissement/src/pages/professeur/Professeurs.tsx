@@ -37,7 +37,7 @@ const Professeurs: React.FC = () => {
 
   const loadProfesseurs = async () => {
     try {
-      const response = await adminService.getUtilisateurs({
+      const response = await adminService.getUsers({
         page: 1,
         limit: 100,
         filters: { role: 'professeur' }

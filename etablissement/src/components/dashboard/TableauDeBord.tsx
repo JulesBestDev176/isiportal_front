@@ -10,6 +10,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/ContexteAuth';
+import { dashboardService, DashboardStats, ActiviteRecente } from '../../services/dashboardService';
 
 interface StatistiqueCard {
   titre: string;
@@ -31,41 +32,50 @@ const TableauDeBord: React.FC = () => {
   const { utilisateur } = useAuth();
   const [statistiques, setStatistiques] = useState<StatistiqueCard[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
   const [chargement, setChargement] = useState(true);
 
   useEffect(() => {
     const chargerDonnees = async () => {
       try {
-        // Simulation du chargement des données
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (!utilisateur?.role) return;
+
+        // Récupérer les statistiques depuis l'API
+        let statsData: DashboardStats = {};
+        try {
+          statsData = await dashboardService.getDashboardStats(utilisateur.role);
+        } catch (error) {
+          console.error('Erreur lors du chargement des statistiques:', error);
+          statsData = {};
+        }
         
-        // Statistiques simulées selon le rôle
+        // Transformer les données selon le rôle
         const statsParRole = {
           administrateur: [
             {
               titre: 'Total Utilisateurs',
-              valeur: 1247,
+              valeur: statsData.totalUtilisateurs || 0,
               icone: <Users className="w-6 h-6" />,
               couleur: 'bg-blue-500',
               evolution: '+12%'
             },
             {
               titre: 'Classes Actives',
-              valeur: 45,
+              valeur: statsData.classesActives || 0,
               icone: <GraduationCap className="w-6 h-6" />,
               couleur: 'bg-green-500',
               evolution: '+3%'
             },
             {
               titre: 'Cours Programmés',
-              valeur: 234,
+              valeur: statsData.coursProgrammes || 0,
               icone: <BookOpen className="w-6 h-6" />,
               couleur: 'bg-purple-500',
               evolution: '+8%'
             },
             {
               titre: 'Événements',
-              valeur: 12,
+              valeur: statsData.evenements || 0,
               icone: <Calendar className="w-6 h-6" />,
               couleur: 'bg-orange-500',
               evolution: '+2%'
@@ -74,21 +84,21 @@ const TableauDeBord: React.FC = () => {
           gestionnaire: [
             {
               titre: 'Élèves Inscrits',
-              valeur: 892,
+              valeur: statsData.elevesInscrits || 0,
               icone: <Users className="w-6 h-6" />,
               couleur: 'bg-blue-500',
               evolution: '+5%'
             },
             {
               titre: 'Classes Gérées',
-              valeur: 28,
+              valeur: statsData.classesGerees || 0,
               icone: <GraduationCap className="w-6 h-6" />,
               couleur: 'bg-green-500',
               evolution: '+1%'
             },
             {
               titre: 'Professeurs',
-              valeur: 67,
+              valeur: statsData.professeurs || 0,
               icone: <BookOpen className="w-6 h-6" />,
               couleur: 'bg-purple-500',
               evolution: '+3%'
@@ -97,60 +107,50 @@ const TableauDeBord: React.FC = () => {
           professeur: [
             {
               titre: 'Mes Classes',
-              valeur: 8,
+              valeur: statsData.mesClasses || 0,
               icone: <GraduationCap className="w-6 h-6" />,
               couleur: 'bg-blue-500'
             },
             {
               titre: 'Élèves Total',
-              valeur: 187,
+              valeur: statsData.elevesTotal || 0,
               icone: <Users className="w-6 h-6" />,
               couleur: 'bg-green-500'
             },
             {
               titre: 'Cours Cette Semaine',
-              valeur: 24,
+              valeur: statsData.coursCetteSemaine || 0,
               icone: <BookOpen className="w-6 h-6" />,
               couleur: 'bg-purple-500'
             },
             {
               titre: 'Devoirs à Corriger',
-              valeur: 45,
+              valeur: statsData.devoirsACorriger || 0,
               icone: <Clock className="w-6 h-6" />,
               couleur: 'bg-orange-500'
             }
           ]
         };
 
-        setStatistiques(statsParRole[utilisateur?.role as keyof typeof statsParRole] || []);
+        setStatistiques(statsParRole[utilisateur.role as keyof typeof statsParRole] || []);
 
-        // Notifications simulées
-        setNotifications([
-          {
-            id: '1',
-            titre: 'Nouvelle année scolaire',
-            message: 'Préparation de la rentrée 2024-2025',
-            type: 'info',
-            date: '2024-01-15'
-          },
-          {
-            id: '2',
-            titre: 'Maintenance programmée',
-            message: 'Maintenance du système prévue ce weekend',
-            type: 'warning',
-            date: '2024-01-14'
-          },
-          {
-            id: '3',
-            titre: 'Mise à jour terminée',
-            message: 'Nouvelles fonctionnalités disponibles',
-            type: 'success',
-            date: '2024-01-13'
-          }
-        ]);
+        // Récupérer les notifications depuis l'API
+        try {
+          const notificationsData = await dashboardService.getNotifications();
+          // S'assurer que les notifications sont un tableau
+          setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
+        } catch (error) {
+          console.error('Erreur lors du chargement des notifications:', error);
+          setNotifications([]);
+        }
+
+
 
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
+        // En cas d'erreur, utiliser des données par défaut
+        setStatistiques([]);
+        setNotifications([]);
       } finally {
         setChargement(false);
       }
@@ -247,7 +247,8 @@ const TableauDeBord: React.FC = () => {
           </div>
           <div className="p-6">
             <div className="space-y-4">
-              {notifications.map((notification) => (
+              {Array.isArray(notifications) && notifications.length > 0 ? (
+                notifications.map((notification) => (
                 <div
                   key={notification.id}
                   className={`border-l-4 p-4 rounded-r-lg ${obtenirCouleurNotification(notification.type)}`}
@@ -269,7 +270,13 @@ const TableauDeBord: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">Aucune notification pour le moment</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -284,51 +291,7 @@ const TableauDeBord: React.FC = () => {
           <div className="p-6">
             <div className="space-y-4">
               {utilisateur?.role === 'administrateur' && (
-                <>
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Users className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Nouvelles inscriptions</p>
-                        <p className="text-xs text-gray-500">Cette semaine</p>
-                      </div>
-                    </div>
-                    <span className="text-lg font-bold text-blue-600">23</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <BookOpen className="w-5 h-5 text-green-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Cours actifs</p>
-                        <p className="text-xs text-gray-500">En cours ce semestre</p>
-                      </div>
-                    </div>
-                    <span className="text-lg font-bold text-green-600">156</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <AlertCircle className="w-5 h-5 text-orange-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Absences non justifiées</p>
-                        <p className="text-xs text-gray-500">À traiter</p>
-                      </div>
-                    </div>
-                    <span className="text-lg font-bold text-orange-600">12</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <GraduationCap className="w-5 h-5 text-purple-600" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Bulletins générés</p>
-                        <p className="text-xs text-gray-500">Ce trimestre</p>
-                      </div>
-                    </div>
-                    <span className="text-lg font-bold text-purple-600">892</span>
-                  </div>
-                </>
+                <AdminDetails />
               )}
               
               {utilisateur?.role === 'gestionnaire' && (
@@ -387,6 +350,85 @@ const TableauDeBord: React.FC = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+// Composant pour les détails administrateur
+const AdminDetails: React.FC = () => {
+  const [details, setDetails] = useState<{
+    nouvellesInscriptions: number;
+    coursActifs: number;
+    absencesNonJustifiees: number;
+    bulletinsGeneres: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const chargerDetails = async () => {
+      try {
+        const detailsData = await dashboardService.getAdminDetails();
+        setDetails(detailsData);
+      } catch (error) {
+        console.error('Erreur lors du chargement des détails admin:', error);
+      }
+    };
+
+    chargerDetails();
+  }, []);
+
+  if (!details) {
+    return (
+      <div className="flex items-center justify-center h-32">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+        <div className="flex items-center space-x-3">
+          <Users className="w-5 h-5 text-blue-600" />
+          <div>
+            <p className="text-sm font-medium text-gray-900">Nouvelles inscriptions</p>
+            <p className="text-xs text-gray-500">Cette semaine</p>
+          </div>
+        </div>
+        <span className="text-lg font-bold text-blue-600">{details.nouvellesInscriptions}</span>
+      </div>
+      
+      <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+        <div className="flex items-center space-x-3">
+          <BookOpen className="w-5 h-5 text-green-600" />
+          <div>
+            <p className="text-sm font-medium text-gray-900">Cours actifs</p>
+            <p className="text-xs text-gray-500">En cours ce semestre</p>
+          </div>
+        </div>
+        <span className="text-lg font-bold text-green-600">{details.coursActifs}</span>
+      </div>
+      
+      <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+        <div className="flex items-center space-x-3">
+          <AlertCircle className="w-5 h-5 text-orange-600" />
+          <div>
+            <p className="text-sm font-medium text-gray-900">Absences non justifiées</p>
+            <p className="text-xs text-gray-500">À traiter</p>
+          </div>
+        </div>
+        <span className="text-lg font-bold text-orange-600">{details.absencesNonJustifiees}</span>
+      </div>
+      
+      <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+        <div className="flex items-center space-x-3">
+          <GraduationCap className="w-5 h-5 text-purple-600" />
+          <div>
+            <p className="text-sm font-medium text-gray-900">Bulletins générés</p>
+            <p className="text-xs text-gray-500">Ce trimestre</p>
+          </div>
+        </div>
+        <span className="text-lg font-bold text-purple-600">{details.bulletinsGeneres}</span>
+      </div>
+    </>
   );
 };
 

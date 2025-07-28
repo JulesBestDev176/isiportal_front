@@ -26,9 +26,9 @@ const AdminsEcole: React.FC = () => {
   useEffect(() => {
     const loadAdmins = async () => {
       try {
-        const response = await adminService.getUtilisateurs({ page: 1, limit: 100 });
+        const response = await adminService.getUsers({ page: 1, limit: 100 });
         if (response.success && response.data) {
-          const admins = response.data.data.filter(user => user.role === 'administrateur') as Administrateur[];
+          const admins = response.data.data.filter((user: any) => user.role === 'administrateur') as Administrateur[];
           setAdmins(admins);
         }
       } catch (error) {

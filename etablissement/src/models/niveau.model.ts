@@ -16,22 +16,25 @@ export interface MatiereNiveauNiveau {
 export interface Niveau {
   id: number;
   nom: string; // Ex: "6ème", "5ème", "1ère S"
+  code: string; // Ex: "6EME", "5EME", "1ERE"
+  description?: string; // Description du niveau
+  cycle: "college" | "lycee"; // Cycle d'enseignement
   ordre: number; // Ordre dans le cycle (1, 2, 3, etc.)
-  section: "college" | "lycee";
-  cycle: string; // Ex: "Collège", "Lycée"
-  description?: string;
-  matieres: MatiereNiveauNiveau[]; // Matières enseignées dans ce niveau
-  actif: boolean;
-  dateCreation: string;
-  dateModification?: string;
+  statut: "active" | "inactive"; // Statut du niveau
+  matieres_ids: number[]; // IDs des matières enseignées dans ce niveau
+  date_creation: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface FormDataNiveau {
   nom: string;
-  ordre: number;
-  section: "college" | "lycee";
+  code: string;
   description: string;
-  matieres: MatiereNiveauNiveau[];
+  cycle: "college" | "lycee";
+  position?: string; // "first", "last", ou "after_{niveauId}"
+  statut: "active" | "inactive";
+  matieres_ids: number[];
 }
 
 // Constantes
@@ -59,11 +62,11 @@ export type CycleType = typeof CYCLES.college[number]["value"] | typeof CYCLES.l
 
 // Fonctions utilitaires
 export const getNiveauxParSection = (niveaux: Niveau[], section: NiveauSectionType): Niveau[] => {
-  return niveaux.filter(niveau => niveau.section === section).sort((a, b) => a.ordre - b.ordre);
+  return niveaux.filter(niveau => niveau.cycle === section).sort((a, b) => a.ordre - b.ordre);
 };
 
-export const getMatieresParNiveau = (niveau: Niveau): MatiereNiveauNiveau[] => {
-  return niveau.matieres.sort((a, b) => a.matiereNom.localeCompare(b.matiereNom));
+export const getMatieresParNiveau = (niveau: Niveau): number[] => {
+  return niveau.matieres_ids || [];
 };
 
 export const getNiveauParId = (niveaux: Niveau[], id: number): Niveau | undefined => {

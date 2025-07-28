@@ -28,19 +28,19 @@ const CarteCoursProf: React.FC<{
 }> = ({ cours, assignations, classes, onVoir, onModifier }) => {
   
   const assignationsCours = assignations.filter(a => a.coursId === cours.id);
-  const assignationsActives = assignationsCours.filter(a => a.statut === "en_cours");
+  const assignationsActives = assignationsCours.filter(a => a.statut === "active");
   
   const progressionMoyenne = assignationsCours.length > 0 
-    ? Math.round(assignationsCours.reduce((acc, a) => acc + a.progression, 0) / assignationsCours.length)
+    ? Math.round(assignationsCours.reduce((acc, a) => acc + (a.progression || 0), 0) / assignationsCours.length)
     : 0;
 
   const prochaineCeance = assignationsCours
-    .filter(a => a.prochaineCeance && a.statut === "en_cours")
+    .filter(a => a.prochaineCeance && a.statut === "active")
     .sort((a, b) => new Date(a.prochaineCeance!).getTime() - new Date(b.prochaineCeance!).getTime())[0];
 
   const getStatutColor = (statut: string) => {
     switch (statut) {
-      case "en_cours": return "bg-green-100 text-green-800";
+      case "active": return "bg-green-100 text-green-800";
       case "planifie": return "bg-blue-100 text-blue-800";
       case "termine": return "bg-gray-100 text-gray-800";
       case "annule": return "bg-red-100 text-red-800";
@@ -90,9 +90,9 @@ const CarteCoursProf: React.FC<{
         
         <div className="flex flex-col items-end gap-2">
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatutColor(cours.statut)}`}>
-            {cours.statut === "en_cours" ? "En cours" : 
-             cours.statut === "planifie" ? "Planifié" : 
-             cours.statut === "termine" ? "Terminé" : "Annulé"}
+            {cours.statut === "active" ? "Active" : 
+             cours.statut === "planifie" ? "Planifiée" : 
+             cours.statut === "terminee" ? "Terminée" : "Annulée"}
           </span>
           {assignationsActives.length > 0 && (
             <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
@@ -151,20 +151,20 @@ const CarteCoursProf: React.FC<{
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-900">{classe.nom}</span>
                     <span className={`px-2 py-1 rounded-full text-xs ${
-                      assignation.statut === "en_cours" ? "bg-green-100 text-green-700" :
+                      assignation.statut === "active" ? "bg-green-100 text-green-700" :
                       assignation.statut === "planifie" ? "bg-blue-100 text-blue-700" :
                       "bg-gray-100 text-gray-700"
                     }`}>
-                      {assignation.statut === "en_cours" ? "En cours" :
-                       assignation.statut === "planifie" ? "Planifié" : "Terminé"}
+                      {assignation.statut === "active" ? "Active" :
+                       assignation.statut === "planifie" ? "Planifiée" : "Terminée"}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-600">{assignation.progression}%</span>
+                    <span className="text-gray-600">{assignation.progression || 0}%</span>
                     <div className="w-16 bg-gray-200 rounded-full h-1">
                       <div 
                         className="bg-blue-600 h-1 rounded-full"
-                        style={{ width: `${assignation.progression}%` }}
+                        style={{ width: `${assignation.progression || 0}%` }}
                       />
                     </div>
                   </div>
@@ -232,28 +232,25 @@ const PlanningHebdomadaire: React.FC<{
 }> = ({ assignations, cours, classes }) => {
   
   const joursOrdre = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
-  const assignationsActives = assignations.filter(a => a.statut === "en_cours");
+  const assignationsActives = assignations.filter(a => a.statut === "active");
 
   const creneauxParJour = joursOrdre.reduce((acc, jour) => {
     acc[jour] = [];
+    
     assignationsActives.forEach(assignation => {
-      const coursInfo = cours.find(c => c.id === assignation.coursId);
       const classeInfo = classes.find(c => c.id === assignation.classeId);
       
-      assignation.creneaux
-        .filter(creneau => creneau.jour === jour)
-        .forEach(creneau => {
+      assignation.creneaux?.forEach(creneau => {
+        if (creneau.jour === jour) {
           acc[jour].push({
             assignation,
             creneau,
-            cours: coursInfo,
-            classe: classeInfo
+            classeInfo
           });
-        });
+        }
+      });
     });
     
-    // Trier par heure de début
-    acc[jour].sort((a, b) => a.creneau.heureDebut.localeCompare(b.creneau.heureDebut));
     return acc;
   }, {} as Record<string, any[]>);
 
@@ -284,7 +281,7 @@ const PlanningHebdomadaire: React.FC<{
                       {item.cours?.titre}
                     </div>
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-blue-600">{item.classe?.nom}</span>
+                      <span className="text-blue-600">{item.classeInfo?.nom}</span>
                       {item.creneau.salle && (
                         <span className="text-blue-600">{item.creneau.salle}</span>
                       )}
@@ -359,7 +356,7 @@ const ModalDetailsCours: React.FC<{
                         <FileText className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">{ressource.titre}</div>
+                        <div className="font-medium text-gray-900">{ressource.nom}</div>
                         <div className="text-sm text-gray-600">
                           {ressource.type.toUpperCase()}
                           {ressource.description && ` • ${ressource.description}`}
@@ -395,14 +392,14 @@ const ModalDetailsCours: React.FC<{
                         </div>
                         <div className="text-right">
                           <div className="text-sm text-gray-600">Progression</div>
-                          <div className="font-medium text-gray-900">{assignation.progression}%</div>
+                          <div className="font-medium text-gray-900">{assignation.progression || 0}%</div>
                         </div>
                       </div>
                       
                       <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
                         <div 
                           className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${assignation.progression}%` }}
+                          style={{ width: `${assignation.progression || 0}%` }}
                         />
                       </div>
 
@@ -410,8 +407,7 @@ const ModalDetailsCours: React.FC<{
                         <div>
                           <span className="text-sm text-gray-600">Période:</span>
                           <p className="font-medium">
-                            {new Date(assignation.dateDebut).toLocaleDateString('fr-FR')}
-                            {assignation.dateFin && ` - ${new Date(assignation.dateFin).toLocaleDateString('fr-FR')}`}
+                            Cours en cours
                           </p>
                         </div>
                         <div>
@@ -454,14 +450,14 @@ const TableauBordRapide: React.FC<{
   classes: Classe[];
 }> = ({ cours, assignations, classes }) => {
   
-  const coursPublies = cours.filter(c => c.statut === "en_cours").length;
-  const assignationsActives = assignations.filter(a => a.statut === "en_cours").length;
+  const coursPublies = cours.filter(c => c.statut === "active").length;
+  const assignationsActives = assignations.filter(a => a.statut === "active").length;
   const progressionMoyenne = assignations.length > 0 
-    ? Math.round(assignations.reduce((acc, a) => acc + a.progression, 0) / assignations.length)
+    ? Math.round(assignations.reduce((acc, a) => acc + (a.progression || 0), 0) / assignations.length)
     : 0;
   
   const prochaineCeance = assignations
-    .filter(a => a.prochaineCeance && a.statut === "en_cours")
+    .filter(a => a.prochaineCeance && a.statut === "active")
     .sort((a, b) => new Date(a.prochaineCeance!).getTime() - new Date(b.prochaineCeance!).getTime())[0];
 
   const formatDateProchaine = (dateStr: string) => {
@@ -568,7 +564,7 @@ const CoursProfesseur: React.FC = () => {
   const coursFiltres = cours.filter(c => {
     const matchProfesseur = c.assignations && c.assignations.some(a => a.professeurId === utilisateur?.id);
     const matchTexte = c.titre.toLowerCase().includes(rechercheTexte.toLowerCase()) ||
-                      c.description.toLowerCase().includes(rechercheTexte.toLowerCase());
+                      c.description?.toLowerCase().includes(rechercheTexte.toLowerCase()) || false;
     const matchStatut = !filtreStatut || c.statut === filtreStatut;
     const matchNiveau = !filtreNiveau; // TODO: Implémenter le filtrage par niveau basé sur niveauId
     

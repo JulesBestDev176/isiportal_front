@@ -2,26 +2,27 @@
 
 export interface ReglesTransfert {
   id: number;
-  moyenneMinimale: number;
-  statutRequis: "inscrit" | "desinscrit" | "transfere" | "termine";
-  transfertDirect: boolean; // Si true, 6ème A → 5ème A, sinon répartition équitable
-  desactiverAnneeApresTransfert: boolean;
+  moyenne_minimale: number;
+  statut_requis: "inscrit" | "desinscrit" | "transfere" | "termine";
+  transfert_direct: boolean; // Si true, 6ème A → 5ème A, sinon répartition équitable
+  desactiver_annee_apres_transfert: boolean;
+  conditions_supplementaires: Record<string, any>;
   actif: boolean;
-  dateCreation: string;
-  dateModification?: string;
-  creePar: number; // ID de l'administrateur qui a créé ces règles
+  created_at: string;
+  updated_at: string;
 }
 
 // Règles de transfert par défaut
 export const reglesTransfertDefaut: ReglesTransfert = {
   id: 1,
-  moyenneMinimale: 8,
-  statutRequis: "inscrit",
-  transfertDirect: true,
-  desactiverAnneeApresTransfert: true,
+  moyenne_minimale: 10.00,
+  statut_requis: "inscrit",
+  transfert_direct: true,
+  desactiver_annee_apres_transfert: false,
+  conditions_supplementaires: {},
   actif: true,
-  dateCreation: new Date().toISOString(),
-  creePar: 1 // ID de l'admin par défaut
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString()
 };
 
 // Mapping des niveaux pour les transferts
@@ -45,8 +46,8 @@ export const estEligibleTransfert = (
   eleve: { moyenneAnnuelle: number; statut: string },
   regles: ReglesTransfert
 ): boolean => {
-  return eleve.moyenneAnnuelle >= regles.moyenneMinimale && 
-         eleve.statut === regles.statutRequis;
+  return eleve.moyenneAnnuelle >= regles.moyenne_minimale && 
+         eleve.statut === regles.statut_requis;
 };
 
 export const getClasseDestination = (

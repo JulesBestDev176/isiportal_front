@@ -18,7 +18,8 @@ import {
   FormDataUtilisateur,
   SECTIONS,
   MATIERES_LIST,
-  CLASSES_LIST
+  CLASSES_LIST,
+  TYPES_PARENT
 } from "../../models";
 import { adminService } from '../../services/adminService';
 import { notificationService } from '../../services/notificationService';
@@ -106,9 +107,22 @@ const FormulaireUtilisateur: React.FC<{
   utilisateurs: any[];
   utilisateurAModifier?: any;
   modeEdition?: boolean;
-}> = ({ typeUtilisateur, onSubmit, onClose, utilisateurs, utilisateurAModifier, modeEdition = false }) => {
+  niveaux?: any[];
+  classes?: any[];
+  loadingClasses?: boolean;
+  onNiveauChange?: (niveauId: number, onClasseSelected?: (classeId: number) => void) => void;
+}> = ({ typeUtilisateur, onSubmit, onClose, utilisateurs, utilisateurAModifier, modeEdition = false, niveaux = [], classes = [], loadingClasses = false, onNiveauChange }) => {
   const [formData, setFormData] = useState<Partial<FormDataUtilisateur>>(() => {
     if (modeEdition && utilisateurAModifier) {
+      console.log('Initialisation du formulaire en mode édition:', utilisateurAModifier);
+      
+      // Mapper les données snake_case vers camelCase
+      const enfantsIds = utilisateurAModifier.enfants_ids || utilisateurAModifier.enfantsIds || [];
+      const parentsIds = utilisateurAModifier.parents_ids || utilisateurAModifier.parentsIds || [];
+      
+      console.log('Enfants IDs mappés:', enfantsIds);
+      console.log('Parents IDs mappés:', parentsIds);
+      
       return {
         nom: utilisateurAModifier.nom || "",
         prenom: utilisateurAModifier.prenom || "",
@@ -119,13 +133,14 @@ const FormulaireUtilisateur: React.FC<{
         sections: utilisateurAModifier.sections || [],
         matieres: utilisateurAModifier.matieres || [],
         cours: utilisateurAModifier.cours || [],
-        classeId: utilisateurAModifier.classeId || 0,
-        dateNaissance: utilisateurAModifier.dateNaissance || "",
-        lieuNaissance: utilisateurAModifier.lieuNaissance || "",
-        numeroEtudiant: utilisateurAModifier.numeroEtudiant || "",
-        parentsIds: utilisateurAModifier.parentsIds || [],
-        enfantsIds: utilisateurAModifier.enfantsIds || [],
-        profession: utilisateurAModifier.profession || ""
+        classeId: typeUtilisateur === 'eleve' ? (utilisateurAModifier.classe_id || utilisateurAModifier.classeId || 0) : undefined,
+        dateNaissance: typeUtilisateur === 'eleve' ? (utilisateurAModifier.date_naissance ? new Date(utilisateurAModifier.date_naissance).toISOString().split('T')[0] : "") : "",
+        lieuNaissance: typeUtilisateur === 'eleve' ? (utilisateurAModifier.lieu_naissance || utilisateurAModifier.lieuNaissance || "") : "",
+        niveauId: typeUtilisateur === 'eleve' ? (utilisateurAModifier.classe?.niveau_id || 0) : undefined,
+        parentsIds: typeUtilisateur === 'eleve' ? parentsIds : [],
+        enfantsIds: typeUtilisateur === 'parent' ? enfantsIds : [],
+        profession: utilisateurAModifier.profession || "",
+        type_parent: typeUtilisateur === 'parent' ? (utilisateurAModifier.type_parent || undefined) : undefined
       };
     }
     return {
@@ -138,13 +153,14 @@ const FormulaireUtilisateur: React.FC<{
       sections: [],
       matieres: [],
       cours: [],
-      classeId: 0,
-      dateNaissance: "",
-      lieuNaissance: "",
-      numeroEtudiant: "",
-      parentsIds: [],
-      enfantsIds: [],
-      profession: ""
+      classeId: typeUtilisateur === 'eleve' ? 0 : undefined,
+      dateNaissance: typeUtilisateur === 'eleve' ? "" : "",
+      lieuNaissance: typeUtilisateur === 'eleve' ? "" : "",
+      niveauId: typeUtilisateur === 'eleve' ? 0 : undefined,
+      parentsIds: typeUtilisateur === 'eleve' ? [] : [],
+      enfantsIds: typeUtilisateur === 'parent' ? [] : [],
+      profession: "",
+      type_parent: typeUtilisateur === 'parent' ? undefined : undefined
     };
   });
 
@@ -166,6 +182,16 @@ const FormulaireUtilisateur: React.FC<{
       profession: ""
     }
   ]);
+
+  // Charger automatiquement les classes pour un élève en mode modification
+  useEffect(() => {
+    if (modeEdition && utilisateurAModifier && typeUtilisateur === 'eleve' && formData.niveauId && onNiveauChange) {
+      // Charger les classes pour le niveau de l'élève
+      onNiveauChange(formData.niveauId, (classeId) => {
+        // La classe sera automatiquement sélectionnée par la fonction onNiveauChange
+      });
+    }
+  }, [modeEdition, utilisateurAModifier, typeUtilisateur, formData.niveauId, onNiveauChange]);
 
   // Fonctions pour gérer les parents
   const addParent = () => {
@@ -197,43 +223,25 @@ const FormulaireUtilisateur: React.FC<{
     if (!formData.nom?.trim()) newErrors.nom = "Le nom est requis";
     if (!formData.prenom?.trim()) newErrors.prenom = "Le prénom est requis";
     if (!formData.email?.trim()) newErrors.email = "L'email est requis";
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Email invalide";
+    if (!formData.role) newErrors.role = "Le rôle est requis";
 
-    // Validation spécifique par type
-    if (typeUtilisateur === "gestionnaire") {
-      if (!formData.sections?.length) newErrors.sections = "Au moins une section est requise";
-    } else if (typeUtilisateur === "professeur") {
-      if (!formData.matieres?.length) newErrors.matieres = "Au moins une matière est requise";
-    } else if (typeUtilisateur === "eleve") {
+    if (formData.role === "eleve") {
       if (!formData.classeId) newErrors.classeId = "La classe est requise";
-      if (!formData.dateNaissance) newErrors.dateNaissance = "La date de naissance est requise";
-      
-      // Validation des parents selon le mode
-      if (parentMode === "existing") {
-        if (!formData.parentsIds?.length) newErrors.parentsIds = "Au moins un parent est requis";
-      } else if (parentMode === "new") {
-        // Vérifier que le premier parent a les informations requises
-        const firstParent = newParents[0];
-        if (!firstParent.nom || !firstParent.prenom || !firstParent.email) {
-          newErrors.parentsIds = "Les informations du parent 1 sont requises (Nom, Prénom, Email)";
+      if (!formData.dateNaissance) {
+        newErrors.dateNaissance = "La date de naissance est requise";
+      } else {
+        // Vérifier que l'élève a au moins 8 ans
+        const birthDate = new Date(formData.dateNaissance);
+        const today = new Date();
+        const age = today.getFullYear() - birthDate.getFullYear() - (today < new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate()) ? 1 : 0);
+        if (age < 8) {
+          newErrors.dateNaissance = "L'élève doit avoir au moins 8 ans.";
         }
-        
-        // Vérifier que tous les parents ont des informations complètes si remplis
-        newParents.forEach((parent, index) => {
-          if (parent.nom || parent.prenom || parent.email) {
-            if (!parent.nom || !parent.prenom || !parent.email) {
-              newErrors.parentsIds = `Les informations du parent ${index + 1} sont incomplètes`;
-            }
-          }
-        });
       }
-      
-      // Génération automatique du numéro étudiant si vide
-      if (!formData.numeroEtudiant) {
-        const numero = `2024${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
-        setFormData(prev => ({ ...prev, numeroEtudiant: numero }));
-      }
-    } else if (typeUtilisateur === "parent") {
+    }
+
+    if (formData.role === "parent") {
+      if (!formData.type_parent) newErrors.type_parent = "Le type de parent est requis";
       if (!formData.enfantsIds?.length) newErrors.enfantsIds = "Au moins un enfant doit être sélectionné";
     }
 
@@ -253,36 +261,50 @@ const FormulaireUtilisateur: React.FC<{
 
       // Gestion des nouveaux parents si mode "new"
       let parentsIds = formData.parentsIds || [];
+      let createdParents: Array<{id: number, enfants_ids?: number[]}> = []; // Type explicite
+      
       if (typeUtilisateur === "eleve" && parentMode === "new") {
-        // Créer les nouveaux parents
-        const createdParents = newParents
-          .filter(parent => parent.nom && parent.prenom && parent.email) // Filtrer les parents avec des informations complètes
-          .map((parent, index) => {
-            const parentId = Math.floor(Math.random() * 10000) + 2000 + index;
-            return {
-              id: parentId,
-              nom: parent.nom,
-              prenom: parent.prenom,
-              email: parent.email,
-              telephone: parent.telephone || "",
-              adresse: parent.adresse || "",
-              profession: parent.profession || "",
-              role: "parent",
-              enfantsIds: [],
-              actif: true,
-              dateCreation: new Date().toISOString().split('T')[0]
-            };
-          });
+        // Créer les nouveaux parents via l'API
+        for (const parent of newParents) {
+          if (parent.nom && parent.prenom && parent.email) {
+            try {
+              const parentData = {
+                nom: parent.nom,
+                prenom: parent.prenom,
+                email: parent.email,
+                telephone: parent.telephone || null,
+                adresse: parent.adresse || null,
+                profession: parent.profession || null,
+                role: "parent",
+                actif: true
+                // Le mot de passe est généré côté backend
+              };
+              
+              console.log("Création du parent:", parentData);
+              const response = await adminService.createUser(parentData);
+              
+              if (response.success && response.data) {
+                createdParents.push(response.data);
+                console.log("Parent créé avec succès:", response.data);
+              } else {
+                console.error("Erreur lors de la création du parent:", response);
+                throw new Error(`Erreur lors de la création du parent ${parent.nom} ${parent.prenom}`);
+              }
+            } catch (error) {
+              console.error("Erreur lors de la création du parent:", error);
+              throw error;
+            }
+          }
+        }
         
-        // Mettre à jour les IDs des parents
+        // Mettre à jour les IDs des parents avec les vrais IDs de la base de données
         parentsIds = createdParents.map(parent => parent.id);
-        
-        // Ajouter les nouveaux parents à la liste des utilisateurs
-        // Note: Dans une vraie application, cela serait géré par l'API
-        console.log("Nouveaux parents à créer:", createdParents);
+        console.log("IDs des parents créés:", parentsIds);
       }
 
-      const nouvelUtilisateur = {
+      // 1. Créer les parents (déjà fait plus haut)
+      // 2. Créer l'élève avec les vrais IDs des parents
+      let nouvelUtilisateur = {
         ...formData,
         parentsIds: parentsIds,
         id: modeEdition && utilisateurAModifier ? utilisateurAModifier.id : Math.floor(Math.random() * 10000) + 1000,
@@ -294,6 +316,34 @@ const FormulaireUtilisateur: React.FC<{
       // TODO: Avec le backend Laravel, générer le mot de passe et envoyer un email avec les informations de connexion
       if (!modeEdition) {
         console.log(`Email à envoyer à ${formData.email} avec les informations de connexion (mot de passe généré côté serveur)`);
+      }
+
+      // 3. Créer l'élève via l'API et récupérer son ID
+      let eleveCree = null;
+      if (!modeEdition) {
+        const response = await adminService.createUser(nouvelUtilisateur);
+        if (response.success && response.data) {
+          eleveCree = response.data;
+          nouvelUtilisateur = eleveCree; // Pour la suite
+        } else {
+          throw new Error("Erreur lors de la création de l'élève");
+        }
+      } else {
+        // Mode édition : onSubmit classique
+        onSubmit(nouvelUtilisateur);
+        onClose();
+        setLoading(false);
+        return;
+      }
+
+      // 4. Mettre à jour chaque parent nouvellement créé pour lui associer l'ID de l'enfant
+      if (eleveCree && createdParents && createdParents.length > 0) {
+        console.log("Mise à jour des parents avec l'ID de l'enfant:", eleveCree.id);
+        for (const parent of createdParents) {
+          const enfantsIds = Array.isArray(parent.enfants_ids) ? [...parent.enfants_ids, eleveCree.id] : [eleveCree.id];
+          console.log(`Mise à jour du parent ${parent.id} avec enfantsIds:`, enfantsIds);
+          await adminService.updateUser(parent.id, { enfantsIds });
+        }
       }
 
       onSubmit(nouvelUtilisateur);
@@ -411,23 +461,79 @@ const FormulaireUtilisateur: React.FC<{
               <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Classe *
               </label>
+              <div className="space-y-3">
+                {/* Sélection du niveau */}
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-2">
+                    Niveau *
+              </label>
               <select
-                value={formData.classeId || ""}
-                onChange={(e) => setFormData({...formData, classeId: parseInt(e.target.value)})}
-                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.classeId ? 'border-red-500' : 'border-neutral-300'
-                }`}
-              >
-                <option value="">Sélectionner une classe</option>
-                {CLASSES_LIST.map((classe, index) => (
-                  <option key={index + 1} value={index + 1}>
-                    {classe}
+                    value={formData.niveauId || ""}
+                    onChange={(e) => {
+                      const niveauId = parseInt(e.target.value);
+                      setFormData({...formData, niveauId, classeId: undefined});
+                      if (niveauId && onNiveauChange) {
+                        onNiveauChange(niveauId, (classeId) => {
+                          setFormData(prev => ({ ...prev, classeId }));
+                        });
+                      }
+                    }}
+                    className="w-full px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Sélectionner un niveau</option>
+                    {niveaux.length > 0 ? niveaux.map((niveau) => (
+                      <option key={niveau.id} value={niveau.id}>
+                        {niveau.nom}
                   </option>
-                ))}
+                    )) : (
+                      <option value="" disabled>Chargement des niveaux...</option>
+                    )}
               </select>
+                    {errors.niveauId && (
+                      <p className="text-red-500 text-sm mt-1">{errors.niveauId}</p>
+                    )}
+                  </div>
+
+                                {/* Classe sélectionnée automatiquement */}
+                {formData.niveauId && (
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-2">
+                      Classe assignée *
+                    </label>
+                    {loadingClasses ? (
+                      <div className="w-full px-4 py-3 border border-blue-300 rounded-lg bg-blue-50 text-blue-800">
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                          Recherche d'une classe disponible...
+                        </div>
+                      </div>
+                    ) : formData.classeId && formData.classeId > 0 ? (
+                      <div className="w-full px-4 py-3 border border-green-300 rounded-lg bg-green-50 text-green-800">
+                        <div className="flex items-center justify-between">
+                          <span>
+                            {classes.find(c => c.id === formData.classeId)?.nom || 'Classe sélectionnée'}
+                          </span>
+                          <span className="text-sm text-green-600">
+                            ✓ Assignation automatique
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="w-full px-4 py-3 border border-red-300 rounded-lg bg-red-50 text-red-800">
+                        <div className="flex items-center justify-between">
+                          <span>❌ Aucune classe disponible pour ce niveau</span>
+                          <span className="text-sm text-red-600">
+                            Toutes les classes sont complètes
+                          </span>
+                        </div>
+                      </div>
+                    )}
               {errors.classeId && (
                 <p className="text-red-500 text-sm mt-1">{errors.classeId}</p>
               )}
+                  </div>
+                )}
+               </div>
             </div>
 
             <div>
@@ -460,32 +566,7 @@ const FormulaireUtilisateur: React.FC<{
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
-                Numéro étudiant
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={formData.numeroEtudiant || ""}
-                  onChange={(e) => setFormData({...formData, numeroEtudiant: e.target.value})}
-                  className="flex-1 px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Numéro d'étudiant"
-                  readOnly
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const numero = `2024${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
-                    setFormData({...formData, numeroEtudiant: numero});
-                  }}
-                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Générer
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Le numéro sera généré automatiquement si laissé vide</p>
-            </div>
+
 
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -543,7 +624,7 @@ const FormulaireUtilisateur: React.FC<{
                         ).map(parent => (
                           <div
                             key={parent.id}
-                            className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                            className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
                             onMouseDown={() => {
                               const parentsIds = formData.parentsIds || [];
                               if (!parentsIds.includes(parent.id) && parentsIds.length < 2) {
@@ -553,7 +634,8 @@ const FormulaireUtilisateur: React.FC<{
                               setParentDropdown(false);
                             }}
                           >
-                            {parent.prenom} {parent.nom}
+                            <div className="font-medium">{parent.prenom} {parent.nom}</div>
+                            <div className="text-xs text-gray-500">{parent.email}</div>
                           </div>
                         ))}
                         {parents.filter(p =>
@@ -722,9 +804,59 @@ const FormulaireUtilisateur: React.FC<{
         );
 
       case "parent":
-        const eleves = utilisateurs.filter(u => u.role === "eleve");
+        // Filtrer les élèves qui n'ont pas encore 2 parents OU qui sont déjà assignés à ce parent
+        const eleves = utilisateurs.filter(u => {
+          if (u.role !== "eleve") return false;
+          
+          // Compter le nombre de parents de cet élève
+          const nombreParents = u.parents_ids ? u.parents_ids.length : 0;
+          
+          // Si c'est un mode édition et que l'utilisateur a des enfants assignés
+          if (modeEdition && utilisateurAModifier && utilisateurAModifier.enfants_ids) {
+            // Inclure les enfants déjà assignés à ce parent
+            const enfantsAssignes = utilisateurAModifier.enfants_ids;
+            if (enfantsAssignes.includes(u.id)) {
+              console.log(`Enfant ${u.id} (${u.prenom} ${u.nom}) inclus car déjà assigné au parent`);
+              return true; // Toujours inclure les enfants déjà assignés
+            }
+          }
+          
+          // Ne montrer que les élèves qui ont moins de 2 parents
+          const shouldInclude = nombreParents < 2;
+          if (u.id <= 10) { // Log pour les premiers enfants
+            console.log(`Enfant ${u.id} (${u.prenom} ${u.nom}): ${nombreParents}/2 parents, inclus: ${shouldInclude}`);
+          }
+          return shouldInclude;
+        });
+        
+        console.log(`Nombre total d'enfants disponibles: ${eleves.length}`);
+        console.log(`Enfants assignés au parent: ${utilisateurAModifier?.enfants_ids || []}`);
+        
         return (
           <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
+                Type de parent *
+              </label>
+              <select
+                value={formData.type_parent || ""}
+                onChange={(e) => setFormData({...formData, type_parent: e.target.value as "mere" | "pere" | "tuteur"})}
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  errors.type_parent ? 'border-red-500' : 'border-neutral-300'
+                }`}
+              >
+                <option value="">Sélectionner le type de parent</option>
+                {TYPES_PARENT.map((type: { value: string; label: string }) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+              {errors.type_parent && (
+                <p className="text-red-500 text-sm mt-1">{errors.type_parent}</p>
+              )}
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Profession
@@ -740,7 +872,7 @@ const FormulaireUtilisateur: React.FC<{
 
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">
-                Enfants *
+                Enfants (max 2 par élève) *
               </label>
               <input
                 type="text"
@@ -752,28 +884,50 @@ const FormulaireUtilisateur: React.FC<{
               <div className="space-y-2 max-h-40 overflow-y-auto">
                 {eleves.filter(eleve =>
                   (eleve.prenom + " " + eleve.nom).toLowerCase().includes(enfantSearch.toLowerCase())
-                ).map(eleve => (
-                  <label key={eleve.id} className="flex items-center p-2 border rounded hover:bg-neutral-50">
-                    <input
-                      type="checkbox"
-                      checked={formData.enfantsIds?.includes(eleve.id) || false}
-                      onChange={(e) => {
-                        const enfantsIds = formData.enfantsIds || [];
-                        if (e.target.checked) {
-                          setFormData({...formData, enfantsIds: [...enfantsIds, eleve.id]});
-                        } else {
-                          setFormData({...formData, enfantsIds: enfantsIds.filter(id => id !== eleve.id)});
-                        }
-                      }}
-                      className="mr-2"
-                    />
-                    <span>{eleve.prenom} {eleve.nom} (Classe {CLASSES_LIST[eleve.classeId - 1] || eleve.classeId})</span>
-                  </label>
-                ))}
+                ).map(eleve => {
+                  const nombreParents = eleve.parents_ids ? eleve.parents_ids.length : 0;
+                  const placesDisponibles = 2 - nombreParents;
+                  const isChecked = formData.enfantsIds?.includes(eleve.id) || false;
+                  
+                  // Debug: afficher les informations de débogage pour les premiers enfants
+                  if (eleve.id <= 5) {
+                    console.log(`Enfant ${eleve.id} (${eleve.prenom} ${eleve.nom}):`, {
+                      enfantsIds: formData.enfantsIds,
+                      isChecked,
+                      nombreParents,
+                      placesDisponibles
+                    });
+                  }
+                  
+                  return (
+                    <label key={eleve.id} className="flex items-center p-2 border rounded hover:bg-neutral-50">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          const enfantsIds = formData.enfantsIds || [];
+                          if (e.target.checked) {
+                            setFormData({...formData, enfantsIds: [...enfantsIds, eleve.id]});
+                          } else {
+                            setFormData({...formData, enfantsIds: enfantsIds.filter(id => id !== eleve.id)});
+                          }
+                        }}
+                        className="mr-2"
+                      />
+                      <span>
+                        {eleve.prenom} {eleve.nom} 
+                        (Classe {eleve.classe?.nom || eleve.classe_id || "Non assignée"}) 
+                        - {placesDisponibles} place(s) disponible(s)
+                      </span>
+                    </label>
+                  );
+                })}
                 {eleves.filter(eleve =>
                   (eleve.prenom + " " + eleve.nom).toLowerCase().includes(enfantSearch.toLowerCase())
                 ).length === 0 && (
-                  <div className="px-4 py-2 text-gray-400">Aucun enfant trouvé</div>
+                  <div className="px-4 py-2 text-gray-400">
+                    {enfantSearch ? "Aucun enfant trouvé" : "Tous les élèves ont déjà 2 parents"}
+                  </div>
                 )}
               </div>
               {errors.enfantsIds && (
@@ -930,54 +1084,35 @@ const ListeUtilisateurs: React.FC<{
 }> = ({ liste, searchTerm, setSearchTerm, typeUtilisateur, utilisateurs, onModifierUtilisateur, onSupprimerUtilisateur }) => {
 
   const getSpecificInfo = (user: any) => {
-    switch (typeUtilisateur) {
+    switch (user.role) {
       case "gestionnaire":
-        return (
-          <div className="text-sm space-y-1">
-            <p className="font-medium">
-              {user.sections?.map((s: string) => sections.find(sec => sec.value === s)?.label).join(", ") || "N/A"}
-            </p>
-          </div>
-        );
-
+        const sectionsLabels = user.sections?.map((sectionId: number) => {
+          const sectionMap: { [key: number]: string } = { 1: "Collège", 2: "Lycée" };
+          return sectionMap[sectionId] || "N/A";
+        }).join(", ") || "N/A";
+        return `Sections: ${sectionsLabels}`;
+      
       case "professeur":
-        return (
-          <div className="text-sm space-y-1">
-            <p><strong>Sections:</strong> {user.sections?.map((s: string) => sections.find(sec => sec.value === s)?.label).join(", ") || "N/A"}</p>
-            <p><strong>Matières:</strong> {user.matieres?.map((id: number) => MATIERES_LIST[id - 1]).join(", ") || "N/A"}</p>
-          </div>
-        );
-
+        const sectionsLabelsProf = user.sections?.map((sectionId: number) => {
+          const sectionMap: { [key: number]: string } = { 1: "Collège", 2: "Lycée" };
+          return sectionMap[sectionId] || "N/A";
+        }).join(", ") || "N/A";
+        return `Sections: ${sectionsLabelsProf}`;
+      
       case "eleve":
-        const parents = user.parentsIds?.map((id: number) => utilisateurs.find(u => u.id === id)).filter(Boolean) || [];
-        return (
-          <div className="text-sm space-y-1">
-            <p><strong>Classe:</strong> {CLASSES_LIST[user.classeId - 1] || user.classeId}</p>
-            <p><strong>Naissance:</strong> {user.dateNaissance}</p>
-            <p><strong>Lieu:</strong> {user.lieuNaissance || "Non renseigné"}</p>
-            {user.numeroEtudiant && <p><strong>N° Étudiant:</strong> {user.numeroEtudiant}</p>}
-            {parents.length > 0 && (
-              <p><strong>Parents:</strong> {parents.length} parent(s)</p>
-            )}
-          </div>
-        );
-
+        return `Classe: ${user.classe?.nom || user.classe_id || "Non assignée"}`;
+      
       case "parent":
-        const enfants = user.enfantsIds?.map((id: number) => utilisateurs.find(u => u.id === id)).filter(Boolean) || [];
-        return (
-          <div className="text-sm space-y-1">
-            {user.profession && <p><strong>Profession:</strong> {user.profession}</p>}
-            <p><strong>Enfants:</strong></p>
-            {enfants.map((enfant: any) => (
-              <p key={enfant.id} className="ml-4">
-                • {enfant.prenom} {enfant.nom} (Classe {CLASSES_LIST[enfant.classeId - 1] || enfant.classeId})
-              </p>
-            ))}
-          </div>
-        );
-
+        const typeParentMap: { [key: string]: string } = { 
+          "mere": "Mère", 
+          "pere": "Père", 
+          "tuteur": "Tuteur" 
+        };
+        const typeParent = typeParentMap[user.type_parent] || "N/A";
+        return `Type: ${typeParent}`;
+      
       default:
-        return null;
+        return "";
     }
   };
 
@@ -997,9 +1132,20 @@ const ListeUtilisateurs: React.FC<{
             type="text"
             placeholder="Rechercher par nom, prénom ou email..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSearchTerm(value);
+            }}
             className="w-full pl-10 pr-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400 hover:text-neutral-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -1210,14 +1356,14 @@ const ListeUtilisateurs: React.FC<{
               <h3 className="text-lg font-bold mb-3">Informations spécifiques</h3>
               {utilisateurFiche.role === "eleve" ? (
                 <div className="text-sm space-y-2">
-                  <p><strong>Classe:</strong> {CLASSES_LIST[utilisateurFiche.classeId - 1] || utilisateurFiche.classeId}</p>
-                  <p><strong>Date de naissance:</strong> {utilisateurFiche.dateNaissance}</p>
-                  <p><strong>Lieu de naissance:</strong> {utilisateurFiche.lieuNaissance || "Non renseigné"}</p>
-                  {utilisateurFiche.numeroEtudiant && <p><strong>Numéro étudiant:</strong> {utilisateurFiche.numeroEtudiant}</p>}
-                  {utilisateurFiche.parentsIds && utilisateurFiche.parentsIds.length > 0 && (
+                  <p><strong>Classe:</strong> {utilisateurFiche.classe?.nom || utilisateurFiche.classe_id || "Non assignée"}</p>
+                  <p><strong>Date de naissance:</strong> {utilisateurFiche.date_naissance ? new Date(utilisateurFiche.date_naissance).toLocaleDateString('fr-FR') : "Non renseignée"}</p>
+                  <p><strong>Lieu de naissance:</strong> {utilisateurFiche.lieu_naissance || "Non renseigné"}</p>
+                  <p><strong>Numéro étudiant:</strong> {utilisateurFiche.numero_etudiant || "Non assigné"}</p>
+                  {utilisateurFiche.parents_ids && utilisateurFiche.parents_ids.length > 0 && (
                     <div>
                       <p><strong>Parents:</strong></p>
-                      {utilisateurFiche.parentsIds.map((parentId: number, index: number) => {
+                      {utilisateurFiche.parents_ids.map((parentId: number, index: number) => {
                         const parent = utilisateurs.find(u => u.id === parentId);
                         return parent ? (
                           <p key={parentId} className="ml-4">
@@ -1226,6 +1372,38 @@ const ListeUtilisateurs: React.FC<{
                         ) : null;
                       })}
                     </div>
+                  )}
+                </div>
+              ) : utilisateurFiche.role === "parent" ? (
+                <div className="text-sm space-y-2">
+                  <p><strong>Type de parent:</strong> {
+                    utilisateurFiche.type_parent === "mere" ? "Mère" :
+                    utilisateurFiche.type_parent === "pere" ? "Père" :
+                    utilisateurFiche.type_parent === "tuteur" ? "Tuteur" : "Non renseigné"
+                  }</p>
+                  {utilisateurFiche.profession && (
+                    <p><strong>Profession:</strong> {utilisateurFiche.profession}</p>
+                  )}
+                  {utilisateurFiche.enfants_ids && utilisateurFiche.enfants_ids.length > 0 ? (
+                    <div>
+                      <p><strong>Enfants ({utilisateurFiche.enfants_ids.length}):</strong></p>
+                      {utilisateurFiche.enfants_ids.map((enfantId: number, index: number) => {
+                        const enfant = utilisateurs.find(u => u.id === enfantId);
+                        return enfant ? (
+                          <div key={enfantId} className="ml-4 p-2 bg-white rounded border">
+                            <p className="font-medium">• {enfant.prenom} {enfant.nom}</p>
+                            <p className="text-xs text-gray-600">
+                              Classe: {enfant.classe?.nom || enfant.classe_id || "Non assignée"}
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              Numéro étudiant: {enfant.numero_etudiant || "Non assigné"}
+                            </p>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">Aucun enfant assigné</p>
                   )}
                 </div>
               ) : (
@@ -1308,6 +1486,9 @@ const Utilisateurs: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showModalAjout, setShowModalAjout] = useState(false);
   const [showModalModification, setShowModalModification] = useState(false);
+  const [niveaux, setNiveaux] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(false);
 
   // Onglets disponibles selon les permissions
   const availableTabs = [
@@ -1327,25 +1508,87 @@ const Utilisateurs: React.FC = () => {
   useEffect(() => {
     loadUtilisateurs();
     loadNotifications();
+    loadNiveaux();
   }, []);
 
+  // Recharger les utilisateurs quand l'onglet change
+  useEffect(() => {
+    if (utilisateurs.length > 0) {
+      // Les utilisateurs sont déjà chargés, pas besoin de recharger
+      // Le filtrage se fait côté client
+    }
+  }, [activeRoleTab]);
+
   const loadUtilisateurs = async () => {
+    console.log('=== DÉBUT loadUtilisateurs ===');
     setLoading(true);
     try {
-      const response = await adminService.getUtilisateurs({
-        page: 1,
-        limit: 100,
-        search: searchTerm,
-        filters: activeRoleTab !== "tous" ? { role: activeRoleTab } : undefined
+      console.log('Appel de adminService.getUsers avec params:', { search: searchTerm });
+      
+      const response = await adminService.getUsers({
+        search: searchTerm
+        // Ne pas spécifier de limite, le service chargera tous les utilisateurs par défaut
       });
       
+      console.log('Réponse API utilisateurs complète:', JSON.stringify(response, null, 2));
+      
       if (response.success && response.data) {
-        setUtilisateurs(response.data.data);
+        // L'API retourne les utilisateurs directement dans response.data
+        const usersData = response.data;
+        console.log('Type de response.data:', typeof usersData);
+        console.log('Est-ce un array?', Array.isArray(usersData));
+        console.log('Nombre d\'utilisateurs reçus:', usersData?.length || 0);
+        
+        if (Array.isArray(usersData)) {
+          setUtilisateurs(usersData);
+          console.log('Utilisateurs définis avec succès:', usersData.length);
+        } else {
+          console.warn('Structure de données inattendue:', response.data);
+          setUtilisateurs([]);
+        }
+      } else {
+        console.warn('Réponse API sans succès:', response);
+        setUtilisateurs([]);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des utilisateurs:', error);
+      setUtilisateurs([]);
     } finally {
       setLoading(false);
+      console.log('=== FIN loadUtilisateurs ===');
+    }
+  };
+
+  // Méthode pour charger TOUS les utilisateurs sans limite (pour les cas spéciaux)
+  const loadAllUsers = async () => {
+    console.log('=== DÉBUT loadAllUsers ===');
+    setLoading(true);
+    try {
+      const response = await adminService.getAllUsers();
+      
+      console.log('Réponse API tous les utilisateurs:', JSON.stringify(response, null, 2));
+      
+      if (response.success && response.data) {
+        const usersData = response.data.data || response.data;
+        console.log('Nombre total d\'utilisateurs reçus:', usersData?.length || 0);
+        
+        if (Array.isArray(usersData)) {
+          setUtilisateurs(usersData);
+          console.log('Tous les utilisateurs définis avec succès:', usersData.length);
+        } else {
+          console.warn('Structure de données inattendue pour tous les utilisateurs:', response.data);
+          setUtilisateurs([]);
+        }
+      } else {
+        console.warn('Réponse API sans succès pour tous les utilisateurs:', response);
+        setUtilisateurs([]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement de tous les utilisateurs:', error);
+      setUtilisateurs([]);
+    } finally {
+      setLoading(false);
+      console.log('=== FIN loadAllUsers ===');
     }
   };
 
@@ -1362,9 +1605,75 @@ const Utilisateurs: React.FC = () => {
     }
   };
 
+  const loadNiveaux = async () => {
+    try {
+      const response = await adminService.getNiveaux();
+      
+      if (response.success && response.data && response.data.data) {
+        // L'API retourne les niveaux dans response.data.data à cause de la pagination
+        setNiveaux(response.data.data);
+      } else if (response.success && response.data) {
+        // Fallback si pas de pagination
+        setNiveaux(response.data);
+      } else {
+        console.warn('Réponse API sans succès:', response);
+        setNiveaux([]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des niveaux:', error);
+      setNiveaux([]);
+    }
+  };
+
+  const loadClasses = async (niveauId: number, onClasseSelected?: (classeId: number) => void) => {
+    setLoadingClasses(true);
+    try {
+      const response = await adminService.getClasses({ niveau_id: niveauId });
+      console.log('Response API classes:', response);
+      
+      if (response.success && response.data) {
+        // L'API retourne directement les classes dans response.data (sans pagination)
+        const classesData = response.data;
+        console.log('Classes reçues:', classesData);
+        setClasses(classesData);
+        
+        // Trouver la classe avec le plus de place disponible
+        const classesDisponibles = classesData
+          .filter((classe: any) => {
+            console.log(`Classe ${classe.nom}: effectif_actuel=${classe.effectif_actuel}, effectif_max=${classe.effectif_max}`);
+            return classe.effectif_actuel < classe.effectif_max;
+          })
+          .sort((a: any, b: any) => (b.effectif_max - b.effectif_actuel) - (a.effectif_max - a.effectif_actuel));
+        
+        console.log('Classes disponibles après filtrage:', classesDisponibles);
+        
+        if (classesDisponibles.length > 0 && onClasseSelected) {
+          // Sélectionner automatiquement la classe avec le plus de place
+          const classeOptimale = classesDisponibles[0];
+          console.log(`Classe sélectionnée automatiquement: ${classeOptimale.nom} (${classeOptimale.effectif_actuel}/${classeOptimale.effectif_max})`);
+          onClasseSelected(classeOptimale.id);
+        } else if (classesDisponibles.length === 0) {
+          console.warn('Aucune classe disponible pour ce niveau');
+          // Réinitialiser la classe sélectionnée
+          if (onClasseSelected) onClasseSelected(0);
+        }
+      } else {
+        console.warn('Réponse API invalide:', response);
+        setClasses([]);
+        if (onClasseSelected) onClasseSelected(0);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des classes:', error);
+      setClasses([]);
+      if (onClasseSelected) onClasseSelected(0);
+    } finally {
+      setLoadingClasses(false);
+    }
+  };
+
   const handleCreateUtilisateur = async (utilisateur: Omit<Utilisateur, 'id' | 'dateCreation'>) => {
     try {
-      const response = await adminService.createUtilisateur(utilisateur);
+      const response = await adminService.createUser(utilisateur);
       if (response.success) {
         setModalOpen(false);
         loadUtilisateurs(); // Recharger la liste
@@ -1380,7 +1689,7 @@ const Utilisateurs: React.FC = () => {
 
   const handleUpdateUtilisateur = async (id: number, updates: Partial<Utilisateur>) => {
     try {
-      const response = await adminService.updateUtilisateur(id, updates);
+      const response = await adminService.updateUser(id, updates);
       if (response.success) {
         setModalOpen(false);
         setUtilisateurAModifier(null);
@@ -1396,7 +1705,7 @@ const Utilisateurs: React.FC = () => {
 
   const handleDeleteUtilisateur = async (id: number) => {
     try {
-      const response = await adminService.deleteUtilisateur(id);
+      const response = await adminService.deleteUser(id);
       if (response.success) {
         loadUtilisateurs(); // Recharger la liste
         console.log('Utilisateur supprimé avec succès');
@@ -1410,7 +1719,7 @@ const Utilisateurs: React.FC = () => {
 
   const handleToggleStatus = async (id: number, actif: boolean) => {
     try {
-      const response = await adminService.toggleUtilisateurStatus(id, actif);
+      const response = await adminService.updateUser(id, { actif });
       if (response.success) {
         await loadUtilisateurs();
       }
@@ -1439,18 +1748,60 @@ const Utilisateurs: React.FC = () => {
     setModalSuppression(true);
   };
 
-  const ajouterUtilisateur = async (utilisateur: any) => {
+  const handleSubmitUtilisateur = async (utilisateur: any) => {
     try {
-      const response = await adminService.createUtilisateur(utilisateur);
-      if (response.success) {
-        // Envoyer les informations de connexion par email
-        await adminService.envoyerInfosConnexion(response.data?.id || 0);
-        
+      // Nettoyer les données pour correspondre à l'API Laravel
+      const cleanData: any = {
+        nom: utilisateur.nom,
+        prenom: utilisateur.prenom,
+        email: utilisateur.email,
+        role: utilisateur.role,
+        telephone: utilisateur.telephone || null,
+        adresse: utilisateur.adresse || null,
+        actif: utilisateur.actif !== undefined ? utilisateur.actif : true,
+        profession: utilisateur.profession || null,
+      };
+
+      // Ajouter les champs spécifiques selon le rôle
+      if (utilisateur.role === 'gestionnaire') {
+        cleanData.sections = utilisateur.sections || [];
+      } else if (utilisateur.role === 'professeur') {
+        cleanData.sections = utilisateur.sections || [];
+        cleanData.matieres = utilisateur.matieres || [];
+      } else if (utilisateur.role === 'eleve') {
+        cleanData.classeId = utilisateur.classeId || null;
+        cleanData.dateNaissance = utilisateur.dateNaissance || null;
+        cleanData.lieuNaissance = utilisateur.lieuNaissance || null;
+        cleanData.parentsIds = utilisateur.parentsIds || [];
+      } else if (utilisateur.role === 'parent') {
+        cleanData.type_parent = utilisateur.type_parent || null;
+        cleanData.enfantsIds = utilisateur.enfantsIds || [];
+      }
+
+      console.log('Données envoyées à l\'API:', cleanData);
+
+      if (modeEdition && utilisateurAModifier) {
+        // Mode modification
+        const response = await adminService.updateUser(utilisateurAModifier.id, cleanData);
+        if (response.success) {
+          console.log('Utilisateur modifié avec succès');
         await loadUtilisateurs();
         setModalOpen(false);
+          setModeEdition(false);
+          setUtilisateurAModifier(null);
+        }
+      } else {
+        // Mode création
+        cleanData.password = utilisateur.password || 'password123'; // Mot de passe par défaut
+        const response = await adminService.createUser(cleanData);
+        if (response.success) {
+          console.log('Utilisateur créé avec succès. Email de bienvenue envoyé automatiquement.');
+          await loadUtilisateurs();
+          setModalOpen(false);
+        }
       }
     } catch (error) {
-      console.error("Erreur lors de l'ajout:", error);
+      console.error("Erreur lors de l'opération:", error);
     }
   };
 
@@ -1458,7 +1809,7 @@ const Utilisateurs: React.FC = () => {
     if (!utilisateurASupprimer) return;
     
     try {
-      const response = await adminService.deleteUtilisateur(utilisateurASupprimer.id);
+      const response = await adminService.deleteUser(utilisateurASupprimer.id);
       if (response.success) {
         await loadUtilisateurs();
         setModalSuppression(false);
@@ -1476,10 +1827,28 @@ const Utilisateurs: React.FC = () => {
       u.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchRole = !filterRole || u.role === filterRole;
+    const matchRole = activeRoleTab === "tous" || u.role === activeRoleTab;
     const matchStatut = !filterStatut || (u.actif ? "actif" : "inactif") === filterStatut;
     
     return matchSearch && matchRole && matchStatut;
+  });
+
+  // Debug: afficher les informations de débogage
+  const rolesDisponibles = Array.from(new Set(utilisateurs.map(u => u.role)));
+  const utilisateursParRole = utilisateurs.reduce((acc, u) => {
+    acc[u.role] = (acc[u.role] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  console.log('État des utilisateurs:', {
+    loading,
+    utilisateursCount: utilisateurs.length,
+    listeCount: liste.length,
+    filteredListeCount: filteredListe.length,
+    activeRoleTab,
+    searchTerm,
+    rolesDisponibles,
+    utilisateursParRole
   });
 
   return (
@@ -1496,8 +1865,19 @@ const Utilisateurs: React.FC = () => {
           </p>
         </div>
         
+        {/* Boutons d'action */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={loadUtilisateurs}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <div className={`w-4 h-4 ${loading ? 'animate-spin border-2 border-gray-300 border-t-blue-500 rounded-full' : ''}`}></div>
+            Actualiser
+          </button>
+        
         {/* Bouton d'ajout selon les droits */}
-        {currentTab?.canAdd && (
+          {currentTab?.canAdd && activeRoleTab !== "tous" && (
           <button
             onClick={() => ouvrirModalAjout(activeRoleTab)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -1506,9 +1886,11 @@ const Utilisateurs: React.FC = () => {
             Ajouter {activeRoleTab === "eleve" ? "un élève" : 
                     activeRoleTab === "parent" ? "un parent" :
                     activeRoleTab === "professeur" ? "un professeur" :
-                    "un gestionnaire"}
+                      activeRoleTab === "gestionnaire" ? "un gestionnaire" :
+                      "un utilisateur"}
           </button>
         )}
+        </div>
       </div>
 
       {/* Navigation par onglets */}
@@ -1528,7 +1910,7 @@ const Utilisateurs: React.FC = () => {
                 {tab.icon}
                 {tab.label}
                 <span className="ml-2 py-0.5 px-2.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-800">
-                  {liste.filter(u => u.role === tab.id).length}
+                  {tab.id === "tous" ? utilisateurs.length : utilisateurs.filter(u => u.role === tab.id).length}
                 </span>
               </button>
             ))}
@@ -1537,6 +1919,12 @@ const Utilisateurs: React.FC = () => {
 
         {/* Contenu des onglets */}
         <div className="p-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <span className="ml-3 text-gray-600">Chargement des utilisateurs...</span>
+            </div>
+          ) : (
           <AnimatePresence mode="wait">
             <ListeUtilisateurs
               key={activeRoleTab}
@@ -1549,6 +1937,7 @@ const Utilisateurs: React.FC = () => {
               onSupprimerUtilisateur={ouvrirModalSuppression}
             />
           </AnimatePresence>
+          )}
         </div>
       </div>
 
@@ -1557,25 +1946,25 @@ const Utilisateurs: React.FC = () => {
         {[
           {
             title: "Total utilisateurs",
-            value: liste.length,
+            value: utilisateurs.length,
             icon: <Users className="w-5 h-5" />,
             color: "bg-blue-500"
           },
           {
             title: "Gestionnaires",
-            value: liste.filter(u => u.role === "gestionnaire").length,
+            value: utilisateurs.filter(u => u.role === "gestionnaire").length,
             icon: <UserCheck className="w-5 h-5" />,
             color: "bg-green-500"
           },
           {
             title: "Professeurs",
-            value: liste.filter(u => u.role === "professeur").length,
+            value: utilisateurs.filter(u => u.role === "professeur").length,
             icon: <GraduationCap className="w-5 h-5" />,
             color: "bg-purple-500"
           },
           {
             title: "Élèves",
-            value: liste.filter(u => u.role === "eleve").length,
+            value: utilisateurs.filter(u => u.role === "eleve").length,
             icon: <Baby className="w-5 h-5" />,
             color: "bg-orange-500"
           }
@@ -1615,7 +2004,7 @@ const Utilisateurs: React.FC = () => {
         >
           <FormulaireUtilisateur
             typeUtilisateur={modalType}
-            onSubmit={ajouterUtilisateur}
+            onSubmit={handleSubmitUtilisateur}
             onClose={() => {
               setModalOpen(false);
               setModeEdition(false);
@@ -1624,6 +2013,10 @@ const Utilisateurs: React.FC = () => {
             utilisateurs={liste}
             utilisateurAModifier={utilisateurAModifier}
             modeEdition={modeEdition}
+            niveaux={niveaux}
+            classes={classes}
+            loadingClasses={loadingClasses}
+            onNiveauChange={(niveauId, onClasseSelected) => loadClasses(niveauId, onClasseSelected)}
           />
         </Modal>
 

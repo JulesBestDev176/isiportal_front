@@ -9,6 +9,9 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Events\Created;
+use Illuminate\Database\Eloquent\Events\Deleted;
+use App\Models\Classe;
 
 class User extends Authenticatable
 {
@@ -20,6 +23,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'type_parent',
         'actif',
         'doit_changer_mot_de_passe',
         'derniere_connexion',
@@ -143,6 +147,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Relation avec l'historique des connexions
+     */
+    public function historiqueConnexions(): HasMany
+    {
+        return $this->hasMany(HistoriqueConnexion::class, 'user_id');
+    }
+
+    /**
      * Vérifier si l'utilisateur est un administrateur
      */
     public function isAdmin(): bool
@@ -219,5 +231,55 @@ class User extends Authenticatable
     public function scopeParRole($query, $role)
     {
         return $query->where('role', $role);
+    }
+
+    /**
+     * Boot method pour les événements
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Incrémenter l'effectif de la classe quand un élève est créé
+        static::created(function ($user) {
+            if ($user->role === 'eleve' && $user->classe_id) {
+                $classe = Classe::find($user->classe_id);
+                if ($classe) {
+                    $classe->increment('effectif_actuel');
+                }
+            }
+        });
+
+        // Décrémenter l'effectif de la classe quand un élève est supprimé
+        static::deleted(function ($user) {
+            if ($user->role === 'eleve' && $user->classe_id) {
+                $classe = Classe::find($user->classe_id);
+                if ($classe) {
+                    $classe->decrement('effectif_actuel');
+                }
+            }
+        });
+
+        // Mettre à jour l'effectif quand la classe d'un élève change
+        static::updated(function ($user) {
+            if ($user->role === 'eleve' && $user->isDirty('classe_id')) {
+                // Décrémenter l'ancienne classe
+                $oldClasseId = $user->getOriginal('classe_id');
+                if ($oldClasseId) {
+                    $oldClasse = Classe::find($oldClasseId);
+                    if ($oldClasse) {
+                        $oldClasse->decrement('effectif_actuel');
+                    }
+                }
+
+                // Incrémenter la nouvelle classe
+                if ($user->classe_id) {
+                    $newClasse = Classe::find($user->classe_id);
+                    if ($newClasse) {
+                        $newClasse->increment('effectif_actuel');
+                    }
+                }
+            }
+        });
     }
 }

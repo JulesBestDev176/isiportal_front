@@ -45,9 +45,9 @@ import { Contact, NotificationLocale, ContactEtendu } from '../../models/communi
 // Fonctions pour charger les données depuis les services
 const loadContactsFromService = async () => {
   try {
-    const response = await adminService.getUtilisateurs({ page: 1, limit: 100 });
+    const response = await adminService.getUsers({ page: 1, limit: 100 });
     if (response.success && response.data) {
-      return response.data.data.map(user => ({
+      return response.data.data.map((user: any) => ({
         id: user.id,
         nom: user.nom,
         prenom: user.prenom,
