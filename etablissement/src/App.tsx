@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { FournisseurAuth } from './contexts/ContexteAuth';
 import RouteProtegee from './components/auth/RouteProtegee';
 import MainLayout from './components/layout/MainLayout';
+import ErrorBoundary from './components/ErrorBoundary';
 import Accueil from './pages/commun/Accueil';
 import Connexion from './pages/commun/Connexion';
 import ChangerMotDePasse from './pages/commun/ChangerMotDePasse';
@@ -106,11 +107,15 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <FournisseurAuth>
-      <div className="min-h-screen bg-gray-50">
-        <AppContent />
-      </div>
-    </FournisseurAuth>
+    <ErrorBoundary>
+      <FournisseurAuth>
+        <div className="min-h-screen bg-gray-50">
+          <ErrorBoundary>
+            <AppContent />
+          </ErrorBoundary>
+        </div>
+      </FournisseurAuth>
+    </ErrorBoundary>
   );
 };
 

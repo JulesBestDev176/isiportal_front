@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Users, 
   GraduationCap, 
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/ContexteAuth';
 import { dashboardService, DashboardStats, ActiviteRecente } from '../../services/dashboardService';
+import { safeString, safeNumber, safeDate } from '../../utils/safeRender';
 
 interface StatistiqueCard {
   titre: string;
@@ -159,7 +160,7 @@ const TableauDeBord: React.FC = () => {
     chargerDonnees();
   }, [utilisateur?.role]);
 
-  const obtenirIconeNotification = (type: string) => {
+  const obtenirIconeNotification = useCallback((type: string) => {
     switch (type) {
       case 'warning':
         return <AlertCircle className="w-5 h-5 text-orange-500" />;
@@ -168,9 +169,9 @@ const TableauDeBord: React.FC = () => {
       default:
         return <AlertCircle className="w-5 h-5 text-blue-500" />;
     }
-  };
+  }, []);
 
-  const obtenirCouleurNotification = (type: string) => {
+  const obtenirCouleurNotification = useCallback((type: string) => {
     switch (type) {
       case 'warning':
         return 'border-l-orange-500 bg-orange-50';
@@ -179,7 +180,7 @@ const TableauDeBord: React.FC = () => {
       default:
         return 'border-l-blue-500 bg-blue-50';
     }
-  };
+  }, []);
 
   if (chargement) {
     return (
@@ -196,10 +197,10 @@ const TableauDeBord: React.FC = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              Bonjour, {utilisateur?.prenom} {utilisateur?.nom}
+              Bonjour, {safeString(utilisateur?.prenom)} {safeString(utilisateur?.nom)}
             </h1>
             <p className="text-gray-600 mt-1">
-              Bienvenue sur votre tableau de bord {utilisateur?.role}
+              Bienvenue sur votre tableau de bord {safeString(utilisateur?.role)}
             </p>
           </div>
           <div className="text-right">
@@ -221,8 +222,8 @@ const TableauDeBord: React.FC = () => {
           <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">{stat.titre}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{stat.valeur}</p>
+                <p className="text-sm font-medium text-gray-600">{safeString(stat.titre)}</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{safeString(stat.valeur, '0')}</p>
                 {stat.evolution && (
                   <p className="text-sm text-green-600 mt-1 flex items-center">
                     <TrendingUp className="w-4 h-4 mr-1" />
@@ -259,13 +260,13 @@ const TableauDeBord: React.FC = () => {
                     </div>
                     <div className="ml-3 flex-1">
                       <h4 className="text-sm font-medium text-gray-900">
-                        {notification.titre}
+                        {safeString(notification.titre, 'Notification')}
                       </h4>
                       <p className="text-sm text-gray-600 mt-1">
-                        {notification.message}
+                        {safeString(notification.message, 'Aucun message')}
                       </p>
                       <p className="text-xs text-gray-500 mt-2">
-                        {new Date(notification.date).toLocaleDateString('fr-FR')}
+                        {safeDate(notification.date)}
                       </p>
                     </div>
                   </div>
@@ -366,9 +367,30 @@ const AdminDetails: React.FC = () => {
     const chargerDetails = async () => {
       try {
         const detailsData = await dashboardService.getAdminDetails();
-        setDetails(detailsData);
+        
+        if (detailsData && typeof detailsData === 'object') {
+          setDetails({
+            nouvellesInscriptions: detailsData.nouvellesInscriptions || 0,
+            coursActifs: detailsData.coursActifs || 0,
+            absencesNonJustifiees: detailsData.absencesNonJustifiees || 0,
+            bulletinsGeneres: detailsData.bulletinsGeneres || 0
+          });
+        } else {
+          setDetails({
+            nouvellesInscriptions: 0,
+            coursActifs: 0,
+            absencesNonJustifiees: 0,
+            bulletinsGeneres: 0
+          });
+        }
       } catch (error) {
         console.error('Erreur lors du chargement des détails admin:', error);
+        setDetails({
+          nouvellesInscriptions: 0,
+          coursActifs: 0,
+          absencesNonJustifiees: 0,
+          bulletinsGeneres: 0
+        });
       }
     };
 
@@ -393,7 +415,7 @@ const AdminDetails: React.FC = () => {
             <p className="text-xs text-gray-500">Cette semaine</p>
           </div>
         </div>
-        <span className="text-lg font-bold text-blue-600">{details.nouvellesInscriptions}</span>
+        <span className="text-lg font-bold text-blue-600">{safeString(details.nouvellesInscriptions, '0')}</span>
       </div>
       
       <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
@@ -404,7 +426,7 @@ const AdminDetails: React.FC = () => {
             <p className="text-xs text-gray-500">En cours ce semestre</p>
           </div>
         </div>
-        <span className="text-lg font-bold text-green-600">{details.coursActifs}</span>
+        <span className="text-lg font-bold text-green-600">{safeString(details.coursActifs, '0')}</span>
       </div>
       
       <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
@@ -415,7 +437,7 @@ const AdminDetails: React.FC = () => {
             <p className="text-xs text-gray-500">À traiter</p>
           </div>
         </div>
-        <span className="text-lg font-bold text-orange-600">{details.absencesNonJustifiees}</span>
+        <span className="text-lg font-bold text-orange-600">{safeString(details.absencesNonJustifiees, '0')}</span>
       </div>
       
       <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
@@ -426,7 +448,7 @@ const AdminDetails: React.FC = () => {
             <p className="text-xs text-gray-500">Ce trimestre</p>
           </div>
         </div>
-        <span className="text-lg font-bold text-purple-600">{details.bulletinsGeneres}</span>
+        <span className="text-lg font-bold text-purple-600">{safeString(details.bulletinsGeneres, '0')}</span>
       </div>
     </>
   );

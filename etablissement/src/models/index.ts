@@ -22,7 +22,12 @@ export type {
   EleveClasse,
   ProfMatiere,
   Etudiant,
-  Note
+  Note,
+  TypeEvaluation
+} from './eleve.model';
+
+export {
+  TYPES_EVALUATION
 } from './eleve.model';
 
 // Export des modèles de classe
@@ -33,6 +38,29 @@ export type {
   MatiereBulletin,
   BulletinSemestre
 } from './classe.model';
+
+// Export des modèles d'année scolaire
+export type {
+  AnneeScolaire,
+  PeriodeScolaire,
+  StatutAnneeScolaire,
+  StatutPeriode
+} from './annee-scolaire.model';
+
+export {
+  STATUTS_ANNEE_SCOLAIRE,
+  STATUTS_PERIODE,
+  getAnneeScolaireActuelle,
+  getAnneeScolaireParId,
+  formaterAnneeScolaire
+} from './annee-scolaire.model';
+
+// Export des modèles de bulletin
+export type {
+  Bulletin,
+  BulletinEleve,
+  BulletinResponse
+} from './bulletin.model';
 
 // Export des modèles d'utilisateur
 export type {

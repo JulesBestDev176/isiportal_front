@@ -34,7 +34,7 @@ class UserSeeder extends Seeder
                 'nom' => 'Dupont',
                 'prenom' => 'Marie',
                 'email' => 'gestionnaire.college@isiportal.com',
-                'password' => Hash::make('password123'),
+                'password' => Hash::make('un '),
                 'role' => 'gestionnaire',
                 'actif' => true,
                 'doit_changer_mot_de_passe' => false,
@@ -96,7 +96,7 @@ class UserSeeder extends Seeder
 
         foreach ($professeurs as $professeur) {
             if (!User::where('email', $professeur['email'])->exists()) {
-                User::create([
+                $user = User::create([
                     'nom' => $professeur['nom'],
                     'prenom' => $professeur['prenom'],
                     'email' => $professeur['email'],
@@ -107,6 +107,16 @@ class UserSeeder extends Seeder
                     'matieres' => $professeur['matieres'],
                     'sections' => $professeur['sections'],
                 ]);
+                
+                // Ajouter les relations dans la table pivot user_matieres
+                foreach ($professeur['matieres'] as $matiereId) {
+                    \DB::table('user_matieres')->insert([
+                        'user_id' => $user->id,
+                        'matiere_id' => $matiereId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
             }
         }
 

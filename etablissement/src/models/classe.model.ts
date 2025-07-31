@@ -52,6 +52,10 @@ export interface Classe {
   niveauId: number; // Référence au niveau
   niveauNom: string; // Ex: "6ème", "1ère"
   
+  // Professeur principal
+  professeurPrincipalId?: number;
+  professeurPrincipalNom?: string;
+  
   // Historique des années scolaires
   anneesScolaires: ClasseAnneeScolaire[];
   
@@ -60,6 +64,18 @@ export interface Classe {
   dateCreation: string;
   dateModification?: string;
   statut: "active" | "inactive" | "archivee";
+  
+  // Propriétés ajoutées pour la compatibilité avec l'API
+  effectifActuel?: number;
+  effectifMax?: number;
+  anneeScolaireNom?: string;
+  anneeScolaireStatut?: string;
+  
+  // Propriétés snake_case pour la compatibilité avec l'API
+  niveau_id?: number;
+  effectif_max?: number;
+  professeur_principal_id?: number | null;
+  annee_scolaire_id?: number;
 }
 
 // Inscription d'un élève dans une classe pour une année scolaire

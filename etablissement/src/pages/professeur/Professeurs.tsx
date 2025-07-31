@@ -43,7 +43,7 @@ const Professeurs: React.FC = () => {
         filters: { role: 'professeur' }
       });
       if (response.success && response.data) {
-        setProfs(response.data.data as Professeur[]);
+        setProfs(response.data as Professeur[]);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des professeurs:', error);

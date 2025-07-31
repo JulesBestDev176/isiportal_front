@@ -44,10 +44,17 @@ export const authService = {
       throw new Error(data.message || 'Erreur de connexion');
     }
 
-    // Stocker le token
+    // Stocker le token et les données utilisateur
     if (data.data?.token) {
+      localStorage.setItem('token', data.data.token);
       localStorage.setItem('auth_token', data.data.token);
-      localStorage.setItem('refresh_token', data.data.refresh_token);
+      if (data.data.refresh_token) {
+        localStorage.setItem('refresh_token', data.data.refresh_token);
+      }
+      
+      if (data.data.user) {
+        localStorage.setItem('user_data', JSON.stringify(data.data.user));
+      }
     }
 
     return data;
@@ -61,8 +68,10 @@ export const authService = {
         headers: getAuthHeaders()
       });
     } finally {
+      localStorage.removeItem('token');
       localStorage.removeItem('auth_token');
       localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_data');
     }
   },
 
@@ -74,8 +83,10 @@ export const authService = {
         headers: getAuthHeaders()
       });
     } finally {
+      localStorage.removeItem('token');
       localStorage.removeItem('auth_token');
       localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_data');
     }
   },
 
@@ -100,6 +111,7 @@ export const authService = {
 
     // Mettre à jour les tokens
     if (data.data?.token) {
+      localStorage.setItem('token', data.data.token);
       localStorage.setItem('auth_token', data.data.token);
       localStorage.setItem('refresh_token', data.data.refresh_token);
     }
@@ -139,25 +151,31 @@ export const authService = {
 
   // Vérifier si l'utilisateur est connecté
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('auth_token');
+    return !!this.getToken();
   },
 
   // Obtenir le token actuel
   getToken(): string | null {
-    return localStorage.getItem('auth_token');
+    return localStorage.getItem('token') || localStorage.getItem('auth_token');
   },
 
   // Obtenir le rôle de l'utilisateur
   getUserRole(): string | null {
-    const token = this.getToken();
-    if (!token) return null;
-    
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.role || null;
-    } catch {
-      return null;
-    }
+    const user = this.getCurrentUser();
+    return user?.role || null;
+  },
+
+  // Vérifier si le token est expiré (pour Sanctum, on ne peut pas vérifier l'expiration localement)
+  isTokenExpired(): boolean {
+    return false;
+  },
+
+  // Nettoyer les tokens invalides
+  clearInvalidToken(): void {
+    localStorage.removeItem('token');
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_data');
   },
 
   // Obtenir l'utilisateur actuel depuis le localStorage
@@ -165,44 +183,16 @@ export const authService = {
     const token = this.getToken();
     if (!token) return null;
     
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return {
-        id: payload.sub || payload.id,
-        nom: payload.nom,
-        prenom: payload.prenom,
-        email: payload.email,
-        role: payload.role,
-        doitChangerMotDePasse: payload.doitChangerMotDePasse || false
-      };
-    } catch {
-      return null;
+    const userData = localStorage.getItem('user_data');
+    if (userData) {
+      try {
+        return JSON.parse(userData);
+      } catch {
+        return null;
+      }
     }
+    
+    return null;
   }
 };
 
-// Intercepteur pour rafraîchir automatiquement le token
-const originalFetch = window.fetch;
-window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-  const response = await originalFetch(input, init);
-  
-  if (response.status === 401) {
-    try {
-      await authService.refreshToken();
-      // Réessayer la requête originale avec le nouveau token
-      return originalFetch(input, {
-        ...init,
-        headers: {
-          ...init?.headers,
-          ...getAuthHeaders()
-        }
-      });
-    } catch {
-      // Si le rafraîchissement échoue, rediriger vers la page de connexion
-      authService.logout();
-      window.location.href = '/login';
-    }
-  }
-  
-  return response;
-};

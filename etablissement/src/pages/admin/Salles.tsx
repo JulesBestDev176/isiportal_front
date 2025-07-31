@@ -583,10 +583,8 @@ const SallesAdmin: React.FC = () => {
   const loadNotifications = async () => {
     if (utilisateur?.id) {
       try {
-        const response = await notificationService.getNotifications(utilisateur.id);
-        if (response.success && response.data) {
-          setNotifications(response.data);
-        }
+        const notifications = await notificationService.getNotifications();
+        setNotifications(notifications);
       } catch (error) {
         console.error('Erreur lors du chargement des notifications:', error);
       }
@@ -599,7 +597,6 @@ const SallesAdmin: React.FC = () => {
       if (response.success) {
         setShowModalAjout(false);
         loadSalles(); // Recharger la liste
-        console.log('Salle créée avec succès');
       } else {
         console.error('Erreur lors de la création:', response.error);
       }
@@ -615,7 +612,6 @@ const SallesAdmin: React.FC = () => {
         setShowModalModification(false);
         setSalleAModifier(null);
         loadSalles(); // Recharger la liste
-        console.log('Salle mise à jour avec succès');
       } else {
         console.error('Erreur lors de la mise à jour:', response.error);
       }
@@ -629,7 +625,6 @@ const SallesAdmin: React.FC = () => {
       const response = await adminService.deleteSalle(id);
       if (response.success) {
         loadSalles(); // Recharger la liste
-        console.log('Salle supprimée avec succès');
       } else {
         console.error('Erreur lors de la suppression:', response.error);
       }
@@ -644,7 +639,6 @@ const SallesAdmin: React.FC = () => {
       if (response.success) {
         setShowModalAjoutBatiment(false);
         loadBatiments(); // Recharger la liste
-        console.log('Bâtiment créé avec succès');
       } else {
         console.error('Erreur lors de la création:', response.error);
       }
@@ -660,7 +654,6 @@ const SallesAdmin: React.FC = () => {
         setShowModalModification(false);
         setBatimentAModifier(null);
         loadBatiments(); // Recharger la liste
-        console.log('Bâtiment mis à jour avec succès');
       } else {
         console.error('Erreur lors de la mise à jour:', response.error);
       }
@@ -674,7 +667,6 @@ const SallesAdmin: React.FC = () => {
       const response = await adminService.deleteBatiment(id);
       if (response.success) {
         loadBatiments(); // Recharger la liste
-        console.log('Bâtiment supprimé avec succès');
       } else {
         console.error('Erreur lors de la suppression:', response.error);
       }

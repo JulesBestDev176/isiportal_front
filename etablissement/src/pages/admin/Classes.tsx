@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Search, Filter, Edit3, Trash2, Users, User, 
@@ -12,18 +12,51 @@ import {
 } from "lucide-react";
 
 // Interfaces TypeScript
-import { Classe, ClasseAnneeScolaire, ProfMatiere } from '../../models/classe.model';
+import { Classe, ClasseAnneeScolaire, ProfMatiere, FormDataClasse, ClasseErrors as Errors, MatiereBulletin, BulletinSemestre } from '../../models/classe.model';
 import { AnneeScolaire } from '../../models/annee-scolaire.model';
 import { EleveClasse } from '../../models/eleve.model';
 import { ReglesTransfert, NIVEAUX_SUPERIEURS, reglesTransfertDefaut, getNiveauSuperieur, estEligibleTransfert, getClasseDestination } from '../../models/regles-transfert.model';
+import { Bulletin } from '../../models/bulletin.model';
+import OngletRedoublants from '../../components/OngletRedoublants';
+import NotesEleve from '../../components/NotesEleve';
 import { adminService } from '../../services/adminService';
 import { eleveService } from '../../services/eleveService';
+import { eleveClasseService } from '../../services/eleveClasseService';
 import { notificationService } from '../../services/notificationService';
 import { useAuth } from '../../contexts/ContexteAuth';
 import { bulletinService } from '../../services/bulletinService';
 import { historiqueElevesService } from '../../services/historiqueElevesService';
+import { safeString, safeNumber, safeDate } from '../../utils/safeRender';
+import { safeFilter } from '../../utils/searchHelpers';
+import { noteService } from '../../services/noteService';
 
-import { FormDataClasse, ClasseErrors as Errors, MatiereBulletin, BulletinSemestre } from '../../models/classe.model';
+// Initial form data
+const initialFormData: FormDataClasse = {
+  nom: "",
+  niveauId: "",
+  effectifMax: 30,
+  description: "",
+  professeurPrincipalId: "",
+  statut: "active"
+};
+
+// Fonction utilitaire pour formater les dates
+const formatDate = (dateString: string | undefined): string => {
+  if (!dateString) return 'Non définie';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Date invalide';
+    
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  } catch (error) {
+    return 'Date invalide';
+  }
+};
 
 // Fonction pour charger les années scolaires
 const loadAnneesScolaires = async () => {
@@ -70,26 +103,15 @@ const loadHistoriqueEleves = async (classeId: number) => {
 // Fonction pour charger les bulletins des élèves
 const loadBulletinsEleve = async (eleveId: number) => {
   try {
-    const response = await bulletinService.getBulletinsEleve(eleveId);
-    if (response.success && response.data) {
-      return response.data;
-    }
-    return [];
+      const bulletins = await bulletinService.getBulletinsEleve(eleveId);
+      return bulletins;
   } catch (error) {
     console.error('Erreur lors du chargement des bulletins:', error);
     return [];
   }
 };
 
-// Suppression des mocks - remplacés par des appels aux services
-
-// Données mock pour l'historique des élèves (années précédentes)
-// TODO: Remplacer par des appels au service historiqueElevesService
-
-// Données mock pour les bulletins des élèves
-// Interfaces maintenant importées depuis les modèles
-
-// TODO: Remplacer par des appels au service bulletinService
+// Services utilisés pour récupérer les données du backend
 
 const STATUTS_CLASSE = [
   { value: "active", label: "Active", couleur: "green" },
@@ -224,6 +246,7 @@ const FormulaireClasse: React.FC<{
       statut: formData.statut as "active" | "inactive" | "archivee"
     };
 
+    console.log('Nouvelle classe créée:', nouvelleClasse);
     onSubmit(nouvelleClasse);
     setLoading(false);
   };
@@ -372,21 +395,31 @@ const Classes: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatut, setFilterStatut] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"liste" | "ajouter">("liste");
-  const [showModalAjout, setShowModalAjout] = useState(false);
+  const [activeTab, setActiveTab] = useState<"liste" | "ajouter" | "redoublants">("liste");
+
+  // Missing state variables
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState<FormDataClasse>(initialFormData);
+  const [editingClasse, setEditingClasse] = useState<Classe | null>(null);
+  const [showModalSuppression, setShowModalSuppression] = useState(false);
+
   const [classeAModifier, setClasseAModifier] = useState<Classe | null>(null);
   const [showModalModification, setShowModalModification] = useState(false);
   const [showModalDetails, setShowModalDetails] = useState(false);
   const [classeSelectionnee, setClasseSelectionnee] = useState<Classe | null>(null);
   const [eleves, setEleves] = useState<EleveClasse[]>([]);
+  const [elevesClasse, setElevesClasse] = useState<EleveClasse[]>([]);
   const [anneesScolaires, setAnneesScolaires] = useState<AnneeScolaire[]>([]);
+  const [niveaux, setNiveaux] = useState<any[]>([]);
+  const [utilisateurs, setUtilisateurs] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [modeEdition, setModeEdition] = useState(false);
-  const [classeDetails, setClasseDetails] = useState<Classe | null>(null);
+
   const [classeASupprimer, setClasseASupprimer] = useState<Classe | null>(null);
   const [modalSuppressionClasse, setModalSuppressionClasse] = useState(false);
   const [modalTransfert, setModalTransfert] = useState(false);
   const [modalReglesTransfert, setModalReglesTransfert] = useState(false);
+  const [modalEvolutionAnnee, setModalEvolutionAnnee] = useState(false);
   const [modalDetailsEleve, setModalDetailsEleve] = useState(false);
   const [eleveSelectionne, setEleveSelectionne] = useState<EleveClasse | null>(null);
   const [elevesATransferer, setElevesATransferer] = useState<EleveClasse[]>([]);
@@ -394,18 +427,9 @@ const Classes: React.FC = () => {
   const [reglesTransfert, setReglesTransfert] = useState<ReglesTransfert>(reglesTransfertDefaut);
   const [niveauxSuperieurs] = useState(NIVEAUX_SUPERIEURS);
 
-  // Fonctions utilitaires
-  const getEffectifClasse = (classe: Classe) => {
-    // Pour l'instant, on utilise une logique simplifiée
-    // TODO: Implémenter la vraie logique avec les services
-    return eleves.filter(eleve => eleve.statut === "inscrit").length;
-  };
-
-  const getEffectifMaxClasse = (classe: Classe) => {
-    // Utiliser l'effectif max de l'année scolaire active
-    const anneeActive = classe.anneesScolaires?.find(a => a.statut === "active");
-    return anneeActive?.effectifMax || 30;
-  };
+  // Fonctions utilitaires simples
+  const getEffectifClasse = (classe: any) => classe.effectif_actuel || 0;
+  const getEffectifMaxClasse = (classe: any) => classe.effectif_max || 30;
 
   const getEffectifBadge = (effectif: number, max: number) => {
     const pourcentage = (effectif / max) * 100;
@@ -420,10 +444,8 @@ const Classes: React.FC = () => {
     );
   };
 
-  const getProfesseurPrincipalClasse = (classe: Classe) => {
-    // Trouver l'année scolaire active
-    const anneeActive = classe.anneesScolaires?.find(a => a.statut === "active");
-    return anneeActive?.professeurPrincipalNom || "Non assigné";
+  const getProfesseurPrincipalClasse = (classe: any) => {
+    return classe.professeurPrincipalNom || 'Non assigné';
   };
 
   const getStatutBadge = (statut: string) => {
@@ -438,6 +460,27 @@ const Classes: React.FC = () => {
         {statut === "active" ? "Active" : statut === "inactive" ? "Inactive" : "Archivée"}
       </span>
     );
+  };
+
+  const getNiveauNom = (niveauId: number) => {
+    if (!niveauId || !Array.isArray(niveaux)) return 'Niveau inconnu';
+    const niveau = niveaux.find(n => n.id === niveauId);
+    return niveau ? niveau.nom : 'Niveau inconnu';
+  };
+
+  const getProfesseurPrincipalNom = (professeurPrincipalId: number) => {
+    if (!professeurPrincipalId || !Array.isArray(utilisateurs)) return 'Non assigné';
+    const professeur = utilisateurs.find(u => u.id === professeurPrincipalId && u.role === 'professeur');
+    return professeur ? `${professeur.prenom || ''} ${professeur.nom || ''}`.trim() : 'Non assigné';
+  };
+
+  // Fonction pour obtenir l'année scolaire active
+  const getAnneeScolaireActive = () => {
+    if (!Array.isArray(anneesScolaires) || anneesScolaires.length === 0) {
+      return "2024-2025";
+    }
+    const anneeActive = anneesScolaires.find(a => a.statut === "active");
+    return anneeActive?.nom || "2024-2025";
   };
 
   // Fonctions de gestion
@@ -474,36 +517,104 @@ const Classes: React.FC = () => {
   };
 
   // Filtrer les classes
-  const filteredClasses = classes.filter(classe => {
-    const matchesSearch = classe.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         classe.niveauNom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         getProfesseurPrincipalClasse(classe).toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatut === "" || filterStatut === "all" || classe.statut === filterStatut;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredClasses = useMemo(() => {
+    let filtered = classes;
+    
+    // Filtre par terme de recherche
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(classe => {
+        const nom = (classe.nom || '').toLowerCase();
+        const niveau = (classe.niveauNom || '').toLowerCase();
+        const prof = (classe.professeurPrincipalNom || '').toLowerCase();
+        return nom.includes(term) || niveau.includes(term) || prof.includes(term);
+      });
+    }
+    
+    // Filtre par statut
+    if (filterStatut && filterStatut !== "" && filterStatut !== "all") {
+      filtered = filtered.filter(classe => classe.statut === filterStatut);
+    }
+    
+    // Trier par ordre du niveau puis par nom
+    filtered.sort((a, b) => {
+      const niveauA = niveaux.find(n => n.id === a.niveau_id);
+      const niveauB = niveaux.find(n => n.id === b.niveau_id);
+      const ordreA = niveauA?.ordre || 999;
+      const ordreB = niveauB?.ordre || 999;
+      if (ordreA !== ordreB) {
+        return ordreA - ordreB;
+      }
+      return (a.nom || '').localeCompare(b.nom || '');
+    });
+    
+    return filtered;
+  }, [classes, searchTerm, filterStatut]);
 
   // Charger les données au montage
   useEffect(() => {
-    loadClasses();
-    loadEleves();
-    loadAnneesScolaires();
-    loadNotifications();
-    loadReglesTransfert();
+    const loadInitialData = async () => {
+      await Promise.all([
+        loadNiveaux(),
+        loadUtilisateurs(),
+        loadAnneesScolaires(),
+        loadEleves(),
+        loadNotifications(),
+        loadReglesTransfert()
+      ]);
+    };
+    loadInitialData();
   }, []);
 
-  const loadClasses = async () => {
+  const loadReglesTransfert = async () => {
+    try {
+      const response = await adminService.getReglesTransfert();
+      if (response.success && response.data) {
+        setReglesTransfert(response.data);
+      } else {
+        setReglesTransfert(reglesTransfertDefaut);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des règles de transfert:', error);
+      setReglesTransfert(reglesTransfertDefaut);
+    }
+  };
+
+  // Recharger les classes quand les niveaux et utilisateurs sont disponibles
+  useEffect(() => {
+    if (niveaux.length > 0 && utilisateurs.length > 0) {
+      loadClasses();
+    }
+  }, [niveaux.length, utilisateurs.length]);
+
+  const loadClasses = useCallback(async () => {
+    if (loading) return;
     setLoading(true);
     try {
       const response = await adminService.getClasses();
       if (response.success && response.data) {
-        setClasses(response.data);
+        const classesTransformees = response.data.map((classe: any) => {
+          const niveau = niveaux.find(n => n.id === classe.niveau_id);
+          const niveauNom = niveau ? niveau.nom : (classe.niveau?.nom || 'Niveau inconnu');
+          const professeurPrincipalNom = getProfesseurPrincipalNom(classe.professeur_principal_id);
+
+          return {
+            ...classe,
+            niveauNom,
+            professeurPrincipalNom,
+            dateCreation: classe.date_creation || classe.created_at || new Date().toISOString().split('T')[0],
+            effectif_actuel: classe.effectif_actuel || 0,
+            effectif_max: classe.effectif_max || 30
+          };
+        });
+        setClasses(classesTransformees);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des classes:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [niveaux, utilisateurs, loading]);
 
   const loadEleves = async () => {
     try {
@@ -512,130 +623,310 @@ const Classes: React.FC = () => {
         // Convertir les élèves en EleveClasse format
         const elevesClasse = response.data.map(eleve => ({
           id: eleve.id,
-          nom: eleve.nom,
-          prenom: eleve.prenom,
-          statut: eleve.statut,
-          moyenneAnnuelle: eleve.moyenneAnnuelle,
-          dateInscription: eleve.dateInscription
+          nom: eleve.nom || '',
+          prenom: eleve.prenom || '',
+          statut: eleve.statut || 'inscrit',
+          moyenneAnnuelle: eleve.moyenneAnnuelle || 0,
+          dateInscription: eleve.dateInscription || new Date().toISOString()
         }));
         setEleves(elevesClasse);
+      } else {
+        setEleves([]);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des élèves:', error);
+      setEleves([]);
     }
   };
+
+
 
   const loadAnneesScolaires = async () => {
     try {
       const response = await adminService.getAnneesScolaires();
       if (response.success && response.data) {
         setAnneesScolaires(response.data);
+      } else {
+        setAnneesScolaires([]);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des années scolaires:', error);
+      setAnneesScolaires([]);
+    }
+  };
+
+  const loadNiveaux = async () => {
+    try {
+      const response = await adminService.getNiveaux();
+      if (response.success && response.data) {
+        setNiveaux(response.data);
+      } else {
+        setNiveaux([]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des niveaux:', error);
+      setNiveaux([]);
+    }
+  };
+
+  const loadUtilisateurs = async () => {
+    try {
+      const response = await adminService.getUsers();
+      if (response.success && response.data) {
+        setUtilisateurs(response.data);
+      } else {
+        setUtilisateurs([]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des utilisateurs:', error);
+      setUtilisateurs([]);
     }
   };
 
   const loadNotifications = async () => {
     if (utilisateur?.id) {
       try {
-        const response = await notificationService.getNotifications(utilisateur.id);
-        if (response.success && response.data) {
-          setNotifications(response.data);
-        }
+        const notifications = await notificationService.getNotifications();
+        setNotifications(notifications);
       } catch (error) {
         console.error('Erreur lors du chargement des notifications:', error);
+        setNotifications([]);
       }
     }
   };
 
-  const handleCreateClasse = async (classe: Omit<Classe, 'id' | 'dateCreation'>) => {
+  const handleCreateClasse = async (classeData: any) => {
     try {
-      const response = await adminService.createClasse(classe);
-      if (response.success) {
-        setShowModalAjout(false);
-        loadClasses(); // Recharger la liste
-        console.log('Classe créée avec succès');
-      } else {
-        console.error('Erreur lors de la création:', response.error);
-      }
+      const response = await adminService.createClasse(classeData);
+      const nouvelleClasse = response.data;
+      setClasses(prev => [...prev, nouvelleClasse]);
+      setShowModal(false);
+      setFormData(initialFormData);
     } catch (error) {
       console.error('Erreur lors de la création de la classe:', error);
     }
   };
 
-  const handleUpdateClasse = async (id: number, updates: Partial<Classe>) => {
+  const handleUpdateClasse = async (classeData: any) => {
     try {
-      const response = await adminService.updateClasse(id, updates);
-      if (response.success) {
-        setShowModalModification(false);
-        setClasseAModifier(null);
-        loadClasses(); // Recharger la liste
-        console.log('Classe mise à jour avec succès');
-      } else {
-        console.error('Erreur lors de la mise à jour:', response.error);
-      }
+      await adminService.updateClasse(classeData.id, classeData);
+      setClasses(prev => prev.map(c => c.id === classeData.id ? classeData : c));
+      setShowModal(false);
+      setFormData(initialFormData);
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la classe:', error);
     }
   };
 
-  const handleDeleteClasse = async (id: number) => {
+  const handleDeleteClasse = async (classeId: number) => {
     try {
-      const response = await adminService.deleteClasse(id);
-      if (response.success) {
-        loadClasses(); // Recharger la liste
-        console.log('Classe supprimée avec succès');
-      } else {
-        console.error('Erreur lors de la suppression:', response.error);
-      }
+      await adminService.deleteClasse(classeId);
+      setClasses(prev => prev.filter(c => c.id !== classeId));
+      setShowModalSuppression(false);
+      setClasseASupprimer(null);
     } catch (error) {
       console.error('Erreur lors de la suppression de la classe:', error);
     }
   };
 
-  const handleTransfererEleves = async (classeId: number, reglesTransfert: ReglesTransfert) => {
+  const handleTransferEleve = async (eleveId: number, classeDestination: number) => {
     try {
-      const response = await adminService.transfererEleves(classeId, reglesTransfert);
-      if (response.success) {
-        loadClasses(); // Recharger la liste
-        loadEleves(); // Recharger les élèves
-        console.log('Transfert des élèves effectué avec succès');
+      await adminService.transfererEleve(eleveId, classeDestination);
+      // Recharger les données
+      loadClasses();
+    } catch (error) {
+      console.error('Erreur lors du transfert de l\'élève:', error);
+    }
+  };
+
+  const handleTransferElevesAutomatique = async (classeId: number) => {
+    try {
+      await adminService.transfererElevesAutomatiquement(classeId);
+      // Recharger les données
+      loadClasses();
+    } catch (error) {
+      console.error('Erreur lors du transfert automatique des élèves:', error);
+    }
+  };
+
+  const handleConfirmerTransfertAutomatique = async () => {
+    try {
+      await adminService.confirmerTransfertAutomatique();
+      // Recharger les données
+      loadClasses();
+    } catch (error) {
+      console.error('Erreur lors de la confirmation du transfert automatique:', error);
+    }
+  };
+
+
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const classeData = {
+      nom: formData.nom,
+      niveau_id: parseInt(formData.niveauId),
+      effectif_max: formData.effectifMax,
+      description: formData.description,
+      professeur_principal_id: formData.professeurPrincipalId ? parseInt(formData.professeurPrincipalId) : null,
+      statut: formData.statut as "active" | "inactive" | "archivee"
+    };
+
+    try {
+      if (editingClasse) {
+        await adminService.updateClasse(editingClasse.id, classeData);
+        setClasses(prev => prev.map(c => c.id === editingClasse.id ? { ...c, ...classeData } : c));
       } else {
-        console.error('Erreur lors du transfert:', response.error);
+        const response = await adminService.createClasse(classeData);
+        setClasses(prev => [...prev, response.data]);
       }
+      
+      setShowModal(false);
+      setFormData(initialFormData);
+      setEditingClasse(null);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de la classe:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!classeASupprimer) return;
+    
+    try {
+      await adminService.deleteClasse(classeASupprimer.id);
+      setClasses(prev => prev.filter(c => c.id !== classeASupprimer!.id));
+      setShowModalSuppression(false);
+      setClasseASupprimer(null);
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la classe:', error);
+    }
+  };
+
+  const handleTransferEleves = async () => {
+    if (!classeSelectionnee) return;
+    
+    try {
+      await adminService.transfererElevesAutomatiquement(classeSelectionnee.id);
+      loadClasses();
     } catch (error) {
       console.error('Erreur lors du transfert des élèves:', error);
     }
   };
 
-  // Charger les règles de transfert depuis l'API
-  const loadReglesTransfert = async () => {
+  const handleSaveReglesTransfert = async () => {
     try {
-      const response = await adminService.getReglesTransfert();
-      if (response.success && response.data) {
-        setReglesTransfert(response.data);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des règles de transfert:', error);
-    }
-  };
-
-  // Sauvegarder les règles de transfert
-  const saveReglesTransfert = async () => {
-    try {
-      const response = await adminService.updateReglesTransfert(reglesTransfert);
-      if (response.success) {
-        console.log('Règles de transfert sauvegardées avec succès');
-        setModalReglesTransfert(false);
-        // Recharger les règles pour avoir les données mises à jour
-        await loadReglesTransfert();
-      } else {
-        console.error('Erreur lors de la sauvegarde des règles de transfert:', response.error);
-      }
+      await adminService.saveReglesTransfert(reglesTransfert);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde des règles de transfert:', error);
     }
+  };
+
+  const handleEvolutionAnnee = async () => {
+    try {
+      // Appeler l'API d'évolution d'année
+      await adminService.evolutionAnneeScolaire();
+      
+      // Recharger les données
+      await Promise.all([
+        loadClasses(),
+        loadAnneesScolaires(),
+        loadEleves()
+      ]);
+      
+      setModalEvolutionAnnee(false);
+      
+      // Notification de succès
+      alert('✅ Évolution réussie ! Tous les élèves ont été transférés vers l\'année supérieure.');
+    } catch (error) {
+      console.error('Erreur lors de l\'évolution d\'année:', error);
+      alert('❌ Erreur lors de l\'évolution. Veuillez réessayer.');
+    }
+  };
+
+  const handleViewDetails = useCallback((classe: Classe) => {
+    setClasseSelectionnee(classe);
+    setShowModalDetails(true);
+  }, []);
+
+  const handleEdit = useCallback((classe: Classe) => {
+    setEditingClasse(classe);
+    setFormData({
+      nom: classe.nom,
+      niveauId: classe.niveauId?.toString() || '',
+      effectifMax: classe.effectifMax || 30,
+      description: classe.description || '',
+      professeurPrincipalId: classe.professeurPrincipalId?.toString() || '',
+      statut: classe.statut
+    });
+    setShowModal(true);
+  }, []);
+
+  const handleDeleteClick = useCallback((classe: Classe) => {
+    setClasseASupprimer(classe);
+    setShowModalSuppression(true);
+  }, []);
+
+
+
+  const ModalChangerAnnee = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+    const [anneeActuelle, setAnneeActuelle] = useState<any>(null);
+    const [anneeId, setAnneeId] = useState<number | ''>('');
+
+    const handleChangerAnnee = async () => {
+      if (!anneeId || !anneeActuelle) return;
+      
+      try {
+        // Désactiver l'année actuelle
+        await adminService.updateAnneeScolaire(anneeActuelle.id, { statut: 'terminee' });
+        
+        // Activer la nouvelle année
+        await adminService.updateAnneeScolaire(Number(anneeId), { statut: 'active' });
+        
+        onClose();
+        setAnneeId('');
+      } catch (error) {
+        console.error('Erreur lors du changement d\'année scolaire:', error);
+      }
+    };
+
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Changer l'année scolaire active">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nouvelle année scolaire active
+            </label>
+                        <select
+              value={anneeId} 
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAnneeId(Number(e.target.value))}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Sélectionner une année</option>
+              {Array.isArray(anneesScolaires) && anneesScolaires.map((annee) => (
+                <option key={annee.id} value={annee.id}>
+                  {annee.nom}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleChangerAnnee}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Confirmer
+            </button>
+          </div>
+        </div>
+      </Modal>
+    );
   };
 
   return (
@@ -649,6 +940,7 @@ const Classes: React.FC = () => {
           </p>
         </div>
         
+        <div className="flex gap-2">
         {/* Bouton règles de transfert (admin seulement) */}
         <button
           onClick={() => setModalReglesTransfert(true)}
@@ -658,6 +950,17 @@ const Classes: React.FC = () => {
           <Settings className="w-4 h-4" />
           Règles de transfert
         </button>
+        
+        {/* Bouton évolution année scolaire */}
+        <button
+          onClick={() => setModalEvolutionAnnee(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          title="Faire évoluer tous les élèves vers l'année supérieure"
+        >
+          <ArrowRight className="w-4 h-4" />
+          Évolution année
+        </button>
+        </div>
       </div>
 
       {/* Onglets */}
@@ -688,6 +991,19 @@ const Classes: React.FC = () => {
               <div className="flex items-center gap-2">
           <Plus className="w-4 h-4" />
                 Ajouter/Modifier
+              </div>
+        </button>
+            <button
+              onClick={() => setActiveTab("redoublants")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === "redoublants"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <UserX className="w-4 h-4" />
+                Redoublants
               </div>
         </button>
           </nav>
@@ -728,7 +1044,7 @@ const Classes: React.FC = () => {
 
               {/* Bouton Nouvelle Classe */}
               <button
-                onClick={() => setShowModalAjout(true)}
+                onClick={() => setActiveTab("ajouter")}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -756,6 +1072,9 @@ const Classes: React.FC = () => {
                   Professeur Principal
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
+                  Date de création
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Statut
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
@@ -778,10 +1097,9 @@ const Classes: React.FC = () => {
                         <School className="w-5 h-5 text-purple-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-neutral-900">{classe.nom}</p>
-                        <p className="text-sm text-neutral-500 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          Créée le {classe.dateCreation}
+                        <p className="font-medium text-neutral-900">{safeString(classe.nom, 'Classe sans nom')}</p>
+                        <p className="text-sm text-neutral-500">
+                          {(classe as any).effectif_actuel || 0} élève{((classe as any).effectif_actuel || 0) > 1 ? 's' : ''} inscrit{((classe as any).effectif_actuel || 0) > 1 ? 's' : ''}
                         </p>
                       </div>
                     </div>
@@ -789,24 +1107,30 @@ const Classes: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <GraduationCap className="w-4 h-4 text-blue-500" />
-                      <span className="font-medium text-neutral-900">{classe.niveauNom}</span>
+                      <span className="font-medium text-neutral-900">{safeString(classe.niveauNom, 'Niveau inconnu')}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    {getEffectifBadge(getEffectifClasse(classe), getEffectifMaxClasse(classe))}
+                    {getEffectifBadge((classe as any).effectif_actuel || 0, (classe as any).effectif_max || 30)}
                     <p className="text-xs text-neutral-500 mt-1">
-                      {getEffectifClasse(classe)} élève{getEffectifClasse(classe) > 1 ? 's' : ''} inscrit{getEffectifClasse(classe) > 1 ? 's' : ''}
+                      {(classe as any).effectif_actuel || 0} élève{((classe as any).effectif_actuel || 0) > 1 ? 's' : ''} inscrit{((classe as any).effectif_actuel || 0) > 1 ? 's' : ''}
                     </p>
                   </td>
                   <td className="px-6 py-4">
-                    {getProfesseurPrincipalClasse(classe) ? (
+                    {classe.professeurPrincipalNom && classe.professeurPrincipalNom !== 'Non assigné' ? (
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4 text-green-500" />
-                        <span className="text-neutral-900">{getProfesseurPrincipalClasse(classe)}</span>
+                        <span className="text-neutral-900">{classe.professeurPrincipalNom}</span>
                       </div>
                     ) : (
                       <span className="text-neutral-400 italic">Non assigné</span>
                     )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-500" />
+                      <span className="text-neutral-900">{safeDate(classe.dateCreation)}</span>
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     {getStatutBadge(classe.statut)}
@@ -814,11 +1138,18 @@ const Classes: React.FC = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setClasseSelectionnee(classe)}
+                        onClick={() => handleViewDetails(classe)}
                         className="p-2 text-neutral-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Voir détails"
                       >
                         <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => transfererElevesAutomatiquement(classe.id)}
+                        className="p-2 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Transférer automatiquement"
+                      >
+                        <ArrowRight className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setShowModalModification(true)}
@@ -875,13 +1206,13 @@ const Classes: React.FC = () => {
           },
           {
             title: "Total Élèves",
-            value: classes.reduce((sum, c) => sum + getEffectifClasse(c), 0),
+            value: classes.reduce((sum, c) => sum + ((c as any).effectif_actuel || 0), 0),
             icon: <Users className="w-5 h-5" />,
             color: "bg-purple-500"
           },
           {
             title: "Capacité Moyenne",
-            value: Math.round(classes.reduce((sum, c) => sum + (getEffectifClasse(c) / getEffectifMaxClasse(c) * 100), 0) / classes.length) + "%",
+            value: Math.round(classes.reduce((sum, c) => sum + (((c as any).effectif_actuel || 0) / ((c as any).effectif_max || 30) * 100), 0) / classes.length) + "%",
             icon: <AlertCircle className="w-5 h-5" />,
             color: "bg-orange-500"
           }
@@ -906,6 +1237,20 @@ const Classes: React.FC = () => {
         ))}
       </div>
         </div>
+      ) : activeTab === "redoublants" ? (
+        <div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold mb-4">
+              Gestion des Redoublants
+            </h2>
+            <OngletRedoublants 
+              classes={classes}
+              eleves={eleves}
+              reglesTransfert={reglesTransfert}
+              onTransfererEleve={transfererEleve}
+            />
+      </div>
+        </div>
       ) : (
         <div>
           <div className="bg-white rounded-lg shadow p-6">
@@ -927,21 +1272,14 @@ const Classes: React.FC = () => {
       )}
 
       {/* Modal détails classe */}
-      {classeDetails && (
-        <ModalDetailsClasse
-          isOpen={!!classeDetails}
-          onClose={() => setClasseDetails(null)}
-          classe={classeDetails}
-          anneesScolaires={anneesScolaires}
-          eleves={eleves}
-          onAjouterAnnee={ajouterAnneeScolaire}
-          onTransfererEleve={transfererEleve}
-          onTransfererElevesAutomatiquement={transfererElevesAutomatiquement}
-          niveauxSuperieurs={niveauxSuperieurs}
-          reglesTransfert={reglesTransfert}
-          onOuvrirModalDetailsEleve={ouvrirModalDetailsEleve}
-        />
-      )}
+      <ModalDetailsClasse
+        isOpen={showModalDetails}
+        onClose={() => {
+          setShowModalDetails(false);
+          setClasseSelectionnee(null);
+        }}
+        classe={classeSelectionnee}
+      />
 
       {/* Modal de confirmation de transfert automatique */}
       <Modal
@@ -1097,10 +1435,60 @@ const Classes: React.FC = () => {
               Annuler
             </button>
             <button
-              onClick={saveReglesTransfert}
+              onClick={handleSaveReglesTransfert}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Enregistrer
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal d'évolution d'année scolaire */}
+      <Modal
+        isOpen={modalEvolutionAnnee}
+        onClose={() => setModalEvolutionAnnee(false)}
+        title="Évolution vers l'année scolaire supérieure"
+        size="max-w-3xl"
+      >
+        <div className="space-y-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-800 mb-2">
+              🎓 Évolution automatique de tous les élèves
+            </h4>
+            <p className="text-sm text-blue-700 mb-3">
+              Cette action va :
+            </p>
+            <ul className="text-sm text-blue-700 space-y-1 ml-4">
+              <li>• Changer l'année scolaire active de <strong>2024-2025</strong> à <strong>2025-2026</strong></li>
+              <li>• Transférer tous les élèves respectant les règles vers le niveau supérieur</li>
+              <li>• 6ème → 5ème, 5ème → 4ème, etc.</li>
+              <li>• Appliquer les règles : Moyenne ≥ {reglesTransfert.moyenne_minimale}/20</li>
+            </ul>
+          </div>
+
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <h4 className="font-semibold text-orange-800 mb-2">
+              ⚠️ Attention
+            </h4>
+            <p className="text-sm text-orange-700">
+              Cette action est <strong>irréversible</strong> et affectera tous les élèves de l'établissement.
+              Assurez-vous que toutes les notes de l'année sont saisies avant de procéder.
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              onClick={() => setModalEvolutionAnnee(false)}
+              className="px-6 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleEvolutionAnnee}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+            >
+              Lancer l'évolution
             </button>
           </div>
         </div>
@@ -1128,102 +1516,7 @@ const Classes: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Modal de détails de l'élève */}
-      <Modal
-        isOpen={modalDetailsEleve}
-        onClose={() => setModalDetailsEleve(false)}
-        title={`Bulletins de ${eleveSelectionne?.prenom} ${eleveSelectionne?.nom} - ${eleveSelectionne?.statut === "transfere" ? "2022-2023" : "2023-2024"}`}
-        size="max-w-4xl"
-      >
-        {eleveSelectionne && (
-          <div className="space-y-6">
-            {/* Informations de l'élève */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold text-lg mb-2">Informations de l'élève</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600">Nom complet</p>
-                  <p className="font-medium">{eleveSelectionne.prenom} {eleveSelectionne.nom}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Moyenne annuelle</p>
-                  <p className="font-medium">{eleveSelectionne.moyenneAnnuelle}/20</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Statut</p>
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    eleveSelectionne.statut === "inscrit" ? "bg-green-100 text-green-800" :
-                    eleveSelectionne.statut === "transfere" ? "bg-blue-100 text-blue-800" :
-                    eleveSelectionne.statut === "desinscrit" ? "bg-red-100 text-red-800" :
-                    "bg-gray-100 text-gray-800"
-                  }`}>
-                    {eleveSelectionne.statut === "inscrit" ? "Inscrit" :
-                     eleveSelectionne.statut === "transfere" ? "Transféré" :
-                     eleveSelectionne.statut === "desinscrit" ? "Désinscrit" : "Terminé"}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Date d'inscription</p>
-                  <p className="font-medium">{new Date(eleveSelectionne.dateInscription).toLocaleDateString('fr-FR')}</p>
-                </div>
-              </div>
-            </div>
 
-            {/* Bulletins par semestre */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Bulletins {eleveSelectionne.statut === "transfere" ? "2022-2023" : "2023-2024"}</h3>
-              
-              {["Semestre 1", "Semestre 2"].map((semestre) => {
-                // Déterminer l'année scolaire selon le statut de l'élève
-                const anneeScolaireId = eleveSelectionne.statut === "transfere" ? 2 : 1; // 2 = 2022-2023, 1 = 2023-2024
-                const anneeNom = anneeScolaireId === 2 ? "2022-2023" : "2023-2024";
-                // TODO: Remplacer par les vraies données des services
-                const bulletin = null; // bulletinsMock[eleveSelectionne.id]?.[anneeScolaireId]?.[semestre];
-                if (!bulletin) return null;
-                
-                return (
-                  <div key={semestre} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="bg-blue-50 px-4 py-3 border-b border-gray-200">
-                      <h4 className="font-semibold text-blue-900">{semestre} - {anneeNom}</h4>
-                      <p className="text-sm text-blue-700">Moyenne générale: 14.5/20</p>
-                    </div>
-                    
-                    <div className="p-4">
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matière</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Devoir 1</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Devoir 2</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Composition</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Coefficient</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Moyenne</th>
-                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appréciation</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {/* TODO: Remplacer par les vraies données des services */}
-                            <tr className="hover:bg-gray-50">
-                              <td className="px-3 py-2 text-sm font-medium text-gray-900">Mathématiques</td>
-                              <td className="px-3 py-2 text-sm text-gray-900">15/20</td>
-                              <td className="px-3 py-2 text-sm text-gray-900">14/20</td>
-                              <td className="px-3 py-2 text-sm text-gray-900">16/20</td>
-                              <td className="px-3 py-2 text-sm text-gray-900">4</td>
-                              <td className="px-3 py-2 text-sm font-medium text-gray-900">15.0/20</td>
-                              <td className="px-3 py-2 text-sm text-gray-900">Bon travail, continuez ainsi</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </Modal>
       
       {/* Modal de confirmation de suppression de classe */}
       <Modal
@@ -1286,50 +1579,46 @@ const ModalDetailsClasse: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   classe: Classe | null;
-  anneesScolaires: AnneeScolaire[];
-  eleves: EleveClasse[];
-  onAjouterAnnee: (classeId: number, anneeScolaire: AnneeScolaire) => void;
-  onTransfererEleve: (eleveId: number, classeDestination: string) => void;
-  onTransfererElevesAutomatiquement: (classeId: number) => void;
-  niveauxSuperieurs: Record<string, string>;
-  reglesTransfert: ReglesTransfert;
-  onOuvrirModalDetailsEleve: (eleve: EleveClasse) => void;
-}> = ({ isOpen, onClose, classe, anneesScolaires, eleves, onAjouterAnnee, onTransfererEleve, onTransfererElevesAutomatiquement, niveauxSuperieurs, reglesTransfert, onOuvrirModalDetailsEleve }) => {
-  const [anneeSelectionnee, setAnneeSelectionnee] = useState<number | null>(null);
-  const [showTransfertModal, setShowTransfertModal] = useState(false);
-  const [eleveATransferer, setEleveATransferer] = useState<EleveClasse | null>(null);
+}> = ({ isOpen, onClose, classe }) => {
+  const [elevesClasse, setElevesClasse] = useState<EleveClasse[]>([]);
+  const [eleveSelectionne, setEleveSelectionne] = useState<EleveClasse | null>(null);
+  const [modalDetailsEleve, setModalDetailsEleve] = useState(false);
+
+  // Charger les élèves de la classe quand le modal s'ouvre
+  useEffect(() => {
+    if (!isOpen || !classe?.id) {
+      setElevesClasse([]);
+      return;
+    }
+
+    const loadEleves = async () => {
+      try {
+        const response = await eleveClasseService.getElevesByClasse(classe.id);
+        if (response.success) {
+          setElevesClasse(response.data || []);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des élèves de la classe:', error);
+      }
+    };
+
+    loadEleves();
+  }, [isOpen, classe?.id]);
 
   if (!classe) return null;
 
-  const anneeActuelle = classe.anneesScolaires.find(annee => annee.statut === "active");
-  const anneeSelectionneeData = anneeSelectionnee 
-    ? classe.anneesScolaires.find(annee => annee.anneeScolaireId === anneeSelectionnee)
-    : anneeActuelle;
-
-  const elevesAnnee = anneeSelectionneeData 
-    ? eleves.filter(eleve => anneeSelectionneeData.elevesIds.includes(eleve.id))
-    : [];
-
-  const anneesDisponibles = anneesScolaires.filter(annee => 
-    !classe.anneesScolaires.some(ca => ca.anneeScolaireId === annee.id)
-  );
-
-  const elevesTransferables = elevesAnnee.filter(eleve => 
-    eleve.statut === reglesTransfert.statut_requis && 
-    eleve.moyenneAnnuelle >= reglesTransfert.moyenne_minimale
-  );
-
-  const handleTransfert = (eleve: EleveClasse) => {
-    setEleveATransferer(eleve);
-    setShowTransfertModal(true);
+  // Fonctions utilitaires pour le modal
+  const getEffectifClasseModal = (classe: Classe) => {
+    return classe.effectifActuel || (classe as any).effectif_actuel || 0;
   };
 
-  const confirmerTransfert = (classeDestination: string) => {
-    if (eleveATransferer) {
-      onTransfererEleve(eleveATransferer.id, classeDestination);
-      setShowTransfertModal(false);
-      setEleveATransferer(null);
-    }
+  const getProfesseurPrincipalModal = (classe: Classe) => {
+    return classe.professeurPrincipalNom || 'Non assigné';
+  };
+
+  const getEffectifMaxModal = (classe: Classe) => {
+    const anneeActive = (classe.anneesScolaires || [])?.find(a => a.statut === "active");
+    return anneeActive?.effectifMax || classe.effectifMax || (classe as any).effectif_max || 30;
   };
 
   return (
@@ -1347,17 +1636,23 @@ const ModalDetailsClasse: React.FC<{
                 <School className="w-5 h-5 text-blue-600" />
                 Informations générales
               </h3>
+              <div className="flex justify-end mb-4">
+                {/* Removed button for changing school year */}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
-                <p><strong>Nom :</strong> {classe.nom}</p>
-                <p><strong>Niveau :</strong> {classe.niveauNom}</p>
-                <p><strong>Statut :</strong> {classe.statut}</p>
+                <p><strong>Nom :</strong> {classe.nom || 'Non défini'}</p>
+                <p><strong>Niveau :</strong> {classe.niveauNom || 'Non défini'}</p>
+                <p><strong>Statut :</strong> {classe.statut || 'Non défini'}</p>
+                <p><strong>Professeur principal :</strong> {getProfesseurPrincipalModal(classe)}</p>
                 </div>
                 <div>
-                <p><strong>Date de création :</strong> {classe.dateCreation}</p>
+                <p><strong>Date de création :</strong> {formatDate(classe.dateCreation)}</p>
                 {classe.dateModification && (
-                  <p><strong>Dernière modification :</strong> {classe.dateModification}</p>
+                  <p><strong>Dernière modification :</strong> {formatDate(classe.dateModification)}</p>
                   )}
+                <p><strong>Effectif actuel :</strong> {getEffectifClasseModal(classe)} élèves</p>
+                <p><strong>Effectif maximum :</strong> {getEffectifMaxModal(classe)} élèves</p>
                 </div>
               </div>
             {classe.description && (
@@ -1368,145 +1663,82 @@ const ModalDetailsClasse: React.FC<{
               )}
             </div>
 
-          {/* Sélection d'année scolaire */}
+          {/* Liste des élèves de la classe */}
               <div className="bg-blue-50 rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-blue-600" />
-                Années scolaires
+                <Users className="w-5 h-5 text-blue-600" />
+                Élèves de la classe
                 </h3>
-              {anneesDisponibles.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <select
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    onChange={(e) => {
-                      const anneeId = parseInt(e.target.value);
-                      const anneeSelectionnee = anneesDisponibles.find(a => a.id === anneeId);
-                      if (anneeSelectionnee) {
-                        onAjouterAnnee(classe.id, anneeSelectionnee);
-                      }
-                    }}
-                  >
-                    <option value="">Sélectionner une année</option>
-                    {anneesDisponibles.map(annee => (
-                      <option key={annee.id} value={annee.id}>
-                        {annee.nom} ({annee.anneeDebut}-{annee.anneeFin})
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => {
-                      const select = document.querySelector('select') as HTMLSelectElement;
-                      if (select && select.value) {
-                        const anneeId = parseInt(select.value);
-                        const anneeSelectionnee = anneesDisponibles.find(a => a.id === anneeId);
-                        if (anneeSelectionnee) {
-                          onAjouterAnnee(classe.id, anneeSelectionnee);
-                        }
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Ajouter
-                  </button>
-                </div>
-              )}
             </div>
-
-            {/* Liste des années */}
-            <div className="flex gap-2 mb-4">
-              {classe.anneesScolaires.map(annee => (
-                <button
-                  key={annee.anneeScolaireId}
-                  onClick={() => setAnneeSelectionnee(annee.anneeScolaireId)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    (anneeSelectionnee || anneeActuelle?.anneeScolaireId) === annee.anneeScolaireId
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-neutral-700 hover:bg-blue-100'
-                  }`}
-                >
-                  {annee.anneeScolaireNom}
-                  {annee.statut === "active" && (
-                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                      Active
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Détails de l'année sélectionnée */}
-            {anneeSelectionneeData && (
-              <div className="bg-white rounded-lg p-4">
-                <h4 className="font-semibold mb-3">Année {anneeSelectionneeData.anneeScolaireNom}</h4>
                 
                 {/* Statistiques */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                   <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="text-sm text-green-600">Effectif</p>
-                    <p className="text-xl font-bold text-green-800">{anneeSelectionneeData.effectif}/{anneeSelectionneeData.effectifMax}</p>
+                <p className="text-sm text-green-600">Effectif total</p>
+                <p className="text-xl font-bold text-green-800">{elevesClasse.length}/{getEffectifMaxModal(classe)}</p>
                   </div>
                   <div className="bg-blue-50 p-3 rounded-lg">
                     <p className="text-sm text-blue-600">Élèves transférables</p>
-                    <p className="text-xl font-bold text-blue-800">{elevesTransferables.length}</p>
+                <p className="text-xl font-bold text-blue-800">
+                  {elevesClasse.filter(eleve => eleve.statut === "inscrit").length}
+                </p>
                   </div>
                   <div className="bg-orange-50 p-3 rounded-lg">
-                    <p className="text-sm text-orange-600">Matières enseignées</p>
-                    <p className="text-xl font-bold text-orange-800">{anneeSelectionneeData.profsMatieres.length}</p>
+                <p className="text-sm text-orange-600">Redoublants</p>
+                <p className="text-xl font-bold text-orange-800">
+                  {elevesClasse.filter(eleve => eleve.statut !== "inscrit").length}
+                </p>
                   </div>
                 </div>
 
-                {/* Bouton de transfert automatique */}
-                {elevesTransferables.length > 0 && (
-                  <div className="mb-4">
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3">
-                      <h5 className="font-medium text-orange-800 mb-2">Transfert automatique</h5>
-                      <p className="text-sm text-orange-700 mb-2">
-                        {elevesTransferables.length} élève(s) éligible(s) pour le transfert vers le niveau supérieur
-                      </p>
-                      <div className="text-xs text-orange-600">
-                        <p>• Moyenne minimale requise : {reglesTransfert.moyenne_minimale}/20</p>
-                        <p>• Statut requis : {reglesTransfert.statut_requis}</p>
-                        <p>• Transfert direct : {reglesTransfert.transfert_direct ? 'Oui' : 'Non'}</p>
-                        <p>• Niveau de destination : {getNiveauSuperieur(classe.niveauNom) || 'Non disponible'}</p>
-                        {reglesTransfert.desactiver_annee_apres_transfert && (
-                          <p>• L'année sera désactivée après transfert</p>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => onTransfererElevesAutomatiquement(classe.id)}
-                      className="w-full px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <UserPlus className="w-4 h-4" />
-                      Transférer automatiquement {elevesTransferables.length} élève(s) vers le niveau supérieur
-                    </button>
-                    <p className="text-xs text-gray-600 mt-2 text-center">
-                      Seuls les élèves avec une moyenne ≥ {reglesTransfert.moyenne_minimale}/20 seront transférés
-                    </p>
-                  </div>
-                )}
-
                 {/* Liste des élèves */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h5 className="font-medium">Élèves de cette année</h5>
-                    <span className="text-sm text-gray-500">{elevesAnnee.length} élève(s)</span>
+            <div className="bg-white rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold">Liste des élèves</h4>
+                <span className="text-sm text-gray-500">{elevesClasse.length} élève(s)</span>
                         </div>
                   
-                  <div className="space-y-2">
-                    {elevesAnnee.map(eleve => (
-                      <div key={eleve.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
-                        <div className="flex items-center gap-3">
-                        <div>
-                            <p className="font-medium">{eleve.prenom} {eleve.nom}</p>
-                            <p className="text-sm text-gray-600">
-                              Moyenne: {eleve.moyenneAnnuelle}/20
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Élève
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date inscription
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Statut
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {elevesClasse.map((eleve) => (
+                      <tr key={eleve.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <User className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div className="ml-3">
+                              <p className="text-sm font-medium text-gray-900">
+                                {eleve.prenom} {eleve.nom}
                             </p>
                         </div>
                       </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-1 text-xs rounded-full ${
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-sm text-gray-600">
+                            {new Date(eleve.dateInscription).toLocaleDateString('fr-FR')}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                             eleve.statut === "inscrit" ? "bg-green-100 text-green-800" :
                             eleve.statut === "transfere" ? "bg-blue-100 text-blue-800" :
                             eleve.statut === "desinscrit" ? "bg-red-100 text-red-800" :
@@ -1516,96 +1748,331 @@ const ModalDetailsClasse: React.FC<{
                              eleve.statut === "transfere" ? "Transféré" :
                              eleve.statut === "desinscrit" ? "Désinscrit" : "Terminé"}
                         </span>
-                          <button
-                            onClick={() => onOuvrirModalDetailsEleve(eleve)}
-                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-                          >
-                            Détails
-                          </button>
-                        </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-                {/* Historique des élèves des années précédentes */}
-                <div className="mt-6">
-                  <h5 className="font-medium mb-3">Historique des élèves</h5>
-                  <div className="space-y-3">
-                    {classe.anneesScolaires
-                      .filter(annee => annee.statut !== "active")
-                      .sort((a, b) => b.anneeScolaireId - a.anneeScolaireId)
-                      .map(annee => {
-                        const elevesAnneeHistorique: EleveClasse[] = []; // TODO: Charger depuis le service historiqueElevesService
-                        return (
-                          <div key={annee.anneeScolaireId} className="border border-gray-200 rounded-lg">
-              <button
-                              className="w-full px-4 py-3 text-left bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-between"
-                onClick={() => {
-                                const content = document.getElementById(`historique-${annee.anneeScolaireId}`);
-                                if (content) {
-                                  content.classList.toggle('hidden');
-                                }
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEleveSelectionne(eleve);
+                                setModalDetailsEleve(true);
                               }}
+                              className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
                             >
-                              <div className="flex items-center gap-3">
-                                <span className="font-semibold">{annee.anneeScolaireNom}</span>
-                                <span className="text-sm bg-gray-200 text-gray-800 px-2 py-1 rounded">
-                                  {elevesAnneeHistorique.length} élève(s)
-                                </span>
-                              </div>
-                              <ChevronDown className="w-5 h-5 text-gray-600" />
-              </button>
-                            <div id={`historique-${annee.anneeScolaireId}`} className="hidden">
-                              <div className="p-4 space-y-2">
-                                {elevesAnneeHistorique.length > 0 ? (
-                                  elevesAnneeHistorique.map((eleve: EleveClasse) => (
-                                    <div key={eleve.id} className="flex items-center justify-between bg-white p-3 rounded-lg border">
-                                      <div>
-                                        <p className="font-medium">{eleve.prenom} {eleve.nom}</p>
-                                        <p className="text-sm text-gray-600">
-                                          Moyenne: {eleve.moyenneAnnuelle}/20
-                                        </p>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <span className={`px-2 py-1 text-xs rounded-full ${
-                                          eleve.statut === "inscrit" ? "bg-green-100 text-green-800" :
-                                          eleve.statut === "transfere" ? "bg-blue-100 text-blue-800" :
-                                          eleve.statut === "desinscrit" ? "bg-red-100 text-red-800" :
-                                          "bg-gray-100 text-gray-800"
-                                        }`}>
-                                          {eleve.statut === "inscrit" ? "Inscrit" :
-                                           eleve.statut === "transfere" ? "Transféré" :
-                                           eleve.statut === "desinscrit" ? "Désinscrit" : "Terminé"}
-                                        </span>
-              <button
-                                          onClick={() => onOuvrirModalDetailsEleve(eleve)}
-                                          className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
-              >
-                                          Détails
-              </button>
-            </div>
-          </div>
-                                  ))
-                                ) : (
-                                  <div className="text-center py-4 text-gray-500">
-                                    <p>Aucun élève enregistré pour cette année</p>
-                                  </div>
-                                )}
-          </div>
+                              Notes
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
         </div>
-    </div>
-                        );
-                      })}
-                  </div>
-                </div>
+              
+              {elevesClasse.length === 0 && (
+                <div className="text-center py-8">
+                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Aucun élève
+                  </h3>
+                  <p className="text-gray-500">
+                    Aucun élève n'est inscrit dans cette classe.
+                  </p>
               </div>
             )}
+            </div>
           </div>
         </div>
       </Modal>
 
+      {/* Modal des notes de l'élève */}
+      <ModalNotesEleve
+        isOpen={modalDetailsEleve}
+        onClose={() => {
+          setModalDetailsEleve(false);
+          setEleveSelectionne(null);
+        }}
+        eleve={eleveSelectionne}
+        anneesScolaires={[]}
+      />
     </>
+  );
+};
+
+// Composant Modal pour afficher les notes d'un élève par année et semestre
+const ModalNotesEleve: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  eleve: EleveClasse | null;
+  anneesScolaires: AnneeScolaire[];
+}> = ({ isOpen, onClose, eleve, anneesScolaires }) => {
+  const [notesData, setNotesData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedAnnee, setSelectedAnnee] = useState<string>('');
+  const [matieres, setMatieres] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!isOpen || !eleve?.id) {
+      setNotesData([]);
+      return;
+    }
+
+    const loadNotesEleve = async () => {
+      setLoading(true);
+      console.log('=== Début chargement notes pour élève ===', eleve.id);
+      
+      try {
+        // 1. Récupérer les notes
+        const notes = await noteService.getNotesEleve(eleve.id);
+        console.log('Notes récupérées:', notes.length);
+        
+        // 2. Récupérer le niveau et les matières
+        let matieresNiveau: any[] = [];
+        try {
+          const niveauResponse = await noteService.getNiveauEleve(eleve.id);
+          console.log('Réponse niveau:', niveauResponse);
+          
+          if (niveauResponse.success && niveauResponse.data?.niveau_id) {
+            matieresNiveau = await noteService.getMatieresByNiveau(niveauResponse.data.niveau_id);
+            console.log('Matières du niveau:', matieresNiveau.length);
+            setMatieres(matieresNiveau);
+          } else {
+            console.warn('Impossible de récupérer le niveau de l\'élève');
+          }
+        } catch (error) {
+          console.error('Erreur niveau/matières:', error);
+        }
+        
+        // 3. Organiser les notes par année et semestre
+        const notesOrganisees = noteService.organiserNotesParAnnee(notes, anneesScolaires, matieresNiveau);
+        setNotesData(notesOrganisees);
+        
+        // 4. Sélectionner automatiquement l'année active
+        if (notesOrganisees.length > 0) {
+          const anneesDisponibles = Array.from(new Set(notesOrganisees.map(n => n.anneeScolaireNom)));
+          const anneeActive = anneesDisponibles.find(annee => 
+            notesOrganisees.some(n => n.anneeScolaireNom === annee && n.statut === 'active')
+          );
+          setSelectedAnnee(anneeActive || anneesDisponibles[0] || '2024-2025');
+        }
+        
+      } catch (error) {
+        console.error('Erreur lors du chargement des notes:', error);
+        setNotesData([]);
+      } finally {
+        setLoading(false);
+        console.log('=== Fin chargement notes ===');
+      }
+    };
+
+    loadNotesEleve();
+  }, [isOpen, eleve?.id]);
+
+  const getColorByNote = (note: number) => {
+    if (note >= 16) return 'text-green-600 bg-green-50';
+    if (note >= 14) return 'text-blue-600 bg-blue-50';
+    if (note >= 10) return 'text-orange-600 bg-orange-50';
+    return 'text-red-600 bg-red-50';
+  };
+
+  const getNoteByType = (notes: any[], type: string) => {
+    const note = notes.find(n => n.type_evaluation === type);
+    return note ? note.note : 0;
+  };
+
+  const calculerMoyenneSemestre = (notesParMatiere: any[]) => {
+    if (!notesParMatiere || notesParMatiere.length === 0) return '0.00';
+    
+    let totalPondere = 0;
+    let totalCoeff = 0;
+    
+    notesParMatiere.forEach(matiere => {
+      if (matiere.moyenne && matiere.moyenne > 0) {
+        totalPondere += matiere.moyenne * parseFloat(matiere.coefficient || 1);
+        totalCoeff += parseFloat(matiere.coefficient || 1);
+      }
+    });
+    
+    return totalCoeff > 0 ? (totalPondere / totalCoeff).toFixed(2) : '0.00';
+  };
+
+  if (!eleve) return null;
+
+  const anneesDisponibles = Array.from(new Set(notesData.map(n => n.anneeScolaireNom)));
+  const donneesAnneeSelectionnee = notesData.filter(n => n.anneeScolaireNom === selectedAnnee);
+  
+  console.log('Debug année:', { selectedAnnee, anneesDisponibles, donneesAnneeSelectionnee: donneesAnneeSelectionnee.length, totalNotes: notesData.length });
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`Bulletin de notes - ${eleve.prenom} ${eleve.nom}`}
+      size="max-w-7xl"
+    >
+      <div className="space-y-6">
+        {/* Informations élève */}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <span className="font-medium text-gray-600">Élève:</span>
+              <p className="font-semibold">{eleve.prenom} {eleve.nom}</p>
+            </div>
+            <div>
+              <span className="font-medium text-gray-600">Moyenne générale:</span>
+              <p className="font-semibold">
+                {donneesAnneeSelectionnee.length > 0 && donneesAnneeSelectionnee[0].moyenneAnnuelle 
+                  ? `${donneesAnneeSelectionnee[0].moyenneAnnuelle}/20` 
+                  : `${eleve.moyenneAnnuelle}/20`}
+              </p>
+            </div>
+            <div>
+              <span className="font-medium text-gray-600">Statut:</span>
+              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                eleve.statut === "inscrit" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+              }`}>
+                {eleve.statut === "inscrit" ? "Inscrit" : eleve.statut}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Sélecteur d'année scolaire */}
+        <div className="flex gap-2 flex-wrap">
+          {anneesDisponibles.length > 0 ? anneesDisponibles.map((annee: string) => (
+            <button
+              key={annee}
+              onClick={() => setSelectedAnnee(annee)}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                selectedAnnee === annee 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {annee}
+            </button>
+          )) : (
+            <button className="px-4 py-2 rounded-lg font-medium bg-blue-600 text-white">
+              2024-2025
+            </button>
+          )}
+        </div>
+
+
+
+        {/* Tableau des notes */}
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-gray-600">Chargement des notes...</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {[1, 2].map(semestre => {
+              const donneesS = donneesAnneeSelectionnee.find(d => d.semestre === semestre);
+              const notesParMatiere = donneesS?.notesParMatiere || [];
+              const moyenneSemestre = donneesS?.moyenneSemestre || calculerMoyenneSemestre(notesParMatiere);
+              
+              console.log(`Semestre ${semestre}:`, { donneesS: donneesS ? 'existe' : 'undefined', notesParMatiere: notesParMatiere.length, moyenne: moyenneSemestre });
+              if (donneesS && notesParMatiere.length > 0) {
+                console.log('Exemple matiere:', notesParMatiere[0]);
+                console.log('Notes de la matière:', notesParMatiere[0].notes);
+              }
+              
+              return (
+                <div key={semestre} className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="bg-blue-50 px-4 py-3 border-b">
+                    <div className="flex justify-between items-center">
+                      <h3 className="font-semibold text-lg text-blue-900">
+                        {semestre === 1 ? '1er Semestre' : '2ème Semestre'}
+                      </h3>
+                      <div className={`px-3 py-1 rounded-full font-semibold ${getColorByNote(parseFloat(moyenneSemestre.toString()))}`}>
+                        Moyenne: {moyenneSemestre}/20
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Matière</th>
+                          <th className="px-3 py-3 text-center font-medium text-gray-600">Devoir 1</th>
+                          <th className="px-3 py-3 text-center font-medium text-gray-600">Devoir 2</th>
+                          <th className="px-3 py-3 text-center font-medium text-gray-600">Examen</th>
+                          <th className="px-3 py-3 text-center font-medium text-gray-600">Moyenne</th>
+                          <th className="px-3 py-3 text-center font-medium text-gray-600">Coef</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Appréciation</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {notesParMatiere.length > 0 ? notesParMatiere.map((matiere: any, index: number) => {
+                          const devoir1 = getNoteByType(matiere.notes, 'devoir1');
+                          const devoir2 = getNoteByType(matiere.notes, 'devoir2');
+                          const examen = getNoteByType(matiere.notes, 'examen');
+                          const appreciation = matiere.notes.find((n: any) => n.appreciation)?.appreciation || '-';
+                          
+                          return (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 font-medium text-gray-900">
+                                {matiere.nom}
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <span className={`px-2 py-1 rounded font-semibold ${getColorByNote(devoir1)}`}>
+                                  {devoir1}/20
+                                </span>
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <span className={`px-2 py-1 rounded font-semibold ${getColorByNote(devoir2)}`}>
+                                  {devoir2}/20
+                                </span>
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <span className={`px-2 py-1 rounded font-semibold ${getColorByNote(examen)}`}>
+                                  {examen}/20
+                                </span>
+                              </td>
+                              <td className="px-3 py-3 text-center">
+                                <span className={`px-2 py-1 rounded font-bold ${getColorByNote(matiere.moyenne)}`}>
+                                  {matiere.moyenne.toFixed(2)}/20
+                                </span>
+                              </td>
+                              <td className="px-3 py-3 text-center text-gray-600">
+                                {matiere.coefficient}
+                              </td>
+                              <td className="px-4 py-3 text-gray-600 text-sm">
+                                {appreciation}
+                              </td>
+                            </tr>
+                          );
+                        }) : (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                              Aucune note pour ce semestre
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {donneesAnneeSelectionnee.length === 0 && (
+              <div className="text-center py-8">
+                <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Aucune note disponible
+                </h3>
+                <p className="text-gray-500">
+                  Aucune note pour cette année scolaire.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 };
 

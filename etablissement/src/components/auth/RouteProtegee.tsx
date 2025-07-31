@@ -1,4 +1,5 @@
 import React from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/ContexteAuth';
 
 interface RouteProtegeeProps {
@@ -21,14 +22,7 @@ const RouteProtegee: React.FC<RouteProtegeeProps> = ({
   }
 
   if (!utilisateur) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Accès refusé</h1>
-          <p className="text-gray-600">Vous devez être connecté pour accéder à cette page.</p>
-        </div>
-      </div>
-    );
+    return <Navigate to="/connexion" replace />;
   }
 
   // Vérifier si l'utilisateur doit changer son mot de passe

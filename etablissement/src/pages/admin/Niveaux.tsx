@@ -783,14 +783,13 @@ const FormulaireNiveau: React.FC<{
               disabled={loadingMatieres}
             >
               <option value="">Sélectionner une matière...</option>
-              {matieres
+              {Array.isArray(matieres) ? matieres
                 .filter(matiere => !formData.matieres_ids.includes(matiere.id))
                 .map(matiere => (
                   <option key={matiere.id} value={matiere.id}>
                     {matiere.nom} - Coef: {matiere.coefficient || 'N/A'} - {matiere.heures_par_semaine || 'N/A'}h/sem
                   </option>
-                ))
-              }
+                )) : []}
             </select>
             {loadingMatieres && (
               <div className="flex items-center text-gray-500">
@@ -799,7 +798,7 @@ const FormulaireNiveau: React.FC<{
               </div>
             )}
           </div>
-          {matieres.filter(m => !formData.matieres_ids.includes(m.id)).length === 0 && (
+          {Array.isArray(matieres) && matieres.filter(m => !formData.matieres_ids.includes(m.id)).length === 0 && (
             <p className="text-sm text-blue-700 mt-2">
               Toutes les matières disponibles ont déjà été ajoutées à ce niveau.
             </p>
@@ -946,10 +945,8 @@ const Niveaux: React.FC = () => {
   const loadNotifications = async () => {
     if (utilisateur?.id) {
       try {
-        const response = await notificationService.getNotifications(utilisateur.id);
-        if (response.success && response.data) {
-          setNotifications(response.data);
-        }
+        const notifications = await notificationService.getNotifications();
+        setNotifications(notifications);
       } catch (error) {
         console.error('Erreur lors du chargement des notifications:', error);
       }
@@ -971,7 +968,6 @@ const Niveaux: React.FC = () => {
         setNiveauAModifier(null);
         setActiveTab("liste"); // Rediriger vers la liste
         loadNiveaux(); // Recharger la liste
-        console.log('Niveau créé avec succès');
       } else {
         console.error('Erreur lors de la création:', response.error);
       }
@@ -987,7 +983,6 @@ const Niveaux: React.FC = () => {
         setNiveauAModifier(null);
         setActiveTab("liste"); // Rediriger vers la liste
         loadNiveaux(); // Recharger la liste
-        console.log('Niveau mis à jour avec succès');
       } else {
         console.error('Erreur lors de la mise à jour:', response.error);
       }
@@ -1003,7 +998,6 @@ const Niveaux: React.FC = () => {
         setShowModalSuppression(false); // Fermer le modal de confirmation
         setNiveauASupprimer(null); // Réinitialiser le niveau à supprimer
         loadNiveaux(); // Recharger la liste
-        console.log('Niveau supprimé avec succès');
       } else {
         console.error('Erreur lors de la suppression:', response.error);
       }
@@ -1080,7 +1074,7 @@ const Niveaux: React.FC = () => {
                 Liste des niveaux
               </div>
             </button>
-            {(utilisateur?.role === "administrateur" || utilisateur?.role === "gestionnaire") && (
+            {utilisateur?.role === "administrateur" && (
               <button
                 onClick={() => setActiveTab("ajouter")}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -1127,7 +1121,7 @@ const Niveaux: React.FC = () => {
             </div>
 
             {/* Bouton Nouveau niveau */}
-            {(utilisateur?.role === "administrateur" || utilisateur?.role === "gestionnaire") && (
+            {utilisateur?.role === "administrateur" && (
               <button
                 onClick={ouvrirModalAjout}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

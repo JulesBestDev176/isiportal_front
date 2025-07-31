@@ -26,7 +26,9 @@ use App\Http\Controllers\Api\HistoriqueConnexionController;
 use App\Http\Controllers\Api\EleveController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\EleveClasseController;
 use App\Http\Controllers\Api\TestController;
+use Illuminate\Support\Facades\Artisan;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,8 +44,218 @@ use App\Http\Controllers\Api\TestController;
 // Routes publiques
 Route::post('/auth/login', [AuthController::class, 'login']);
 
+// Route publique pour récupérer le niveau d'un élève
+Route::get('/public/eleves/{eleveId}/niveau', [EleveController::class, 'getNiveauEleve']);
+
+// Route de test simple
+Route::get('/ping', function() {
+    return response()->json([
+        'success' => true,
+        'message' => 'API Laravel fonctionne',
+        'timestamp' => now(),
+        'server' => 'ISIPortal API'
+    ]);
+});
+
+// Routes de test publiques avec CORS
+Route::group(['middleware' => 'cors'], function () {
+    Route::get('/test/cors-check', function() {
+        return response()->json([
+            'success' => true,
+            'message' => 'CORS fonctionne',
+            'timestamp' => now()
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    });
+    
+    Route::get('/test/notes-simple/{eleveId}', function($eleveId) {
+        $notes = \App\Models\Note::where('eleve_id', $eleveId)
+            ->with(['matiere', 'anneeScolaire', 'cours'])
+            ->get();
+            
+        return response()->json([
+            'success' => true,
+            'data' => $notes,
+            'count' => $notes->count(),
+            'eleve_id' => $eleveId
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    });
+});
+
 // Routes de test
-Route::get('/test', [TestController::class, 'test']);
+Route::get('/test', [TestController::class, 'test'])->middleware('cors');
+Route::options('/{any}', function() {
+    return response('', 200)
+        ->header('Access-Control-Allow-Origin', '*')
+        ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+})->where('any', '.*');
+Route::get('/test/notes', function() {
+    return response()->json([
+        'success' => true,
+        'message' => 'Test notes API',
+        'data' => [
+            [
+                'id' => 1,
+                'matiere' => ['id' => 1, 'nom' => 'Mathématiques'],
+                'note' => 15.5
+            ]
+        ]
+    ])->header('Access-Control-Allow-Origin', '*')
+      ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+      ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+});
+Route::get('/test/seed-notes', function() {
+    try {
+        Artisan::call('db:seed', ['--class' => 'Database\\Seeders\\NoteTestSeeder']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Notes de test créées avec succès'
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    } catch (Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur: ' . $e->getMessage()
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    }
+});
+Route::get('/test/create-sample-data', function() {
+    try {
+        // Créer un élève de test s'il n'existe pas
+        $eleve = \App\Models\User::firstOrCreate(
+            ['email' => 'eleve.test@isiportal.com'],
+            [
+                'nom' => 'Test',
+                'prenom' => 'Eleve',
+                'role' => 'eleve',
+                'password' => bcrypt('password123'),
+                'classe_id' => 1,
+                'actif' => true
+            ]
+        );
+        
+        // Créer quelques notes de test
+        $cours = \App\Models\Cours::first();
+        $annee = \App\Models\AnneeScolaire::first();
+        
+        if ($cours && $annee) {
+            \App\Models\Note::create([
+                'eleve_id' => $eleve->id,
+                'cours_id' => $cours->id,
+                'matiere_id' => $cours->matiere_id,
+                'annee_scolaire_id' => $annee->id,
+                'semestre' => 1,
+                'type_evaluation' => 'devoir1',
+                'note' => 15.5,
+                'coefficient' => 1.0,
+                'appreciation' => 'Bon travail',
+                'date_evaluation' => now()
+            ]);
+        }
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Données de test créées',
+            'eleve_id' => $eleve->id
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    } catch (Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Erreur: ' . $e->getMessage()
+        ])->header('Access-Control-Allow-Origin', '*')
+          ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+          ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    }
+});
+Route::get('/test/check-data/{eleveId}', function($eleveId) {
+    $eleve = \App\Models\User::with('classe.niveau')->find($eleveId);
+    $notes = \App\Models\Note::where('eleve_id', $eleveId)->with(['matiere', 'anneeScolaire'])->get();
+    $matieres = [];
+    
+    if ($eleve && $eleve->classe && $eleve->classe->niveau) {
+        $matieres = \App\Models\Matiere::whereHas('niveaux', function($q) use ($eleve) {
+            $q->where('niveau_id', $eleve->classe->niveau_id);
+        })->get();
+    }
+    
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'eleve' => $eleve,
+            'notes_count' => $notes->count(),
+            'notes' => $notes->take(5),
+            'matieres_count' => $matieres->count(),
+            'matieres' => $matieres
+        ]
+    ])->header('Access-Control-Allow-Origin', '*')
+      ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+      ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+});
+// Routes d'analyse de la base de données
+Route::get('/test/annees-scolaires', function() {
+    $annees = \App\Models\AnneeScolaire::all();
+    return response()->json([
+        'success' => true,
+        'data' => $annees,
+        'count' => $annees->count()
+    ])->header('Access-Control-Allow-Origin', '*');
+});
+
+Route::get('/test/classes-niveaux', function() {
+    $classes = \App\Models\Classe::with('niveau')->get();
+    return response()->json([
+        'success' => true,
+        'data' => $classes,
+        'count' => $classes->count()
+    ])->header('Access-Control-Allow-Origin', '*');
+});
+
+Route::get('/test/eleves-classes', function() {
+    $eleves = \App\Models\User::where('role', 'eleve')
+        ->with(['classe.niveau'])
+        ->get()
+        ->map(function($eleve) {
+            return [
+                'id' => $eleve->id,
+                'nom' => $eleve->nom,
+                'prenom' => $eleve->prenom,
+                'classe_id' => $eleve->classe_id,
+                'classe_nom' => $eleve->classe->nom ?? null,
+                'niveau_id' => $eleve->classe->niveau_id ?? null,
+                'niveau_nom' => $eleve->classe->niveau->nom ?? null
+            ];
+        });
+    return response()->json([
+        'success' => true,
+        'data' => $eleves,
+        'count' => $eleves->count()
+    ])->header('Access-Control-Allow-Origin', '*');
+});
+
+Route::get('/test/eleves-list', function() {
+    $eleves = \App\Models\User::where('role', 'eleve')
+        ->with('classe.niveau')
+        ->select('id', 'nom', 'prenom', 'classe_id')
+        ->get();
+    
+    return response()->json([
+        'success' => true,
+        'data' => $eleves,
+        'count' => $eleves->count()
+    ])->header('Access-Control-Allow-Origin', '*')
+      ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+      ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+});
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test/auth', [TestController::class, 'testAuth']);
     Route::get('/test/users/all', [TestController::class, 'getAllUsers']);
@@ -77,6 +289,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes des utilisateurs
     Route::apiResource('users', UserController::class);
     Route::get('/users/all', [UserController::class, 'getAllUsers']);
+    Route::get('/users/classe/{classeId}/eleves', [UserController::class, 'getElevesByClasse']);
 
     // Routes de profil
     Route::prefix('profile')->group(function () {
@@ -93,6 +306,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/active-sessions', [ProfileController::class, 'getActiveSessions']);
         Route::post('/terminate-session', [ProfileController::class, 'terminateSession']);
     });
+
+    // Routes des matières (publiques)
+    Route::get('/matieres', [MatiereController::class, 'index']);
+    Route::get('/matieres/{matiere}', [MatiereController::class, 'show']);
+});
+
+// Route publique pour les matières par niveau
+Route::get('/matieres/niveau/{niveauId}', [MatiereController::class, 'getMatieresByNiveau']);
+
+Route::middleware('auth:sanctum')->group(function () {
 
     // Routes d'administration (rôles: administrateur, gestionnaire)
     Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
@@ -114,7 +337,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Gestion des matières
         Route::apiResource('matieres', MatiereController::class);
-        Route::get('/matieres/niveau/{niveauId}', [MatiereController::class, 'getMatieresByNiveau']);
         Route::post('/matieres/assign-to-niveau', [MatiereController::class, 'assignMatiereToNiveau']);
         Route::delete('/matieres/remove-from-niveau', [MatiereController::class, 'removeMatiereFromNiveau']);
         Route::put('/matieres/update-niveau', [MatiereController::class, 'updateMatiereNiveau']);
@@ -141,6 +363,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/regles-transfert/all', [ReglesTransfertController::class, 'getAll']);
         Route::get('/regles-transfert/{niveauSource}', [ReglesTransfertController::class, 'show']);
         Route::put('/regles-transfert', [ReglesTransfertController::class, 'update']);
+        
+        // Évolution d'année scolaire
+        Route::post('/evolution-annee', [UserController::class, 'evolutionAnneeScolaire']);
     });
 
     // Routes pour les élèves (rôles: administrateur, gestionnaire, professeur)
@@ -159,6 +384,24 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/eligibles-transfert/{classeId}', [EleveController::class, 'getElevesEligiblesTransfert']);
         Route::get('/statistiques', [EleveController::class, 'getStatistiques']);
     });
+
+    // Routes pour les associations élève-classe (rôles: administrateur, gestionnaire)
+    Route::prefix('eleve-classe')->group(function () {
+        Route::get('/', [EleveClasseController::class, 'index']);
+        Route::get('/classe/{classeId}', [EleveClasseController::class, 'getElevesByClasse']);
+    });
+
+    // Routes pour les élèves (rôles: administrateur, gestionnaire)
+    Route::prefix('eleves')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\EleveController::class, 'index']);
+        Route::get('/classe/{classeId}', [\App\Http\Controllers\Api\EleveController::class, 'getElevesByClasse']);
+    });
+
+    // Route simple pour tester
+    Route::get('/simple-eleves/classe/{classeId}', [\App\Http\Controllers\Api\SimpleEleveController::class, 'getElevesByClasse']);
+
+    // Route de test
+    Route::get('/test-eleves', [TestController::class, 'test']);
 
     // Routes pour les notes (rôles: administrateur, gestionnaire, professeur)
     Route::middleware(['auth:sanctum'])->prefix('notes')->group(function () {
@@ -189,16 +432,18 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // Routes pour les bulletins (rôles: administrateur, gestionnaire, professeur)
-    Route::middleware(['auth:sanctum'])->prefix('bulletins')->group(function () {
+    Route::prefix('bulletins')->group(function () {
         Route::get('/', [BulletinController::class, 'index']);
-        Route::get('/{bulletin}', [BulletinController::class, 'show']);
         Route::post('/', [BulletinController::class, 'store']);
-        Route::put('/{bulletin}', [BulletinController::class, 'update']);
-        Route::delete('/{bulletin}', [BulletinController::class, 'destroy']);
         Route::get('/eleve/{eleveId}', [BulletinController::class, 'getBulletinsEleve']);
+        Route::get('/eleve/{eleveId}/alternative', [BulletinController::class, 'getBulletinsEleveAlternative']);
+        Route::get('/eleve/{eleveId}/notes', [BulletinController::class, 'getNotesEleve']);
         Route::get('/classe/{classeId}', [BulletinController::class, 'getBulletinsClasse']);
         Route::get('/eleve/{eleveId}/moyenne', [BulletinController::class, 'calculerMoyenneEleve']);
         Route::get('/statistiques', [BulletinController::class, 'getStatistiques']);
+        Route::get('/{bulletin}', [BulletinController::class, 'show']);
+        Route::put('/{bulletin}', [BulletinController::class, 'update']);
+        Route::delete('/{bulletin}', [BulletinController::class, 'destroy']);
     });
 
     // Routes pour l'historique des élèves (rôles: administrateur, gestionnaire)
@@ -217,6 +462,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes pour les notifications (tous les rôles)
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/sent', [NotificationController::class, 'sent']);
         Route::get('/{notification}', [NotificationController::class, 'show']);
         Route::post('/', [NotificationController::class, 'store']);
         Route::put('/{notification}', [NotificationController::class, 'update']);

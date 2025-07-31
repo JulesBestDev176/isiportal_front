@@ -11,22 +11,223 @@ import {
 import { useAuth } from "../../contexts/ContexteAuth";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../components/layout/MainLayout";
-import { Classe, Professeur } from "../../models";
+import { Classe, Professeur, Note } from "../../models";
 import { MATIERES_COURANTES } from "../../models/matiere.model";
-import { adminService } from "../../services/adminService";
-import { eleveService } from "../../services/eleveService";
-import { ProfMatiere, Etudiant, Note } from '../../models/eleve.model';
 
 // Fonction helper pour obtenir le nom de la matière à partir de l'ID
-const getMatiereNom = (matiereId: number): string => {
-  const matiere = MATIERES_COURANTES.find(m => m.code === `MATH${matiereId}`);
+const getNomMatiere = (matiereId: number): string => {
+  const matiere = MATIERES_COURANTES[matiereId - 1];
   return matiere ? matiere.nom : `Matière ${matiereId}`;
 };
 
-// Suppression des interfaces locales - maintenant importées depuis les modèles
+// Interfaces locales pour les fonctionnalités spécifiques au professeur
+interface ProfMatiere {
+  matiere: string;
+  professeurId: number;
+  heuresParSemaine?: number;
+}
 
-// TODO: Remplacer par des appels aux services appropriés
+interface Etudiant {
+  id: number;
+  nom: string;
+  prenom: string;
+  dateNaissance: string;
+  sexe: "M" | "F";
+  classeId: number;
+  numeroMatricule: string;
+  email?: string;
+  telephone?: string;
+  adresse?: string;
+  tuteurNom?: string;
+  tuteurTelephone?: string;
+  statut: "actif" | "suspendu" | "abandonne";
+  dateInscription: string;
+}
 
+// Données mockées
+const professeurActuel: Professeur = {
+  id: 1,
+  nom: "Diop",
+  prenom: "Fatou",
+  email: "f.diop@ecole.sn",
+  role: "professeur",
+  dateCreation: "2024-01-01",
+  actif: true,
+  sections: ["college"],
+  matieres: [1, 7], // Mathématiques et Physique-Chimie
+  cours: [],
+  doitChangerMotDePasse: false
+};
+
+const classesMock: Classe[] = [
+  {
+    id: 1,
+    nom: "6ème A",
+    niveauId: 1,
+    niveauNom: "6ème",
+    anneesScolaires: [
+      {
+        id: 1,
+        classeId: 1,
+        anneeScolaireId: 1,
+        anneeScolaireNom: "2024-2025",
+        elevesIds: [1, 2, 3],
+        effectif: 28,
+        effectifMax: 30,
+        profsMatieres: [],
+        statut: "active",
+        dateCreation: "2024-09-01"
+      }
+    ],
+    professeurPrincipalId: 1,
+    description: "Classe de 6ème section A",
+    dateCreation: "2024-09-01",
+    dateModification: "2024-09-01",
+    statut: "active"
+  },
+  {
+    id: 2,
+    nom: "5ème B",
+    niveauId: 2,
+    niveauNom: "5ème",
+    anneesScolaires: [
+      {
+        id: 2,
+        classeId: 2,
+        anneeScolaireId: 1,
+        anneeScolaireNom: "2024-2025",
+        elevesIds: [4],
+        effectif: 25,
+        effectifMax: 30,
+        profsMatieres: [],
+        statut: "active",
+        dateCreation: "2024-09-01"
+      }
+    ],
+    professeurPrincipalId: 1,
+    description: "Classe de 5ème section B",
+    dateCreation: "2024-09-01",
+    dateModification: "2024-09-01",
+    statut: "active"
+  }
+];
+
+const etudiantsMock: Etudiant[] = [
+  {
+    id: 1,
+    nom: "Fall",
+    prenom: "Aminata",
+    dateNaissance: "2010-03-15",
+    sexe: "F",
+    classeId: 1,
+    numeroMatricule: "2024001",
+    email: "aminata.fall@example.com",
+    tuteurNom: "Mamadou Fall",
+    tuteurTelephone: "+221 77 123 45 67",
+    statut: "actif",
+    dateInscription: "2024-09-01"
+  },
+  {
+    id: 2,
+    nom: "Ndiaye",
+    prenom: "Omar",
+    dateNaissance: "2010-07-22",
+    sexe: "M",
+    classeId: 1,
+    numeroMatricule: "2024002",
+    tuteurNom: "Aïssatou Ndiaye",
+    tuteurTelephone: "+221 76 987 65 43",
+    statut: "actif",
+    dateInscription: "2024-09-01"
+  },
+  {
+    id: 3,
+    nom: "Sow",
+    prenom: "Fatou",
+    dateNaissance: "2010-11-08",
+    sexe: "F",
+    classeId: 1,
+    numeroMatricule: "2024003",
+    tuteurNom: "Ibrahima Sow",
+    tuteurTelephone: "+221 77 555 44 33",
+    statut: "actif",
+    dateInscription: "2024-09-01"
+  },
+  {
+    id: 4,
+    nom: "Ba",
+    prenom: "Moussa",
+    dateNaissance: "2009-05-12",
+    sexe: "M",
+    classeId: 2,
+    numeroMatricule: "2024004",
+    tuteurNom: "Mariama Ba",
+    tuteurTelephone: "+221 78 222 11 00",
+    statut: "actif",
+    dateInscription: "2024-09-01"
+  }
+];
+
+const notesMock: Note[] = [
+  {
+    id: 1,
+    eleve_id: 1,
+    cours_id: 1,
+    matiere_id: 1, // Mathématiques
+    annee_scolaire_id: 1,
+    semestre: 1,
+    type_evaluation: "devoir1",
+    note: 16,
+    coefficient: 4.0,
+    appreciation: "Bien",
+    date_evaluation: "2024-10-15",
+    commentaire: "Devoir 1 - Équations"
+  },
+  {
+    id: 2,
+    eleve_id: 1,
+    cours_id: 1,
+    matiere_id: 1, // Mathématiques
+    annee_scolaire_id: 1,
+    semestre: 1,
+    type_evaluation: "devoir2",
+    note: 14,
+    coefficient: 4.0,
+    appreciation: "Assez bien",
+    date_evaluation: "2024-11-10",
+    commentaire: "Devoir 2 - Géométrie"
+  },
+  {
+    id: 3,
+    eleve_id: 1,
+    cours_id: 7,
+    matiere_id: 7, // Physique-Chimie
+    annee_scolaire_id: 1,
+    semestre: 1,
+    type_evaluation: "devoir1",
+    note: 18,
+    coefficient: 3.0,
+    appreciation: "Très bien",
+    date_evaluation: "2024-10-20",
+    commentaire: "Devoir 1 - États de la matière"
+  },
+  {
+    id: 4,
+    eleve_id: 2,
+    cours_id: 1,
+    matiere_id: 1, // Mathématiques
+    annee_scolaire_id: 1,
+    semestre: 1,
+    type_evaluation: "devoir1",
+    note: 0,
+    coefficient: 4.0,
+    appreciation: "Absent",
+    date_evaluation: "2024-10-15",
+    commentaire: "Absent"
+  }
+];
+
+// Matières enseignées par le professeur (IDs)
 const matieresProfesseur: number[] = [1, 7]; // Mathématiques et Physique-Chimie
 
 const ClasseProfesseur: React.FC = () => {
@@ -34,9 +235,9 @@ const ClasseProfesseur: React.FC = () => {
   const navigate = useNavigate();
   
   // États
-  const [classes, setClasses] = useState<Classe[]>([]);
-  const [etudiants, setEtudiants] = useState<Etudiant[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [classes, setClasses] = useState<Classe[]>(classesMock);
+  const [etudiants, setEtudiants] = useState<Etudiant[]>(etudiantsMock);
+  const [notes, setNotes] = useState<Note[]>(notesMock);
   const [classeSelectionnee, setClasseSelectionnee] = useState<Classe | null>(null);
   const [etudiantSelectionne, setEtudiantSelectionne] = useState<Etudiant | null>(null);
   const [showModalNotes, setShowModalNotes] = useState(false);
@@ -44,46 +245,6 @@ const ClasseProfesseur: React.FC = () => {
   const [noteAModifier, setNoteAModifier] = useState<Note | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-
-  // Charger les données au montage
-  useEffect(() => {
-    if (utilisateur) {
-      loadClasses();
-      loadEtudiants();
-      loadNotes();
-    }
-  }, [utilisateur]);
-
-  const loadClasses = async () => {
-    try {
-      const response = await adminService.getClasses();
-      if (response.success && response.data) {
-        setClasses(response.data);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des classes:', error);
-    }
-  };
-
-  const loadEtudiants = async () => {
-    try {
-      const response = await eleveService.getEleves();
-      if (response.success && response.data) {
-        setEtudiants(response.data as any[]); // TODO: Créer un service spécifique pour les étudiants
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des étudiants:', error);
-    }
-  };
-
-  const loadNotes = async () => {
-    try {
-      // TODO: Implémenter l'appel au service pour charger les notes
-      setNotes([]);
-    } catch (error) {
-      console.error('Erreur lors du chargement des notes:', error);
-    }
-  };
 
   // Vérification de l'authentification
   useEffect(() => {
@@ -171,7 +332,7 @@ const ClasseProfesseur: React.FC = () => {
                 {matieresProfesseur.map(matiereId => (
                   <div key={matiereId} className="flex items-center gap-2">
                     <BookOpen className="w-4 h-4 text-blue-600" />
-                    <span className="text-gray-700">{getMatiereNom(matiereId)}</span>
+                    <span className="text-gray-700">{getNomMatiere(matiereId)}</span>
                   </div>
                 ))}
               </div>

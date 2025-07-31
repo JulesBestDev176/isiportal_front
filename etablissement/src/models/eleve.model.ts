@@ -125,13 +125,33 @@ export interface Etudiant {
 // Interface pour une note
 export interface Note {
   id: number;
-  eleveId: number;
-  matiereId: number;
-  matiereNom: string;
-  type: "devoir" | "composition" | "examen";
+  eleve_id: number;
+  cours_id: number;
+  matiere_id: number;
+  annee_scolaire_id: number;
+  semestre: number;
+  type_evaluation: "devoir1" | "devoir2" | "composition" | "examen";
   note: number;
   coefficient: number;
-  date: string;
   appreciation?: string;
-  remarques?: string;
+  date_evaluation: string;
+  commentaire?: string;
+  // Relations chargées par le backend
+  matiere?: {
+    id: number;
+    nom: string;
+  };
+  cours?: {
+    id: number;
+    nom: string;
+  };
 } 
+
+export const TYPES_EVALUATION = [
+  { value: "devoir1", label: "Devoir 1", couleur: "blue" },
+  { value: "devoir2", label: "Devoir 2", couleur: "blue" },
+  { value: "composition", label: "Composition", couleur: "orange" },
+  { value: "examen", label: "Examen", couleur: "red" }
+] as const;
+
+export type TypeEvaluation = typeof TYPES_EVALUATION[number]["value"]; 

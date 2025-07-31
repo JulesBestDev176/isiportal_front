@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('bulletins', function (Blueprint $table) {
             $table->id();
             $table->foreignId('eleve_id')->constrained('users')->onDelete('cascade');
-            $table->string('annee_scolaire');
+            $table->foreignId('annee_scolaire_id')->constrained('annees_scolaires')->onDelete('cascade');
             $table->integer('semestre');
             $table->decimal('moyenne', 4, 2)->default(0);
             $table->json('matieres')->nullable();
@@ -24,7 +24,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Index
-            $table->index(['eleve_id', 'annee_scolaire', 'semestre']);
+            $table->index(['eleve_id', 'annee_scolaire_id', 'semestre']);
             $table->index('moyenne');
         });
     }

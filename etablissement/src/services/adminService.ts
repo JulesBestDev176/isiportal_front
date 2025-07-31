@@ -1,558 +1,688 @@
-import { buildApiUrl, getAuthHeaders } from './config';
+import { Utilisateur, Classe, AnneeScolaire, Niveau, Matiere, Cours, Salle, Batiment, ReglesTransfert } from '../models';
+import { safeApiCall, getAuthHeaders, ApiResponse } from '../utils/apiHelpers';
 
-// Service pour les fonctionnalités d'administration
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
+
 export const adminService = {
-  // ===== GESTION DES UTILISATEURS =====
-  
-  // Récupérer tous les utilisateurs
-  async getUsers(params?: any): Promise<any> {
-    console.log('=== DÉBUT getUsers ===');
-    console.log('Params reçus:', params);
-    
+  async getUsers(params: any = {}): Promise<ApiResponse<any[]>> {
     const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) queryParams.append(key, value.toString());
-      });
-    }
-    
-    // Par défaut, charger tous les utilisateurs pour éviter les problèmes de pagination
-    // Sauf si une limite spécifique est demandée
-    if (!params || !params.limit) {
-      queryParams.append('per_page', '1000');
-      queryParams.append('page', '1');
-    }
+    if (params.search) queryParams.append('search', params.search);
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params.role) queryParams.append('role', params.role);
 
-    const url = buildApiUrl(`/users?${queryParams}`);
-    console.log('URL appelée:', url);
-    
-    const headers = getAuthHeaders();
-    console.log('Headers:', headers);
+    return safeApiCall(
+      () => fetch(`${API_BASE_URL}/admin/users?${queryParams.toString()}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }),
+      [],
+      'Utilisateurs récupérés avec succès'
+    );
+  },
 
+  async getAllUsers(): Promise<ApiResponse<any[]>> {
+    return safeApiCall(
+      () => fetch(`${API_BASE_URL}/admin/users`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }),
+      [],
+      'Utilisateurs récupérés avec succès'
+    );
+  },
+
+  async createUser(userData: any) {
     try {
-      const response = await fetch(url, {
-        headers: headers
+      const response = await fetch(`${API_BASE_URL}/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(userData)
       });
-      
-      console.log('Status de la réponse:', response.status);
-      console.log('Headers de la réponse:', Object.fromEntries(response.headers.entries()));
-      
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Erreur HTTP:', response.status, errorText);
-        throw new Error(`Erreur lors de la récupération des utilisateurs: ${response.status} ${errorText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      const data = await response.json();
-      console.log('Données reçues:', data);
-      console.log('=== FIN getUsers ===');
-      return data;
-    } catch (error) {
-      console.error('Exception dans getUsers:', error);
-      console.log('=== FIN getUsers avec erreur ===');
-      throw error;
-    }
-  },
 
-  // Récupérer TOUS les utilisateurs sans aucune limite (pour les cas spéciaux)
-  async getAllUsers(): Promise<any> {
-    console.log('=== DÉBUT getAllUsers ===');
-    
-    const url = buildApiUrl('/users?per_page=1000&page=1');
-    console.log('URL appelée:', url);
-    
-    const headers = getAuthHeaders();
-    console.log('Headers:', headers);
-
-    try {
-      const response = await fetch(url, {
-        headers: headers
-      });
-      
-      console.log('Status de la réponse:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Erreur HTTP:', response.status, errorText);
-        throw new Error(`Erreur lors de la récupération de tous les utilisateurs: ${response.status} ${errorText}`);
-      }
-      
-      const data = await response.json();
-      console.log('Nombre total d\'utilisateurs reçus:', data.data?.data?.length || 0);
-      console.log('=== FIN getAllUsers ===');
-      return data;
-    } catch (error) {
-      console.error('Exception dans getAllUsers:', error);
-      console.log('=== FIN getAllUsers avec erreur ===');
-      throw error;
-    }
-  },
-
-  // Alias pour getUsers (pour compatibilité)
-  async getUtilisateurs(params?: any): Promise<any> {
-    return this.getUsers(params);
-  },
-
-  // Créer un utilisateur
-  async createUser(userData: any): Promise<any> {
-    const response = await fetch(buildApiUrl('/users'), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(userData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la création de l\'utilisateur');
-    return response.json();
-  },
-
-  // Mettre à jour un utilisateur
-  async updateUser(id: number, userData: any): Promise<any> {
-    const response = await fetch(buildApiUrl(`/users/${id}`), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(userData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la mise à jour de l\'utilisateur');
-    return response.json();
-  },
-
-  // Supprimer un utilisateur
-  async deleteUser(id: number): Promise<any> {
-    const response = await fetch(buildApiUrl(`/users/${id}`), {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la suppression de l\'utilisateur');
-    return response.json();
-  },
-
-
-
-  // ===== GESTION DES NIVEAUX =====
-  
-  // Récupérer tous les niveaux
-  async getNiveaux(): Promise<any> {
-    const response = await fetch(buildApiUrl('/admin/niveaux?per_page=100'), {
-      headers: getAuthHeaders()
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Erreur HTTP:', response.status, errorText);
-      throw new Error(`Erreur lors de la récupération des niveaux: ${response.status} ${errorText}`);
-    }
-    
-    const data = await response.json();
-    
-    // Si la réponse contient une pagination, extraire les données
-    if (data.success && data.data && data.data.data) {
-      return {
-        success: true,
-        data: data.data.data, // Extraire les données de la pagination
-        message: data.message
-      };
-    }
-    
-    // Si pas de pagination, retourner directement
-    if (data.success && data.data && Array.isArray(data.data)) {
-      return data;
-    }
-    
-    return data;
-  },
-
-  // Récupérer toutes les matières
-  async getMatieres(): Promise<any> {
-    const response = await fetch(buildApiUrl('/admin/matieres?per_page=100'), {
-      headers: getAuthHeaders()
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Erreur HTTP:', response.status, errorText);
-      throw new Error(`Erreur lors de la récupération des matières: ${response.status} ${errorText}`);
-    }
-    
-    const data = await response.json();
-    
-    // Si la réponse contient une pagination, extraire les données
-    if (data.success && data.data && data.data.data) {
-      return {
-        success: true,
-        data: data.data.data,
-        message: data.message
-      };
-    }
-    
-    // Si pas de pagination, retourner directement
-    if (data.success && data.data && Array.isArray(data.data)) {
-      return data;
-    }
-    
-    return data;
-  },
-
-  // Créer un niveau
-  async createNiveau(niveauData: any): Promise<any> {
-    const response = await fetch(buildApiUrl('/admin/niveaux'), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(niveauData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la création du niveau');
-    return response.json();
-  },
-
-  // Mettre à jour un niveau
-  async updateNiveau(id: number, niveauData: any): Promise<any> {
-    const response = await fetch(buildApiUrl(`/admin/niveaux/${id}`), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(niveauData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la mise à jour du niveau');
-    return response.json();
-  },
-
-  // Supprimer un niveau
-  async deleteNiveau(id: number): Promise<any> {
-    const response = await fetch(buildApiUrl(`/admin/niveaux/${id}`), {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la suppression du niveau');
-    return response.json();
-  },
-
-  // ===== GESTION DES CLASSES =====
-  
-  // Récupérer toutes les classes
-  async getClasses(params?: any): Promise<any> {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) queryParams.append(key, value.toString());
-      });
-    }
-
-    const response = await fetch(buildApiUrl(`/admin/classes?${queryParams}`), {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la récupération des classes');
-    return response.json();
-  },
-
-  // Créer une classe
-  async createClasse(classeData: any): Promise<any> {
-    const response = await fetch(buildApiUrl('/admin/classes'), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(classeData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la création de la classe');
-    return response.json();
-  },
-
-  // Mettre à jour une classe
-  async updateClasse(id: number, classeData: any): Promise<any> {
-    const response = await fetch(buildApiUrl(`/admin/classes/${id}`), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(classeData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la mise à jour de la classe');
-    return response.json();
-  },
-
-  // Supprimer une classe
-  async deleteClasse(id: number): Promise<any> {
-    const response = await fetch(buildApiUrl(`/admin/classes/${id}`), {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la suppression de la classe');
-    return response.json();
-  },
-
-  // ===== GESTION DES COURS =====
-  
-  // Récupérer tous les cours
-  async getCours(params?: any): Promise<any> {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) queryParams.append(key, value.toString());
-      });
-    }
-
-    const response = await fetch(buildApiUrl(`/admin/cours?${queryParams}`), {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la récupération des cours');
-    return response.json();
-  },
-
-  // Créer un cours
-  async createCours(coursData: any): Promise<any> {
-    const response = await fetch(buildApiUrl('/admin/cours'), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(coursData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la création du cours');
-    return response.json();
-  },
-
-  // Mettre à jour un cours
-  async updateCours(id: number, coursData: any): Promise<any> {
-    const response = await fetch(buildApiUrl(`/admin/cours/${id}`), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(coursData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la mise à jour du cours');
-    return response.json();
-  },
-
-  // Supprimer un cours
-  async deleteCours(id: number): Promise<any> {
-    const response = await fetch(buildApiUrl(`/admin/cours/${id}`), {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la suppression du cours');
-    return response.json();
-  },
-
-  // ===== GESTION DES SALLES =====
-  
-  // Récupérer toutes les salles
-  async getSalles(params?: any): Promise<any> {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) queryParams.append(key, value.toString());
-      });
-    }
-
-    const response = await fetch(buildApiUrl(`/admin/salles?${queryParams}`), {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la récupération des salles');
-    return response.json();
-  },
-
-  // Créer une salle
-  async createSalle(salleData: any): Promise<any> {
-    const response = await fetch(buildApiUrl('/admin/salles'), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(salleData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la création de la salle');
-    return response.json();
-  },
-
-  // Mettre à jour une salle
-  async updateSalle(id: number, salleData: any): Promise<any> {
-    const response = await fetch(buildApiUrl(`/admin/salles/${id}`), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(salleData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la mise à jour de la salle');
-    return response.json();
-  },
-
-  // Supprimer une salle
-  async deleteSalle(id: number): Promise<any> {
-    const response = await fetch(buildApiUrl(`/admin/salles/${id}`), {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la suppression de la salle');
-    return response.json();
-  },
-
-  // ===== GESTION DES BÂTIMENTS =====
-  
-  // Récupérer tous les bâtiments
-  async getBatiments(params?: any): Promise<any> {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) queryParams.append(key, value.toString());
-      });
-    }
-
-    const response = await fetch(buildApiUrl(`/admin/batiments?${queryParams}`), {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la récupération des bâtiments');
-    return response.json();
-  },
-
-  // Créer un bâtiment
-  async createBatiment(batimentData: any): Promise<any> {
-    const response = await fetch(buildApiUrl('/admin/batiments'), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(batimentData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la création du bâtiment');
-    return response.json();
-  },
-
-  // Mettre à jour un bâtiment
-  async updateBatiment(id: number, batimentData: any): Promise<any> {
-    const response = await fetch(buildApiUrl(`/admin/batiments/${id}`), {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(batimentData)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la mise à jour du bâtiment');
-    return response.json();
-  },
-
-  // Supprimer un bâtiment
-  async deleteBatiment(id: number): Promise<any> {
-    const response = await fetch(buildApiUrl(`/admin/batiments/${id}`), {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la suppression du bâtiment');
-    return response.json();
-  },
-
-  // ===== GESTION DES ANNÉES SCOLAIRES =====
-  
-  // Récupérer toutes les années scolaires
-  async getAnneesScolaires(): Promise<any> {
-    const response = await fetch(buildApiUrl('/admin/annees-scolaires'), {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la récupération des années scolaires');
-    return response.json();
-  },
-
-  // ===== TRANSFERT D'ÉLÈVES =====
-  
-  // Transférer des élèves entre classes
-  async transfererEleves(classeId: number, reglesTransfert: any): Promise<any> {
-    const response = await fetch(buildApiUrl(`/admin/classes/${classeId}/transferer-eleves`), {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(reglesTransfert)
-    });
-    if (!response.ok) throw new Error('Erreur lors du transfert des élèves');
-    return response.json();
-  },
-
-  // ===== DASHBOARD ET ANALYTICS =====
-  
-  // Récupérer les statistiques du dashboard
-  async getDashboardStats(): Promise<any> {
-    const response = await fetch(buildApiUrl('/admin/dashboard'), {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la récupération des statistiques');
-    return response.json();
-  },
-
-  // Récupérer les analytics
-  async getAnalytics(params?: any): Promise<any> {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) queryParams.append(key, value.toString());
-      });
-    }
-
-    const response = await fetch(buildApiUrl(`/admin/analytics?${queryParams}`), {
-      headers: getAuthHeaders()
-    });
-    if (!response.ok) throw new Error('Erreur lors de la récupération des analytics');
-    return response.json();
-  },
-
-  // ===== GESTION DES RÈGLES DE TRANSFERT =====
-  
-  // Récupérer les règles de transfert globales
-  async getReglesTransfert(): Promise<any> {
-    try {
-      const response = await fetch(buildApiUrl('/admin/regles-transfert'), {
-        headers: getAuthHeaders()
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur lors de la récupération des règles de transfert: ${response.status}`);
-      }
-      
       return await response.json();
     } catch (error) {
-      console.error('Erreur dans getReglesTransfert:', error);
+      console.error('Erreur lors de la création de l\'utilisateur:', error);
       throw error;
     }
   },
 
-  // Récupérer toutes les règles de transfert (pour l'admin)
-  async getAllReglesTransfert(): Promise<any> {
+  async updateUser(userId: number, userData: any) {
     try {
-      const response = await fetch(buildApiUrl('/admin/regles-transfert/all'), {
-        headers: getAuthHeaders()
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur lors de la récupération de toutes les règles de transfert: ${response.status}`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Erreur dans getAllReglesTransfert:', error);
-      throw error;
-    }
-  },
-
-  // Mettre à jour les règles de transfert
-  async updateReglesTransfert(reglesData: any): Promise<any> {
-    try {
-      const response = await fetch(buildApiUrl('/admin/regles-transfert'), {
+      const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(reglesData)
+        body: JSON.stringify(userData)
       });
-      
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Erreur lors de la mise à jour des règles de transfert: ${response.status} - ${JSON.stringify(errorData)}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
-      console.error('Erreur dans updateReglesTransfert:', error);
+      console.error('Erreur lors de la mise à jour de l\'utilisateur:', error);
       throw error;
     }
   },
 
-  // Récupérer les règles pour un niveau spécifique
-  async getReglesTransfertByNiveau(niveauSource: string): Promise<any> {
+  async deleteUser(userId: number) {
     try {
-      const response = await fetch(buildApiUrl(`/admin/regles-transfert/${encodeURIComponent(niveauSource)}`), {
-        headers: getAuthHeaders()
+      const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
       });
-      
+
       if (!response.ok) {
-        throw new Error(`Erreur lors de la récupération des règles pour le niveau ${niveauSource}: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       return await response.json();
     } catch (error) {
-      console.error('Erreur dans getReglesTransfertByNiveau:', error);
+      console.error('Erreur lors de la suppression de l\'utilisateur:', error);
       throw error;
     }
   },
 
-  // ===== GESTION DES ANALYTICS =====
+  async getClasses(): Promise<ApiResponse<any[]>> {
+    return safeApiCall(
+      () => fetch(`${API_BASE_URL}/admin/classes`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }),
+      [],
+      'Classes récupérées avec succès'
+    );
+  },
+
+  async createClasse(classeData: any) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/classes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(classeData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la création de la classe:', error);
+      throw error;
+    }
+  },
+
+  async updateClasse(classeId: number, classeData: any) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/classes/${classeId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(classeData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la classe:', error);
+      throw error;
+    }
+  },
+
+  async deleteClasse(classeId: number) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/classes/${classeId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la classe:', error);
+      throw error;
+    }
+  },
+
+  async transfererEleve(eleveId: number, classeDestination: number) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/eleves/${eleveId}/transfer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ classe_destination: classeDestination })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors du transfert de l\'élève:', error);
+      throw error;
+    }
+  },
+
+  async transfererElevesAutomatiquement(classeId: number) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/classes/${classeId}/transfer-eleves`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors du transfert automatique des élèves:', error);
+      throw error;
+    }
+  },
+
+  async confirmerTransfertAutomatique() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/transfer-confirmation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la confirmation du transfert automatique:', error);
+      throw error;
+    }
+  },
+
+  async saveReglesTransfert(regles: ReglesTransfert) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/regles-transfert`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(regles)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde des règles de transfert:', error);
+      throw error;
+    }
+  },
+
+  async evolutionAnneeScolaire() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/evolution-annee`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de l\'évolution d\'année scolaire:', error);
+      throw error;
+    }
+  },
+
+  async updateAnneeScolaire(anneeId: number, data: any) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/annees-scolaires/${anneeId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de l\'année scolaire:', error);
+      throw error;
+    }
+  },
+
+  async getAnneesScolaires(): Promise<ApiResponse<any[]>> {
+    return safeApiCall(
+      () => fetch(`${API_BASE_URL}/admin/annees-scolaires`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }),
+      [],
+      'Années scolaires récupérées avec succès'
+    );
+  },
+
+  async getNiveaux(): Promise<ApiResponse<any[]>> {
+    return safeApiCall(
+      () => fetch(`${API_BASE_URL}/admin/niveaux`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }),
+      [],
+      'Niveaux récupérés avec succès'
+    );
+  },
+
+  async getReglesTransfert() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/regles-transfert`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        data: data?.data || data || {},
+        message: data?.message || 'Règles de transfert récupérées avec succès'
+      };
+    } catch (error) {
+      console.error('Erreur lors de la récupération des règles de transfert:', error);
+      return {
+        success: false,
+        data: {},
+        message: error instanceof Error ? error.message : 'Erreur inconnue'
+      };
+    }
+  },
+
+  // Méthodes manquantes ajoutées
+  async getCours(): Promise<ApiResponse<any[]>> {
+    return safeApiCall(
+      () => fetch(`${API_BASE_URL}/admin/cours`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }),
+      [],
+      'Cours récupérés avec succès'
+    );
+  },
+
+  async getMatieres(): Promise<ApiResponse<any[]>> {
+    return safeApiCall(
+      () => fetch(`${API_BASE_URL}/admin/matieres`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }),
+      [],
+      'Matières récupérées avec succès'
+    );
+  },
+
+  async getSalles(): Promise<ApiResponse<any[]>> {
+    return safeApiCall(
+      () => fetch(`${API_BASE_URL}/admin/salles`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }),
+      [],
+      'Salles récupérées avec succès'
+    );
+  },
+
+  async createSalle(salleData: any) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/salles`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(salleData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la création de la salle:', error);
+      throw error;
+    }
+  },
+
+  async updateSalle(salleId: number, salleData: any) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/salles/${salleId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(salleData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la salle:', error);
+      throw error;
+    }
+  },
+
+  async deleteSalle(salleId: number) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/salles/${salleId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la suppression de la salle:', error);
+      throw error;
+    }
+  },
+
+  async createBatiment(batimentData: any) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/batiments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(batimentData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la création du bâtiment:', error);
+      throw error;
+    }
+  },
+
+  async updateBatiment(batimentId: number, batimentData: any) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/batiments/${batimentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(batimentData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du bâtiment:', error);
+      throw error;
+    }
+  },
+
+  async deleteBatiment(batimentId: number) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/batiments/${batimentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la suppression du bâtiment:', error);
+      throw error;
+    }
+  },
+
+  async createNiveau(niveauData: any) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/niveaux`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(niveauData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la création du niveau:', error);
+      throw error;
+    }
+  },
+
+  async updateNiveau(niveauId: number, niveauData: any) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/niveaux/${niveauId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(niveauData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du niveau:', error);
+      throw error;
+    }
+  },
+
+  async deleteNiveau(niveauId: number) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/niveaux/${niveauId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la suppression du niveau:', error);
+      throw error;
+    }
+  },
+
+  // Cours methods
+  async createCours(coursData: any) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/cours`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(coursData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la création du cours:', error);
+      throw error;
+    }
+  },
+
+  async updateCours(coursId: number, coursData: any) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/cours/${coursId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(coursData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du cours:', error);
+      throw error;
+    }
+  },
+
+  async deleteCours(coursId: number) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/cours/${coursId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erreur lors de la suppression du cours:', error);
+      throw error;
+    }
+  },
+
+  // Batiment methods
+  async getBatiments(): Promise<ApiResponse<any[]>> {
+    return safeApiCall(
+      () => fetch(`${API_BASE_URL}/admin/batiments`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }),
+      [],
+      'Bâtiments récupérés avec succès'
+    );
+  }
 }; 

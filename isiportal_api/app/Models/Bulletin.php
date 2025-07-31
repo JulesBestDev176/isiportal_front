@@ -12,7 +12,7 @@ class Bulletin extends Model
 
     protected $fillable = [
         'eleve_id',
-        'annee_scolaire',
+        'annee_scolaire_id',
         'semestre',
         'moyenne',
         'matieres',
@@ -34,6 +34,14 @@ class Bulletin extends Model
     public function eleve(): BelongsTo
     {
         return $this->belongsTo(User::class, 'eleve_id');
+    }
+
+    /**
+     * Relation avec l'année scolaire
+     */
+    public function anneeScolaire(): BelongsTo
+    {
+        return $this->belongsTo(AnneeScolaire::class, 'annee_scolaire_id');
     }
 
     /**
@@ -113,9 +121,9 @@ class Bulletin extends Model
     /**
      * Scope pour filtrer par année scolaire
      */
-    public function scopeParAnneeScolaire($query, $anneeScolaire)
+    public function scopeParAnneeScolaire($query, $anneeScolaireId)
     {
-        return $query->where('annee_scolaire', $anneeScolaire);
+        return $query->where('annee_scolaire_id', $anneeScolaireId);
     }
 
     /**

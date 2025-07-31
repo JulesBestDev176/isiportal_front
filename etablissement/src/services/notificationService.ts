@@ -1,172 +1,83 @@
-// Service pour la gestion des notifications
-import { Notification } from '../models/communication.model';
+import { apiClient } from './config';
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: string;
+export interface NotificationData {
+  id: string;
+  titre: string;
+  contenu: string;
+  type: 'info' | 'warning' | 'error' | 'success' | 'system';
+  priorite: 'basse' | 'normale' | 'haute' | 'urgente';
+  destinataire_id?: number;
+  destinataire_roles?: string[];
+  expediteur_id?: number;
+  lue: boolean;
+  date_lecture?: string;
+  date_envoi: string;
+  date_creation: string;
+  est_envoyee?: boolean;
+  expediteur?: {
+    nom: string;
+    prenom: string;
+  };
 }
 
-export interface NotificationFilters {
-  userId?: number;
-  type?: string;
-  read?: boolean;
-  dateFrom?: string;
-  dateTo?: string;
+export interface CreateNotificationData {
+  titre: string;
+  contenu: string;
+  type: 'info' | 'warning' | 'error' | 'success' | 'system';
+  priorite: 'basse' | 'normale' | 'haute' | 'urgente';
+  destinataire_roles: string[];
 }
 
-export class NotificationService {
-  private baseUrl: string;
-
-  constructor(baseUrl: string = '/api/notifications') {
-    this.baseUrl = baseUrl;
-  }
-
-  /**
-   * Récupère toutes les notifications d'un utilisateur
-   */
-  async getNotifications(userId: number, filters?: NotificationFilters): Promise<ApiResponse<Notification[]>> {
+class NotificationService {
+  async getNotifications(): Promise<NotificationData[]> {
     try {
-      const queryParams = new URLSearchParams({
-        userId: userId.toString(),
-        ...(filters?.type && { type: filters.type }),
-        ...(filters?.read !== undefined && { read: filters.read.toString() }),
-        ...(filters?.dateFrom && { dateFrom: filters.dateFrom }),
-        ...(filters?.dateTo && { dateTo: filters.dateTo })
-      });
-
-      const response = await fetch(`${this.baseUrl}?${queryParams}`);
-      const data = await response.json();
-      return data;
+      const response = await apiClient.get('/notifications');
+      return response.data.data || [];
     } catch (error) {
-      return {
-        success: false,
-        error: 'Erreur lors de la récupération des notifications'
-      };
+      console.error('Erreur lors de la récupération des notifications:', error);
+      return [];
     }
   }
 
-  /**
-   * Marque une notification comme lue
-   */
-  async markAsRead(notificationId: number): Promise<ApiResponse<Notification>> {
+  async createNotification(data: CreateNotificationData): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/${notificationId}/read`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      const data = await response.json();
-      return data;
+      const response = await apiClient.post('/notifications', data);
+      return { success: true, data: response.data };
     } catch (error) {
-      return {
-        success: false,
-        error: 'Erreur lors du marquage de la notification'
-      };
+      console.error('Erreur lors de la création de la notification:', error);
+      return { success: false, error };
     }
   }
 
-  /**
-   * Marque toutes les notifications d'un utilisateur comme lues
-   */
-  async markAllAsRead(userId: number): Promise<ApiResponse<void>> {
+  async markAsRead(id: string): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/mark-all-read`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId })
-      });
-      const data = await response.json();
-      return data;
+      await apiClient.patch(`/notifications/${id}/read`);
+      return true;
     } catch (error) {
-      return {
-        success: false,
-        error: 'Erreur lors du marquage de toutes les notifications'
-      };
+      console.error('Erreur lors du marquage comme lu:', error);
+      return false;
     }
   }
 
-  /**
-   * Supprime une notification
-   */
-  async deleteNotification(notificationId: number): Promise<ApiResponse<void>> {
+  async deleteNotification(id: string): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/${notificationId}`, {
-        method: 'DELETE',
-      });
-      const data = await response.json();
-      return data;
+      await apiClient.delete(`/notifications/${id}`);
+      return true;
     } catch (error) {
-      return {
-        success: false,
-        error: 'Erreur lors de la suppression de la notification'
-      };
+      console.error('Erreur lors de la suppression:', error);
+      return false;
     }
   }
 
-  /**
-   * Supprime toutes les notifications lues d'un utilisateur
-   */
-  async deleteReadNotifications(userId: number): Promise<ApiResponse<void>> {
+  async getSentNotifications(): Promise<NotificationData[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/delete-read`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId })
-      });
-      const data = await response.json();
-      return data;
+      const response = await apiClient.get('/notifications/sent');
+      return response.data.data || [];
     } catch (error) {
-      return {
-        success: false,
-        error: 'Erreur lors de la suppression des notifications lues'
-      };
-    }
-  }
-
-  /**
-   * Crée une nouvelle notification
-   */
-  async createNotification(notification: Omit<Notification, 'id' | 'dateCreation'>): Promise<ApiResponse<Notification>> {
-    try {
-      const response = await fetch(`${this.baseUrl}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(notification),
-      });
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      return {
-        success: false,
-        error: 'Erreur lors de la création de la notification'
-      };
-    }
-  }
-
-  /**
-   * Récupère le nombre de notifications non lues
-   */
-  async getUnreadCount(userId: number): Promise<ApiResponse<number>> {
-    try {
-      const response = await fetch(`${this.baseUrl}/unread-count/${userId}`);
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      return {
-        success: false,
-        error: 'Erreur lors de la récupération du nombre de notifications'
-      };
+      console.error('Erreur lors de la récupération des notifications envoyées:', error);
+      return [];
     }
   }
 }
 
-export const notificationService = new NotificationService(); 
+export const notificationService = new NotificationService();

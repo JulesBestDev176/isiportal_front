@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test API ISIPortal</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        button { margin: 5px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Test API ISIPortal</h1>
+    
+    <button onclick="testCors()">Test CORS</button>
+    <button onclick="testBasic()">Test Basic API</button>
+    <button onclick="testEleves()">Test Élèves</button>
+    <button onclick="testNotes()">Test Notes</button>
+    <button onclick="createSampleData()">Créer données test</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000/api';
+        
+        function addResult(message, isSuccess = true) {
+            const div = document.createElement('div');
+            div.className = `test-result ${isSuccess ? 'success' : 'error'}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        async function testCors() {
+            try {
+                const response = await fetch(`${API_BASE}/test/cors-check`);
+                const data = await response.json();
+                addResult(`CORS OK: ${data.message}`, true);
+            } catch (error) {
+                addResult(`CORS Error: ${error.message}`, false);
+            }
+        }
+        
+        async function testBasic() {
+            try {
+                const response = await fetch(`${API_BASE}/test`);
+                const data = await response.json();
+                addResult(`API Basic OK: ${JSON.stringify(data.data)}`, true);
+            } catch (error) {
+                addResult(`API Basic Error: ${error.message}`, false);
+            }
+        }
+        
+        async function testEleves() {
+            try {
+                const response = await fetch(`${API_BASE}/test/eleves-list`);
+                const data = await response.json();
+                addResult(`Élèves OK: ${data.count} élèves trouvés`, true);
+            } catch (error) {
+                addResult(`Élèves Error: ${error.message}`, false);
+            }
+        }
+        
+        async function testNotes() {
+            try {
+                const response = await fetch(`${API_BASE}/test/notes-simple/1`);
+                const data = await response.json();
+                addResult(`Notes OK: ${data.count} notes trouvées pour élève 1`, true);
+            } catch (error) {
+                addResult(`Notes Error: ${error.message}`, false);
+            }
+        }
+        
+        async function createSampleData() {
+            try {
+                const response = await fetch(`${API_BASE}/test/create-sample-data`);
+                const data = await response.json();
+                addResult(`Données créées: ${data.message}`, data.success);
+            } catch (error) {
+                addResult(`Création données Error: ${error.message}`, false);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -9,6 +9,8 @@ use App\Models\MatiereNiveau;
 use App\Http\Responses\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 class MatiereController extends Controller
 {
@@ -132,22 +134,38 @@ class MatiereController extends Controller
     }
 
     /**
-     * Récupère les matières par niveau
+     * Récupérer les matières par niveau
      */
-    public function getMatieresByNiveau($niveauId)
+    public function getMatieresByNiveau($niveauId): JsonResponse
     {
         try {
-            $matieres = Matiere::whereHas('niveaux', function ($query) use ($niveauId) {
-                $query->where('niveaux.id', $niveauId);
-            })
-            ->with(['niveaux' => function ($query) use ($niveauId) {
-                $query->where('niveaux.id', $niveauId);
-            }])
-            ->get();
+            $matieres = Matiere::whereJsonContains('niveaux_ids', (int)$niveauId)
+                ->where('statut', 'active')
+                ->orderBy('nom')
+                ->get()
+                ->map(function($matiere) {
+                    return [
+                        'id' => $matiere->id,
+                        'nom' => $matiere->nom,
+                        'code' => $matiere->code,
+                        'description' => $matiere->description,
+                        'couleur' => $matiere->couleur,
+                        'statut' => $matiere->statut,
+                        'coefficient' => $matiere->coefficient,
+                        'heures_par_semaine' => $matiere->heures_par_semaine
+                    ];
+                });
 
-            return $this->successResponse($matieres, 'Matières du niveau récupérées avec succès');
+            return response()->json([
+                'success' => true,
+                'message' => 'Matières du niveau récupérées',
+                'data' => $matieres
+            ]);
         } catch (\Exception $e) {
-            return $this->errorResponse('Erreur lors de la récupération des matières du niveau: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des matières'
+            ], 500);
         }
     }
 

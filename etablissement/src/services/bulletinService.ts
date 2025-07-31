@@ -1,101 +1,99 @@
-import { ApiResponse, PaginationParams, PaginatedResponse } from '../types/common.types';
-import { MatiereBulletin, BulletinSemestre } from '../models/classe.model';
+import { Bulletin } from '../models';
 
-export interface Bulletin {
-  id: number;
-  eleveId: number;
-  anneeScolaire: string;
-  semestre: number;
-  matieres: MatiereBulletin[];
-  moyenneGenerale: number;
-  rang?: number;
-  appreciation?: string;
-  dateCreation: string;
-}
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
 
-export interface BulletinSemestreData {
-  semestre: number;
-  matieres: MatiereBulletin[];
-  moyenneSemestre: number;
-  appreciation?: string;
-}
-
-// Service pour les bulletins
 export const bulletinService = {
-  // Récupérer tous les bulletins
-  async getBulletins(params?: PaginationParams): Promise<PaginatedResponse<Bulletin>> {
-    const queryParams = new URLSearchParams();
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) queryParams.append(key, value.toString());
+  async getBulletinsEleve(eleveId: number) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/bulletins/eleve/${eleveId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        const bulletins = data.data.map((bulletin: any) => ({
+          id: bulletin.id,
+          eleve_id: bulletin.eleve_id,
+          annee_scolaire_id: bulletin.annee_scolaire_id,
+          semestre: bulletin.semestre,
+          moyenne_generale: bulletin.moyenne_generale,
+          appreciation: bulletin.appreciation,
+          notes: bulletin.notes || [],
+          moyenne_calculee: bulletin.moyenne_calculee || 0
+        }));
+        
+        return bulletins;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Erreur lors de la récupération des bulletins:', error);
+      return [];
+    }
+  },
+
+  organiserBulletinsParAnnee(bulletins: Bulletin[], anneesScolaires: any[]) {
+    const bulletinsParAnnee: any[] = [];
+
+    if (bulletins.length === 0) {
+      return bulletinsParAnnee;
     }
 
-    const response = await fetch(`/api/bulletins?${queryParams}`);
-    if (!response.ok) throw new Error('Erreur lors de la récupération des bulletins');
-    return response.json();
-  },
+    // Grouper les bulletins par année scolaire
+    const groupes = bulletins.reduce((acc, bulletin) => {
+      const anneeId = bulletin.anneeScolaireId || (bulletin as any).annee_scolaire_id;
+      if (!acc[anneeId]) {
+        acc[anneeId] = [];
+      }
+      acc[anneeId].push(bulletin);
+      return acc;
+    }, {} as Record<number, Bulletin[]>);
 
-  // Récupérer un bulletin par ID
-  async getBulletin(id: number): Promise<ApiResponse<Bulletin>> {
-    const response = await fetch(`/api/bulletins/${id}`);
-    if (!response.ok) throw new Error('Erreur lors de la récupération du bulletin');
-    return response.json();
-  },
+    // Créer les objets pour chaque année scolaire
+    Object.keys(groupes).forEach(anneeId => {
+      const anneeIdNum = parseInt(anneeId);
+      const bulletinsAnnee = groupes[anneeIdNum];
+      
+      // Trouver l'année scolaire correspondante
+      const anneeScolaire = anneesScolaires.find(a => a.id === anneeIdNum);
+      const anneeScolaireNom = anneeScolaire ? anneeScolaire.nom : `Année ${anneeIdNum}`;
+      const statut = anneeScolaire ? anneeScolaire.statut : 'terminee';
 
-  // Récupérer les bulletins d'un élève
-  async getBulletinsByEleve(eleveId: number): Promise<ApiResponse<Bulletin[]>> {
-    const response = await fetch(`/api/eleves/${eleveId}/bulletins`);
-    if (!response.ok) throw new Error('Erreur lors de la récupération des bulletins de l\'élève');
-    return response.json();
-  },
+      // Organiser par semestre
+      const bulletinsParSemestre = bulletinsAnnee.reduce((acc, bulletin) => {
+        const semestre = bulletin.semestre;
+        if (!acc[semestre]) {
+          acc[semestre] = [];
+        }
+        acc[semestre].push(bulletin);
+        return acc;
+      }, {} as Record<number, Bulletin[]>);
 
-  // Alias pour getBulletinsByEleve (pour compatibilité)
-  async getBulletinsEleve(eleveId: number): Promise<ApiResponse<Bulletin[]>> {
-    return this.getBulletinsByEleve(eleveId);
-  },
+      // Créer les objets pour chaque semestre
+      Object.keys(bulletinsParSemestre).forEach(semestreStr => {
+        const semestre = parseInt(semestreStr);
+        const bulletinsSemestre = bulletinsParSemestre[semestre];
 
-  // Récupérer les bulletins d'une classe
-  async getBulletinsByClasse(classeId: number, anneeScolaire?: string): Promise<ApiResponse<Bulletin[]>> {
-    const params = anneeScolaire ? `?annee_scolaire=${anneeScolaire}` : '';
-    const response = await fetch(`/api/classes/${classeId}/bulletins${params}`);
-    if (!response.ok) throw new Error('Erreur lors de la récupération des bulletins de la classe');
-    return response.json();
-  },
-
-  // Créer un bulletin
-  async createBulletin(data: Omit<Bulletin, 'id' | 'dateCreation'>): Promise<ApiResponse<Bulletin>> {
-    const response = await fetch('/api/bulletins', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+        bulletinsParAnnee.push({
+          anneeId: anneeIdNum,
+          anneeScolaireNom,
+          statut,
+          semestre,
+          bulletins: bulletinsSemestre
+        });
+      });
     });
-    if (!response.ok) throw new Error('Erreur lors de la création du bulletin');
-    return response.json();
-  },
 
-  // Mettre à jour un bulletin
-  async updateBulletin(id: number, data: Partial<Bulletin>): Promise<ApiResponse<Bulletin>> {
-    const response = await fetch(`/api/bulletins/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (!response.ok) throw new Error('Erreur lors de la mise à jour du bulletin');
-    return response.json();
-  },
-
-  // Supprimer un bulletin
-  async deleteBulletin(id: number): Promise<ApiResponse<void>> {
-    const response = await fetch(`/api/bulletins/${id}`, { method: 'DELETE' });
-    if (!response.ok) throw new Error('Erreur lors de la suppression du bulletin');
-    return response.json();
-  },
-
-  // Calculer la moyenne d'un bulletin
-  async calculateMoyenne(bulletinId: number): Promise<ApiResponse<{ moyenne: number }>> {
-    const response = await fetch(`/api/bulletins/${bulletinId}/calculate-moyenne`);
-    if (!response.ok) throw new Error('Erreur lors du calcul de la moyenne');
-    return response.json();
+    return bulletinsParAnnee;
   }
 }; 

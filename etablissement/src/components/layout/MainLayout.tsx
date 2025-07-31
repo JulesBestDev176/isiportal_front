@@ -47,10 +47,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const loadNotifications = async () => {
     try {
-      const response = await notificationService.getNotifications(utilisateur!.id);
-      if (response.success && response.data) {
-        setNotifications(response.data);
-      }
+      const notifications = await notificationService.getNotifications();
+      setNotifications(notifications);
     } catch (error) {
       console.error('Erreur lors du chargement des notifications:', error);
     }

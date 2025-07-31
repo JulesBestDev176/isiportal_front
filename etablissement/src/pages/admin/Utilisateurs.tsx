@@ -9,6 +9,7 @@ import {
   Info, Settings, BarChart3, Users2, Clock3, BookOpenCheck, CalendarCheck,
   EyeOff, Eye as EyeIcon, Lock, Unlock, Shield, ShieldOff
 } from "lucide-react";
+import { safeFilter } from '../../utils/searchHelpers';
 import { 
   Utilisateur, 
   Gestionnaire, 
@@ -1086,18 +1087,16 @@ const ListeUtilisateurs: React.FC<{
   const getSpecificInfo = (user: any) => {
     switch (user.role) {
       case "gestionnaire":
-        const sectionsLabels = user.sections?.map((sectionId: number) => {
-          const sectionMap: { [key: number]: string } = { 1: "Collège", 2: "Lycée" };
-          return sectionMap[sectionId] || "N/A";
-        }).join(", ") || "N/A";
-        return `Sections: ${sectionsLabels}`;
+        if (user.sections && Array.isArray(user.sections)) {
+          return `Sections: ${user.sections.join(", ")}`;
+        }
+        return "Sections: N/A";
       
       case "professeur":
-        const sectionsLabelsProf = user.sections?.map((sectionId: number) => {
-          const sectionMap: { [key: number]: string } = { 1: "Collège", 2: "Lycée" };
-          return sectionMap[sectionId] || "N/A";
-        }).join(", ") || "N/A";
-        return `Sections: ${sectionsLabelsProf}`;
+        if (user.sections && Array.isArray(user.sections)) {
+          return `Sections: ${user.sections.join(", ")}`;
+        }
+        return "Sections: N/A";
       
       case "eleve":
         return `Classe: ${user.classe?.nom || user.classe_id || "Non assignée"}`;
@@ -1489,19 +1488,46 @@ const Utilisateurs: React.FC = () => {
   const [niveaux, setNiveaux] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(false);
+  
+  // Missing state variables
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState<any>({
+    nom: '',
+    prenom: '',
+    email: '',
+    role: '',
+    classe_id: '',
+    enfants_ids: [],
+    parents_ids: []
+  });
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [userToDelete, setUserToDelete] = useState<any>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [classeOptimale, setClasseOptimale] = useState<any>(null);
+  const initialFormData = {
+    nom: '',
+    prenom: '',
+    email: '',
+    role: '',
+    classe_id: '',
+    enfants_ids: [],
+    parents_ids: []
+  };
+
+  const isAdmin = utilisateur?.role === "administrateur";
+  const isGestionnaire = utilisateur?.role === "gestionnaire";
 
   // Onglets disponibles selon les permissions
   const availableTabs = [
-    { id: "tous", label: "Tous", canAdd: true, icon: <Users className="w-4 h-4" /> },
-    { id: "gestionnaire", label: "Gestionnaires", canAdd: true, icon: <UserCheck className="w-4 h-4" /> },
-    { id: "professeur", label: "Professeurs", canAdd: true, icon: <GraduationCap className="w-4 h-4" /> },
-    { id: "eleve", label: "Élèves", canAdd: true, icon: <Baby className="w-4 h-4" /> },
-    { id: "parent", label: "Parents", canAdd: true, icon: <Heart className="w-4 h-4" /> }
+    { id: "tous", label: "Tous", canAdd: false, icon: <Users className="w-4 h-4" /> },
+    ...(isAdmin ? [{ id: "gestionnaire", label: "Gestionnaires", canAdd: true, icon: <UserCheck className="w-4 h-4" /> }] : []),
+    { id: "professeur", label: "Professeurs", canAdd: isAdmin, icon: <GraduationCap className="w-4 h-4" /> },
+    { id: "eleve", label: "Élèves", canAdd: isAdmin, icon: <Baby className="w-4 h-4" /> },
+    { id: "parent", label: "Parents", canAdd: isAdmin, icon: <Heart className="w-4 h-4" /> }
   ];
 
   const currentTab = availableTabs.find(tab => tab.id === activeRoleTab);
-  const isAdmin = utilisateur?.role === "administrateur";
-  const isGestionnaire = utilisateur?.role === "gestionnaire";
   const utilisateurConnecte = utilisateur;
 
   // Charger les données au montage
@@ -1520,34 +1546,16 @@ const Utilisateurs: React.FC = () => {
   }, [activeRoleTab]);
 
   const loadUtilisateurs = async () => {
-    console.log('=== DÉBUT loadUtilisateurs ===');
-    setLoading(true);
     try {
-      console.log('Appel de adminService.getUsers avec params:', { search: searchTerm });
+      setLoading(true);
+      // Utiliser per_page élevé pour récupérer tous les utilisateurs
+      const response = await adminService.getUsers({ search: searchTerm, per_page: 1000 });
       
-      const response = await adminService.getUsers({
-        search: searchTerm
-        // Ne pas spécifier de limite, le service chargera tous les utilisateurs par défaut
-      });
-      
-      console.log('Réponse API utilisateurs complète:', JSON.stringify(response, null, 2));
-      
-      if (response.success && response.data) {
-        // L'API retourne les utilisateurs directement dans response.data
-        const usersData = response.data;
-        console.log('Type de response.data:', typeof usersData);
-        console.log('Est-ce un array?', Array.isArray(usersData));
-        console.log('Nombre d\'utilisateurs reçus:', usersData?.length || 0);
-        
-        if (Array.isArray(usersData)) {
-          setUtilisateurs(usersData);
-          console.log('Utilisateurs définis avec succès:', usersData.length);
-        } else {
-          console.warn('Structure de données inattendue:', response.data);
-          setUtilisateurs([]);
-        }
+      if (response.success && Array.isArray(response.data)) {
+        console.log('Utilisateurs chargés:', response.data.length, 'rôles:', Array.from(new Set(response.data.map(u => u.role))));
+        setUtilisateurs(response.data);
       } else {
-        console.warn('Réponse API sans succès:', response);
+        console.error('Format de données inattendu:', response);
         setUtilisateurs([]);
       }
     } catch (error) {
@@ -1555,50 +1563,31 @@ const Utilisateurs: React.FC = () => {
       setUtilisateurs([]);
     } finally {
       setLoading(false);
-      console.log('=== FIN loadUtilisateurs ===');
     }
   };
 
-  // Méthode pour charger TOUS les utilisateurs sans limite (pour les cas spéciaux)
   const loadAllUsers = async () => {
-    console.log('=== DÉBUT loadAllUsers ===');
-    setLoading(true);
     try {
       const response = await adminService.getAllUsers();
+      const usersData = response.data || [];
       
-      console.log('Réponse API tous les utilisateurs:', JSON.stringify(response, null, 2));
-      
-      if (response.success && response.data) {
-        const usersData = response.data.data || response.data;
-        console.log('Nombre total d\'utilisateurs reçus:', usersData?.length || 0);
-        
-        if (Array.isArray(usersData)) {
-          setUtilisateurs(usersData);
-          console.log('Tous les utilisateurs définis avec succès:', usersData.length);
-        } else {
-          console.warn('Structure de données inattendue pour tous les utilisateurs:', response.data);
-          setUtilisateurs([]);
-        }
+      if (Array.isArray(usersData)) {
+        setUtilisateurs(usersData);
       } else {
-        console.warn('Réponse API sans succès pour tous les utilisateurs:', response);
+        console.error('Format de données inattendu pour tous les utilisateurs:', usersData);
         setUtilisateurs([]);
       }
     } catch (error) {
       console.error('Erreur lors du chargement de tous les utilisateurs:', error);
       setUtilisateurs([]);
-    } finally {
-      setLoading(false);
-      console.log('=== FIN loadAllUsers ===');
     }
   };
 
   const loadNotifications = async () => {
     if (utilisateur?.id) {
       try {
-        const response = await notificationService.getNotifications(utilisateur.id);
-        if (response.success && response.data) {
-          setNotifications(response.data);
-        }
+        const notifications = await notificationService.getNotifications();
+        setNotifications(notifications);
       } catch (error) {
         console.error('Erreur lors du chargement des notifications:', error);
       }
@@ -1609,11 +1598,7 @@ const Utilisateurs: React.FC = () => {
     try {
       const response = await adminService.getNiveaux();
       
-      if (response.success && response.data && response.data.data) {
-        // L'API retourne les niveaux dans response.data.data à cause de la pagination
-        setNiveaux(response.data.data);
-      } else if (response.success && response.data) {
-        // Fallback si pas de pagination
+      if (response.success && Array.isArray(response.data)) {
         setNiveaux(response.data);
       } else {
         console.warn('Réponse API sans succès:', response);
@@ -1625,96 +1610,173 @@ const Utilisateurs: React.FC = () => {
     }
   };
 
-  const loadClasses = async (niveauId: number, onClasseSelected?: (classeId: number) => void) => {
-    setLoadingClasses(true);
+  const loadClasses = async () => {
     try {
-      const response = await adminService.getClasses({ niveau_id: niveauId });
-      console.log('Response API classes:', response);
+      const response = await adminService.getClasses();
       
-      if (response.success && response.data) {
-        // L'API retourne directement les classes dans response.data (sans pagination)
+      if (response.success && Array.isArray(response.data)) {
         const classesData = response.data;
-        console.log('Classes reçues:', classesData);
-        setClasses(classesData);
         
-        // Trouver la classe avec le plus de place disponible
-        const classesDisponibles = classesData
-          .filter((classe: any) => {
-            console.log(`Classe ${classe.nom}: effectif_actuel=${classe.effectif_actuel}, effectif_max=${classe.effectif_max}`);
-            return classe.effectif_actuel < classe.effectif_max;
-          })
-          .sort((a: any, b: any) => (b.effectif_max - b.effectif_actuel) - (a.effectif_max - a.effectif_actuel));
+        // Filtrer les classes avec de la place disponible
+        const classesDisponibles = classesData.filter((classe: any) => 
+          classe.effectif_actuel < classe.effectif_max
+        );
         
-        console.log('Classes disponibles après filtrage:', classesDisponibles);
+        // Sélectionner la classe optimale (celle avec le plus de place)
+        const classeOptimale = classesDisponibles.reduce((prev: any, current: any) => {
+          const prevPlace = prev.effectif_max - prev.effectif_actuel;
+          const currentPlace = current.effectif_max - current.effectif_actuel;
+          return currentPlace > prevPlace ? current : prev;
+        }, classesDisponibles[0]);
         
-        if (classesDisponibles.length > 0 && onClasseSelected) {
-          // Sélectionner automatiquement la classe avec le plus de place
-          const classeOptimale = classesDisponibles[0];
-          console.log(`Classe sélectionnée automatiquement: ${classeOptimale.nom} (${classeOptimale.effectif_actuel}/${classeOptimale.effectif_max})`);
-          onClasseSelected(classeOptimale.id);
-        } else if (classesDisponibles.length === 0) {
-          console.warn('Aucune classe disponible pour ce niveau');
-          // Réinitialiser la classe sélectionnée
-          if (onClasseSelected) onClasseSelected(0);
-        }
+        setClasses(classesDisponibles);
+        setClasseOptimale(classeOptimale);
       } else {
-        console.warn('Réponse API invalide:', response);
         setClasses([]);
-        if (onClasseSelected) onClasseSelected(0);
+        setClasseOptimale(null);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des classes:', error);
       setClasses([]);
-      if (onClasseSelected) onClasseSelected(0);
-    } finally {
-      setLoadingClasses(false);
+      setClasseOptimale(null);
     }
   };
 
-  const handleCreateUtilisateur = async (utilisateur: Omit<Utilisateur, 'id' | 'dateCreation'>) => {
+  const handleCreateUser = async (userData: any) => {
     try {
-      const response = await adminService.createUser(utilisateur);
-      if (response.success) {
-        setModalOpen(false);
-        loadUtilisateurs(); // Recharger la liste
-        // Afficher une notification de succès
-        console.log('Utilisateur créé avec succès');
-      } else {
-        console.error('Erreur lors de la création:', response.error);
-      }
+      await adminService.createUser(userData);
+      loadUtilisateurs();
+      setShowModal(false);
+      setFormData(initialFormData);
     } catch (error) {
       console.error('Erreur lors de la création de l\'utilisateur:', error);
     }
   };
 
-  const handleUpdateUtilisateur = async (id: number, updates: Partial<Utilisateur>) => {
+  const handleUpdateUser = async (userData: any) => {
     try {
-      const response = await adminService.updateUser(id, updates);
-      if (response.success) {
-        setModalOpen(false);
-        setUtilisateurAModifier(null);
-        loadUtilisateurs(); // Recharger la liste
-        console.log('Utilisateur mis à jour avec succès');
-      } else {
-        console.error('Erreur lors de la mise à jour:', response.error);
-      }
+      await adminService.updateUser(userData.id, userData);
+      loadUtilisateurs();
+      setShowModal(false);
+      setFormData(initialFormData);
+      setEditingUser(null);
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'utilisateur:', error);
     }
   };
 
-  const handleDeleteUtilisateur = async (id: number) => {
+  const handleDeleteUser = async (userId: number) => {
     try {
-      const response = await adminService.deleteUser(id);
-      if (response.success) {
-        loadUtilisateurs(); // Recharger la liste
-        console.log('Utilisateur supprimé avec succès');
-      } else {
-        console.error('Erreur lors de la suppression:', response.error);
-      }
+      await adminService.deleteUser(userId);
+      loadUtilisateurs();
     } catch (error) {
       console.error('Erreur lors de la suppression de l\'utilisateur:', error);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const cleanData = {
+      ...formData,
+      enfants_ids: formData.enfants_ids.filter((id: any) => id !== ''),
+      parents_ids: formData.parents_ids.filter((id: any) => id !== '')
+    };
+
+    try {
+      if (editingUser) {
+        await adminService.updateUser(editingUser.id, cleanData);
+      } else {
+        await adminService.createUser(cleanData);
+      }
+      
+      setShowModal(false);
+      setFormData(initialFormData);
+      setEditingUser(null);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde de l\'utilisateur:', error);
+    }
+  };
+
+  const handleEdit = (user: Utilisateur) => {
+    setEditingUser(user);
+    setFormData({
+      nom: user.nom,
+      prenom: user.prenom,
+      email: user.email,
+      role: user.role,
+      classe_id: (user as any).classe_id || '',
+      enfants_ids: (user as any).enfants_ids || [],
+      parents_ids: (user as any).parents_ids || []
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = (user: Utilisateur) => {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (userToDelete) {
+      await handleDeleteUser(userToDelete.id);
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+    }
+  };
+
+  const getEnfantsDisponibles = () => {
+    if (!allUsers || !editingUser) return [];
+    
+    return allUsers.filter(user => 
+      user.role === 'eleve' && 
+      !editingUser.enfants_ids?.includes(user.id)
+    );
+  };
+
+  const getParentsDisponibles = () => {
+    if (!allUsers || !editingUser) return [];
+    
+    return allUsers.filter(user => 
+      user.role === 'parent' && 
+      !editingUser.parents_ids?.includes(user.id)
+    );
+  };
+
+  const shouldIncludeEleve = (eleve: any) => {
+    if (!editingUser) return true;
+    
+    // Si l'élève est déjà assigné au parent en cours d'édition, l'inclure
+    if (editingUser.enfants_ids?.includes(eleve.id)) {
+      return true;
+    }
+    
+    // Compter combien de parents cet élève a déjà
+    const nombreParents = allUsers.filter((u: any) => 
+      u.role === 'parent' && u.enfants_ids?.includes(eleve.id)
+    ).length;
+    
+    // Inclure si l'élève a moins de 2 parents
+    const shouldInclude = nombreParents < 2;
+    return shouldInclude;
+  };
+
+  const getElevesDisponibles = () => {
+    if (!allUsers) return [];
+    
+    return allUsers.filter(user => 
+      user.role === 'eleve' && 
+      shouldIncludeEleve(user)
+    );
+  };
+
+  const getParentsDisponiblesPourEleve = () => {
+    if (!allUsers || !editingUser) return [];
+    
+    return allUsers.filter(user => 
+      user.role === 'parent' && 
+      user.enfants_ids?.length < 2
+    );
   };
 
   const handleToggleStatus = async (id: number, actif: boolean) => {
@@ -1822,15 +1884,19 @@ const Utilisateurs: React.FC = () => {
 
   // Liste filtrée
   const liste = utilisateurs;
-  const filteredListe = liste.filter((u: Utilisateur) => {
-    const matchSearch = !searchTerm || 
-      u.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredListe = safeFilter(
+    liste,
+    searchTerm,
+    (u: Utilisateur) => [u.nom, u.prenom, u.email]
+  ).filter((u: Utilisateur) => {
     const matchRole = activeRoleTab === "tous" || u.role === activeRoleTab;
     const matchStatut = !filterStatut || (u.actif ? "actif" : "inactif") === filterStatut;
+    // Les gestionnaires ne peuvent pas voir d'autres gestionnaires
+    const canViewRole = isAdmin || u.role !== "gestionnaire";
     
-    return matchSearch && matchRole && matchStatut;
+
+    
+    return matchRole && matchStatut && canViewRole;
   });
 
   // Debug: afficher les informations de débogage
@@ -2016,7 +2082,7 @@ const Utilisateurs: React.FC = () => {
             niveaux={niveaux}
             classes={classes}
             loadingClasses={loadingClasses}
-            onNiveauChange={(niveauId, onClasseSelected) => loadClasses(niveauId, onClasseSelected)}
+            onNiveauChange={(niveauId, onClasseSelected) => loadClasses()}
           />
         </Modal>
 

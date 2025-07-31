@@ -1,55 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  MetriqueKPI, 
-  DonneesTendance, 
-  PerformanceClasse, 
-  ActiviteUtilisateur, 
-  StatistiqueRole 
-} from '../../models/analytics.model';
-import { adminService } from '../../services/adminService';
-import { notificationService } from '../../services/notificationService';
-import { useAuth } from '../../contexts/ContexteAuth';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  AreaChart,
-  Area
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, PieChart, Pie, Cell, Area, AreaChart, ComposedChart,
+  PieChart as RechartsPieChart
 } from 'recharts';
 import { 
-  TrendingUp, 
-  TrendingDown,
-  Users, 
-  UserCheck,
-  MessageSquare,
-  BookOpen, 
-  GraduationCap, 
-  Calendar,
-  Activity,
-  Target,
-  Award,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Eye,
-  Download,
-  Filter,
-  RefreshCw
+  TrendingUp, TrendingDown, Users, BookOpen, 
+  Calendar, Award, Target, Activity, UserCheck, MessageSquare, 
+  Clock, ArrowUpRight, ArrowDownRight, School, RefreshCw, Download,
+  Bell, CheckCircle, AlertTriangle
 } from 'lucide-react';
-import MainLayout from "../../components/layout/MainLayout";
 import { motion } from 'framer-motion';
+import { useAuth } from '../../contexts/ContexteAuth';
+import MainLayout from "../../components/layout/MainLayout";
 
-// Données pour les graphiques
+// Types pour les données analytiques
+interface MetriqueKPI {
+  label: string;
+  valeur: number;
+  unite: string;
+  tendance: number;
+  icone: React.ReactNode;
+  couleur: string;
+  description?: string;
+}
+
+interface DonneesTendance {
+  periode: string;
+  eleves: number;
+  professeurs: number;
+  connexions: number;
+  messages: number;
+}
+
+interface PerformanceClasse {
+  nom: string;
+  niveau: string;
+  effectif: number;
+  moyenne: number;
+  tauxPresence: number;
+  progression: number;
+}
+
+interface ActiviteUtilisateur {
+  date: string;
+  connexions: number;
+  messages: number;
+  activites: number;
+}
+
+interface StatistiqueRole {
+  role: string;
+  nombre: number;
+  actifs: number;
+  couleur: string;
+}
+
+// Données mockées pour la démo
 const kpiData: MetriqueKPI[] = [
   {
     label: "Élèves actifs",
@@ -161,9 +168,9 @@ const KPICard: React.FC<{ metrique: MetriqueKPI; delay: number }> = ({ metrique,
           estPositif ? 'text-green-600' : 'text-red-600'
         }`}>
           {estPositif ? (
-            <TrendingUp className="w-4 h-4" />
+            <ArrowUpRight className="w-4 h-4" />
           ) : (
-            <TrendingDown className="w-4 h-4" />
+            <ArrowDownRight className="w-4 h-4" />
           )}
           {Math.abs(metrique.tendance)}%
         </div>
@@ -224,7 +231,7 @@ const GraphiqueTendance: React.FC = () => {
 
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={tendanceData}>
+          <AreaChart data={tendanceData}>
             <defs>
               <linearGradient id="colorMetrique" x1="0" y1="0" x2="0" y2="1">
                 <stop 
@@ -257,8 +264,15 @@ const GraphiqueTendance: React.FC = () => {
                 boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
               }}
             />
-            <Bar dataKey={metriqueActive} fill={metriques.find(m => m.key === metriqueActive)?.couleur} radius={[4, 4, 0, 0]} />
-          </BarChart>
+            <Area
+              type="monotone"
+              dataKey={metriqueActive}
+              stroke={metriques.find(m => m.key === metriqueActive)?.couleur}
+              strokeWidth={3}
+              fillOpacity={1}
+              fill="url(#colorMetrique)"
+            />
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </motion.div>
@@ -293,7 +307,7 @@ const PerformanceClasses: React.FC = () => {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-primary-100 rounded-lg flex items-center justify-center">
-                  <Users className="w-5 h-5 text-primary-600" />
+                  <School className="w-5 h-5 text-primary-600" />
                 </div>
                 <div>
                   <h4 className="font-medium text-neutral-900">{classe.nom}</h4>
@@ -359,7 +373,7 @@ const ActiviteHebdomadaire: React.FC = () => {
 
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={activiteData}>
+          <ComposedChart data={activiteData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis 
               dataKey="date" 
@@ -378,13 +392,7 @@ const ActiviteHebdomadaire: React.FC = () => {
                 boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
               }}
             />
-            <Line 
-              type="monotone" 
-              dataKey="connexions" 
-              stroke="#3b82f6" 
-              strokeWidth={3}
-              dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-            />
+            <Bar dataKey="connexions" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             <Line 
               type="monotone" 
               dataKey="messages" 
@@ -399,7 +407,7 @@ const ActiviteHebdomadaire: React.FC = () => {
               strokeWidth={3}
               dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
             />
-          </LineChart>
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </motion.div>
@@ -425,7 +433,7 @@ const RepartitionRoles: React.FC = () => {
       <div className="flex items-center justify-center mb-6">
         <div className="w-48 h-48">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+            <RechartsPieChart>
               <Pie
                 data={roleData}
                 cx="50%"
@@ -447,7 +455,7 @@ const RepartitionRoles: React.FC = () => {
                   boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                 }}
               />
-            </PieChart>
+            </RechartsPieChart>
           </ResponsiveContainer>
         </div>
       </div>
@@ -476,72 +484,21 @@ const RepartitionRoles: React.FC = () => {
 // Composant principal
 const Analytics: React.FC = () => {
   const { utilisateur } = useAuth();
-  const [kpis, setKpis] = useState<MetriqueKPI[]>([]);
-  const [tendances, setTendances] = useState<DonneesTendance[]>([]);
-  const [performanceClasses, setPerformanceClasses] = useState<PerformanceClasse[]>([]);
-  const [activiteData, setActiviteData] = useState<ActiviteUtilisateur[]>([]);
-  const [roleData, setRoleData] = useState<StatistiqueRole[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [selectedPeriod, setSelectedPeriod] = useState("30j");
   const [loading, setLoading] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("7j");
-
-  // Charger les données au montage du composant
-  useEffect(() => {
-    loadDashboardData();
-    loadNotifications();
-  }, []);
-
-  const loadDashboardData = async () => {
-    setLoading(true);
-    try {
-      // Charger les statistiques du dashboard
-      const statsResponse = await adminService.getDashboardStats();
-      if (statsResponse.success && statsResponse.data) {
-        setKpis(statsResponse.data.kpis || []);
-        setTendances(statsResponse.data.tendances || []);
-        setPerformanceClasses(statsResponse.data.performanceClasses || []);
-        setActiviteData(statsResponse.data.activiteData || []);
-        setRoleData(statsResponse.data.roleData || []);
-      }
-
-      // Charger les analytics détaillées
-      const analyticsResponse = await adminService.getAnalytics();
-      if (analyticsResponse.success && analyticsResponse.data) {
-        // Mettre à jour les données si nécessaire
-        if (analyticsResponse.data.kpis) setKpis(analyticsResponse.data.kpis);
-        if (analyticsResponse.data.tendances) setTendances(analyticsResponse.data.tendances);
-        if (analyticsResponse.data.performanceClasses) setPerformanceClasses(analyticsResponse.data.performanceClasses);
-        if (analyticsResponse.data.activiteData) setActiviteData(analyticsResponse.data.activiteData);
-        if (analyticsResponse.data.roleData) setRoleData(analyticsResponse.data.roleData);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des données:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadNotifications = async () => {
-    if (utilisateur?.id) {
-      try {
-        const response = await notificationService.getNotifications(utilisateur.id);
-        if (response.success && response.data) {
-          setNotifications(response.data);
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des notifications:', error);
-      }
-    }
-  };
 
   const handleExport = () => {
-    // Logique d'export des données
-    console.log('Export des données analytics...');
+    setLoading(true);
+    // Simulation d'export
+    setTimeout(() => {
+      setLoading(false);
+      // Ici vous implémenteriez l'export réel
+    }, 2000);
   };
 
-  const handleRefresh = async () => {
-    await loadDashboardData();
-    await loadNotifications();
+  const handleRefresh = () => {
+    setLoading(true);
+    setTimeout(() => setLoading(false), 1000);
   };
 
   if (!utilisateur) {
@@ -560,14 +517,12 @@ const Analytics: React.FC = () => {
   return (
     <MainLayout>
       <div className="space-y-6">
-        {/* En-tête avec filtres et actions */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        {/* En-tête */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-neutral-900">
-              Tableau de bord
-            </h1>
+            <h1 className="text-2xl font-bold text-neutral-900">Analytics & Statistiques</h1>
             <p className="text-neutral-600 mt-1">
-              Vue d'ensemble de l'activité et des performances
+              Tableau de bord analytique de l'établissement
             </p>
           </div>
           
@@ -632,13 +587,13 @@ const Analytics: React.FC = () => {
           className="bg-white rounded-lg border border-neutral-200 p-6"
         >
           <h3 className="text-lg font-semibold text-neutral-900 mb-6 flex items-center gap-2">
-            <Users className="w-5 h-5" />
+            <Bell className="w-5 h-5" />
             Alertes et recommandations
           </h3>
           
           <div className="space-y-4">
             <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <UserCheck className="w-5 h-5 text-green-600 mt-0.5" />
+              <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
               <div>
                 <h4 className="font-medium text-green-900">Excellente performance</h4>
                 <p className="text-sm text-green-700 mt-1">
@@ -648,7 +603,7 @@ const Analytics: React.FC = () => {
             </div>
 
             <div className="flex items-start gap-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-              <MessageSquare className="w-5 h-5 text-orange-600 mt-0.5" />
+              <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
               <div>
                 <h4 className="font-medium text-orange-900">Attention requise</h4>
                 <p className="text-sm text-orange-700 mt-1">
@@ -658,7 +613,7 @@ const Analytics: React.FC = () => {
             </div>
 
             <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <BookOpen className="w-5 h-5 text-blue-600 mt-0.5" />
+              <Target className="w-5 h-5 text-blue-600 mt-0.5" />
               <div>
                 <h4 className="font-medium text-blue-900">Objectif en cours</h4>
                 <p className="text-sm text-blue-700 mt-1">

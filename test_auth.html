@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Auth</title>
+</head>
+<body>
+    <h1>Test d'authentification</h1>
+    <button onclick="testLogin()">Test Login Gestionnaire</button>
+    <button onclick="checkLocalStorage()">Vérifier localStorage</button>
+    <div id="result"></div>
+
+    <script>
+        async function testLogin() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'gestionnaire.college@isiportal.com',
+                        password: 'password123'
+                    })
+                });
+
+                const data = await response.json();
+                console.log('Réponse API:', data);
+
+                if (data.success && data.data) {
+                    // Simuler le stockage comme dans authService
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('auth_token', data.data.token);
+                    localStorage.setItem('user_data', JSON.stringify(data.data.user));
+                    
+                    document.getElementById('result').innerHTML = `
+                        <h3>Connexion réussie!</h3>
+                        <p>Utilisateur: ${data.data.user.prenom} ${data.data.user.nom}</p>
+                        <p>Email: ${data.data.user.email}</p>
+                        <p>Rôle: ${data.data.user.role}</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                document.getElementById('result').innerHTML = `<p style="color: red;">Erreur: ${error.message}</p>`;
+            }
+        }
+
+        function checkLocalStorage() {
+            const token = localStorage.getItem('token');
+            const userData = localStorage.getItem('user_data');
+            
+            document.getElementById('result').innerHTML = `
+                <h3>Données localStorage:</h3>
+                <p>Token: ${token ? 'Présent' : 'Absent'}</p>
+                <p>User Data: ${userData || 'Absent'}</p>
+                ${userData ? `<pre>${JSON.stringify(JSON.parse(userData), null, 2)}</pre>` : ''}
+            `;
+        }
+    </script>
+</body>
+</html>

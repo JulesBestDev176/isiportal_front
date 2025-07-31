@@ -180,7 +180,7 @@ class DashboardController extends Controller
                     ->count(),
                 'coursActifs' => Cours::where('statut', 'active')->count(),
                 'absencesNonJustifiees' => Absence::where('justifiee', false)
-                    ->where('date', '>=', now()->subWeek())
+                    ->where('date_absence', '>=', now()->subWeek())
                     ->count(),
                 'bulletinsGeneres' => Bulletin::where('created_at', '>=', now()->subMonth())->count(),
             ];

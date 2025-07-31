@@ -16,6 +16,7 @@ class Notification extends Model
         'type',
         'priorite',
         'destinataire_id',
+        'destinataire_roles',
         'expediteur_id',
         'lue',
         'date_lecture',
@@ -25,6 +26,7 @@ class Notification extends Model
 
     protected $casts = [
         'lue' => 'boolean',
+        'destinataire_roles' => 'array',
         'date_lecture' => 'datetime',
         'date_envoi' => 'datetime',
         'date_creation' => 'datetime'

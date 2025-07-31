@@ -2,6 +2,37 @@
  * Modèle pour les notes et évaluations
  */
 
+// Type pour les notes de l'API
+export interface ApiNote {
+  id: number;
+  eleve_id: number;
+  cours_id: number;
+  matiere_id: number;
+  annee_scolaire_id: number;
+  semestre: number;
+  type_evaluation: string;
+  note: number;
+  coefficient: number;
+  appreciation: string;
+  date_evaluation: string;
+  commentaire: string | null;
+  matiere?: {
+    id: number;
+    nom: string;
+    code: string;
+  };
+  cours?: {
+    id: number;
+    titre: string;
+    matiere_id: number;
+  };
+  annee_scolaire?: {
+    id: number;
+    nom: string;
+    statut: string;
+  };
+}
+
 export interface Note {
   id: number;
   etudiantId: number;

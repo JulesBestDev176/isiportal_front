@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, BookOpen, Users, MessageSquare, GraduationCap, User, Building, Layers } from "lucide-react";
+import { Home, BookOpen, Users, MessageSquare, GraduationCap, User, Building, Layers, LogOut } from "lucide-react";
+import { useAuth } from "../../contexts/ContexteAuth";
 
 const getMenu = (role: string) => {
   if (role === 'administrateur') {
@@ -40,8 +41,8 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ reduit, onToggle }) => {
   const location = useLocation();
-  // Pour l'instant, on simule un utilisateur - à remplacer par le contexte d'auth réel
-  const utilisateur = { role: 'administrateur', email: 'admin@etablissement.fr' };
+  const { utilisateur, deconnexion } = useAuth();
+  
   if (!utilisateur) return null;
   
   const menu = getMenu(utilisateur.role);
@@ -96,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ reduit, onToggle }) => {
         </ul>
       </nav>
       {/* Footer utilisateur */}
-      <div className={`px-4 py-4 border-t border-neutral-200 ${reduit ? 'flex justify-center' : ''}`}>
+      <div className={`px-4 py-4 border-t border-neutral-200 ${reduit ? 'flex flex-col gap-2 justify-center' : ''}`}>
         <div className={`flex items-center gap-3 px-3 py-3 rounded-lg bg-neutral-50 ${reduit ? 'justify-center' : ''}`}>
           <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
             <User className="w-5 h-5 text-white" />
@@ -104,7 +105,7 @@ const Sidebar: React.FC<SidebarProps> = ({ reduit, onToggle }) => {
           {!reduit && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-neutral-900 truncate">
-                {utilisateur?.email}
+                {utilisateur?.prenom} {utilisateur?.nom}
               </p>
               <p className="text-xs text-neutral-500 truncate">
                 {utilisateur?.email}
@@ -112,6 +113,15 @@ const Sidebar: React.FC<SidebarProps> = ({ reduit, onToggle }) => {
             </div>
           )}
         </div>
+        {/* Bouton de déconnexion */}
+        <button
+          onClick={deconnexion}
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-red-600 hover:bg-red-50 transition-colors ${reduit ? 'justify-center' : ''}`}
+          title="Déconnexion"
+        >
+          <LogOut className="w-5 h-5" />
+          {!reduit && <span className="text-sm font-medium">Déconnexion</span>}
+        </button>
       </div>
     </aside>
   );

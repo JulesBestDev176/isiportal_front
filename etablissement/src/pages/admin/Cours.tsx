@@ -122,16 +122,21 @@ const FormulaireCours: React.FC<{
   modeEdition?: boolean;
   classes: any[];
   professeurs: Professeur[];
-}> = ({ onSubmit, onClose, coursAModifier, modeEdition = false, classes, professeurs }) => {
+  matieres: any[];
+  niveaux: any[];
+  anneesScolaires: any[];
+  anneeScolaireActive: any;
+}> = ({ onSubmit, onClose, coursAModifier, modeEdition = false, classes, professeurs, matieres, niveaux, anneesScolaires, anneeScolaireActive }) => {
   const [formData, setFormData] = useState<FormDataCours>({
     titre: coursAModifier?.titre || "",
     description: coursAModifier?.description || "",
     matiereId: coursAModifier?.matiereId || 0,
     niveauId: coursAModifier?.niveauId || 0,
-    anneeScolaireId: coursAModifier?.anneeScolaireId || 0,
+    anneeScolaireId: coursAModifier?.anneeScolaireId || (anneeScolaireActive?.id || 2), // Année scolaire active
     semestresIds: coursAModifier?.semestresIds || [1, 2],
     heuresParSemaine: coursAModifier?.heuresParSemaine || 0,
     coefficient: coursAModifier?.coefficient || 0,
+    professeurId: coursAModifier?.professeurId || undefined,
     statut: coursAModifier?.statut || "planifie" as const,
     creneaux: coursAModifier?.creneaux?.map(creneau => ({
       ...creneau,
@@ -142,9 +147,6 @@ const FormulaireCours: React.FC<{
 
   const [errors, setErrors] = useState<CoursErrors>({});
   const [loading, setLoading] = useState(false);
-  const [matieres, setMatieres] = useState<any[]>([]);
-  const [niveaux, setNiveaux] = useState<any[]>([]);
-  const [anneesScolaires, setAnneesScolaires] = useState<any[]>([]);
   interface AssignationProfClasse {
     classeId: number;
     classeNom: string;
@@ -155,31 +157,64 @@ const FormulaireCours: React.FC<{
   const [assignationsProfesseurs, setAssignationsProfesseurs] = useState<AssignationProfClasse[]>([]);
 
   // Récupérer les matières disponibles pour le niveau sélectionné
-  const matieresDuNiveau = formData.niveauId ? 
-    matieres.filter((m: any) => m.niveaux && m.niveaux.includes(formData.niveauId)) : [];
+  const matieresDuNiveau = formData.niveauId && Array.isArray(matieres) ? 
+    matieres.filter((m: any) => {
+      const hasNiveau = m.niveaux_ids && m.niveaux_ids.includes(formData.niveauId);
+      console.log(`Matière ${m.nom} (ID: ${m.id}) - Niveau sélectionné: ${formData.niveauId}, Niveaux disponibles: ${m.niveaux_ids}, Incluse: ${hasNiveau}`);
+      return hasNiveau;
+    }) : [];
+  
+  console.log('Matières du niveau sélectionné:', matieresDuNiveau);
 
   // Récupérer les informations de la matière sélectionnée
   const matiereNiveauSelectionnee = formData.matiereId && formData.niveauId ?
-    matieres.find((m: any) => m.id === formData.matiereId && m.niveaux && m.niveaux.includes(formData.niveauId)) : null;
+    matieres.find((m: any) => m.id === formData.matiereId && m.niveaux_ids && m.niveaux_ids.includes(formData.niveauId)) : null;
 
   // Mettre à jour automatiquement les heures et coefficient quand la matière change
   useEffect(() => {
     if (matiereNiveauSelectionnee) {
       setFormData(prev => ({
         ...prev,
-        heuresParSemaine: (matiereNiveauSelectionnee as any).heuresParSemaine || 0,
+        heuresParSemaine: (matiereNiveauSelectionnee as any).heures_par_semaine || 0,
         coefficient: (matiereNiveauSelectionnee as any).coefficient || 1
       }));
     }
   }, [matiereNiveauSelectionnee]);
 
+  // Réinitialiser la matière quand le niveau change
+  useEffect(() => {
+    if (formData.niveauId) {
+      setFormData(prev => ({
+        ...prev,
+        matiereId: 0, // Réinitialiser la matière sélectionnée
+        professeurId: undefined // Réinitialiser le professeur sélectionné
+      }));
+    }
+  }, [formData.niveauId]);
+
   // Obtenir les classes du niveau sélectionné
-  const classesDuNiveau = classes.filter(classe => classe.niveauId === formData.niveauId);
+  const classesDuNiveau = Array.isArray(classes) ? classes.filter(classe => classe.niveauId === formData.niveauId) : [];
 
   // Obtenir les professeurs de la matière sélectionnée
-  const professeursDeLaMatiere = professeurs.filter(prof => 
-    prof.matieres && prof.matieres.includes(formData.matiereId)
-  );
+  const professeursDeLaMatiere = Array.isArray(professeurs) ? professeurs.filter(prof => {
+    console.log('Filtrage professeur:', prof.nom, prof.prenom, '- Matières:', prof.matieres, '- Type:', typeof prof.matieres);
+    return prof.matieres && Array.isArray(prof.matieres) && prof.matieres.some((matiere: any) => matiere.id === formData.matiereId);
+  }) : [];
+  
+  console.log('Professeurs disponibles:', professeurs);
+  console.log('Structure du premier professeur:', professeurs[0]);
+  console.log('Matière sélectionnée:', formData.matiereId);
+  console.log('Professeurs de la matière:', professeursDeLaMatiere);
+  
+  // Debug: afficher les matières de chaque professeur
+  if (Array.isArray(professeurs)) {
+    professeurs.forEach((prof, index) => {
+      console.log(`Professeur ${index + 1}:`, prof.nom, prof.prenom, '- Matières:', prof.matieres, '- Type:', typeof prof.matieres);
+      if (prof.matieres) {
+        console.log(`  Matières détaillées pour ${prof.nom}:`, JSON.stringify(prof.matieres));
+      }
+    });
+  }
 
   // Initialiser les assignations quand le niveau change
   useEffect(() => {
@@ -251,6 +286,19 @@ const FormulaireCours: React.FC<{
     if (!formData.matiereId || formData.matiereId === 0) newErrors.matiereId = "La matière est requise";
     if (!formData.niveauId || formData.niveauId === 0) newErrors.niveauId = "Le niveau est requis";
     if (!formData.anneeScolaireId || formData.anneeScolaireId === 0) newErrors.anneeScolaireId = "L'année scolaire est requise";
+    if (!formData.heuresParSemaine || formData.heuresParSemaine === 0) {
+      newErrors.heuresParSemaine = "Les heures par semaine sont requises";
+    } else if (formData.heuresParSemaine % 2 !== 0) {
+      newErrors.heuresParSemaine = "Les heures par semaine doivent être un nombre pair";
+    }
+    if (!formData.coefficient || formData.coefficient === 0) {
+      newErrors.coefficient = "Le coefficient est requis";
+    } else if (formData.coefficient < 0 || formData.coefficient > 10) {
+      newErrors.coefficient = "Le coefficient doit être entre 0 et 10";
+    }
+    if (!formData.professeurId || formData.professeurId === 0) {
+      newErrors.professeurId = "Le professeur est requis";
+    }
     if (!formData.semestresIds || formData.semestresIds.length === 0) {
       newErrors.semestresIds = "Au moins un semestre doit être sélectionné";
     }
@@ -377,14 +425,11 @@ const FormulaireCours: React.FC<{
               }`}
             >
               <option value="">Sélectionner une matière</option>
-              {matieresDuNiveau.map((mn: any) => {
-                const matiere = matieres.find(m => m.id === mn.id);
-                return (
-                  <option key={mn.id} value={mn.id}>
-                    {matiere?.nom} ({mn.heuresParSemaine || 0}h/sem, coef: {mn.coefficient || 1})
+              {Array.isArray(matieresDuNiveau) && matieresDuNiveau.map((matiere: any) => (
+                <option key={matiere.id} value={matiere.id}>
+                  {matiere.nom} ({matiere.heures_par_semaine || 0}h/sem, coef: {matiere.coefficient || 1})
                   </option>
-                );
-              })}
+              ))}
             </select>
             {errors.matiereId && <p className="text-red-500 text-sm mt-1">{errors.matiereId}</p>}
           </div>
@@ -401,7 +446,7 @@ const FormulaireCours: React.FC<{
               }`}
             >
               <option value="">Sélectionner un niveau</option>
-              {niveaux.map(niveau => (
+              {Array.isArray(niveaux) && niveaux.map(niveau => (
                 <option key={niveau.id} value={niveau.id}>{niveau.nom}</option>
               ))}
             </select>
@@ -411,27 +456,118 @@ const FormulaireCours: React.FC<{
 
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Sélection du professeur */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              Professeur *
+            </label>
+            <select
+              value={formData.professeurId || ""}
+              onChange={(e) => setFormData({...formData, professeurId: parseInt(e.target.value) || undefined})}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.professeurId ? 'border-red-500' : 'border-neutral-300'
+              }`}
+              disabled={!formData.matiereId || formData.matiereId === 0}
+            >
+              <option value="">
+                {!formData.matiereId || formData.matiereId === 0 
+                  ? "Sélectionnez d'abord une matière" 
+                  : "Sélectionner un professeur"}
+              </option>
+              {Array.isArray(professeursDeLaMatiere) && professeursDeLaMatiere.map((professeur: any) => (
+                <option key={professeur.id} value={professeur.id}>
+                  {professeur.prenom} {professeur.nom} - {professeur.email}
+                </option>
+              ))}
+            </select>
+            {errors.professeurId && <p className="text-red-500 text-sm mt-1">{errors.professeurId}</p>}
+            {formData.matiereId && formData.matiereId !== 0 && Array.isArray(professeursDeLaMatiere) && professeursDeLaMatiere.length === 0 && (
+              <p className="text-orange-500 text-sm mt-1">
+                Aucun professeur disponible pour cette matière
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              Informations sur les professeurs
+            </label>
+            <div className="w-full px-4 py-3 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-700">
+              {Array.isArray(professeursDeLaMatiere) && professeursDeLaMatiere.length > 0 ? (
+                <div className="text-sm">
+                  <p><strong>{professeursDeLaMatiere.length}</strong> professeur(s) disponible(s) pour cette matière</p>
+                  <p className="text-xs text-neutral-600 mt-1">
+                    {professeursDeLaMatiere.map(prof => `${prof.prenom} ${prof.nom}`).join(', ')}
+                  </p>
+                </div>
+              ) : formData.matiereId && formData.matiereId !== 0 ? (
+                <div className="text-sm text-orange-600">
+                  Aucun professeur assigné à cette matière
+                </div>
+              ) : (
+                <div className="text-sm text-neutral-500">
+                  Sélectionnez une matière pour voir les professeurs disponibles
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-2">
               Année Scolaire *
             </label>
-            <select
-              value={formData.anneeScolaireId.toString()}
-              onChange={(e) => setFormData({...formData, anneeScolaireId: parseInt(e.target.value) || 0})}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.anneeScolaireId ? 'border-red-500' : 'border-neutral-300'
-              }`}
-            >
-              <option value="">Sélectionner une année scolaire</option>
-              {anneesScolaires.map(annee => (
-                <option key={annee.id} value={annee.id}>{annee.nom} ({annee.statut})</option>
-              ))}
-            </select>
-            {errors.anneeScolaireId && <p className="text-red-500 text-sm mt-1">{errors.anneeScolaireId}</p>}
+            <div className="w-full px-4 py-3 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-700">
+              {anneeScolaireActive ? anneeScolaireActive.nom : 'Année scolaire actuelle'}
+            </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              Heures par semaine *
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="2"
+              value={formData.heuresParSemaine}
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 0;
+                // S'assurer que c'est un nombre pair
+                const adjustedValue = value % 2 === 0 ? value : value - 1;
+                setFormData({...formData, heuresParSemaine: adjustedValue});
+              }}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.heuresParSemaine ? 'border-red-500' : 'border-neutral-300'
+              }`}
+              placeholder="Nombre d'heures (chiffre pair)"
+            />
+            {errors.heuresParSemaine && <p className="text-red-500 text-sm mt-1">{errors.heuresParSemaine}</p>}
+          </div>
 
+          <div>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              Coefficient *
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="10"
+              step="0.5"
+              value={formData.coefficient}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value) || 0;
+                setFormData({...formData, coefficient: value});
+              }}
+              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.coefficient ? 'border-red-500' : 'border-neutral-300'
+              }`}
+              placeholder="Coefficient (0-10)"
+            />
+            {errors.coefficient && <p className="text-red-500 text-sm mt-1">{errors.coefficient}</p>}
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -455,8 +591,8 @@ const FormulaireCours: React.FC<{
             <h4 className="text-sm font-medium text-blue-900 mb-2">Informations de la matière</h4>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-blue-700">Heures par semaine:</span>
-                <span className="ml-2 font-medium">{(matiereNiveauSelectionnee as any).heuresParSemaine || 0}h</span>
+                <span className="text-blue-700">Heures par semaine (suggérées):</span>
+                <span className="ml-2 font-medium">{(matiereNiveauSelectionnee as any).heures_par_semaine || 0}h</span>
               </div>
               <div>
                 <span className="text-blue-700">Coefficient:</span>
@@ -1123,13 +1259,28 @@ const CoursAdmin: React.FC = () => {
   const [niveaux, setNiveaux] = useState<any[]>([]);
   const [matieres, setMatieres] = useState<any[]>([]);
   const [anneesScolaires, setAnneesScolaires] = useState<any[]>([]);
+  const [anneeScolaireActive, setAnneeScolaireActive] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatut, setFilterStatut] = useState<string>("");
   const [filterMatiere, setFilterMatiere] = useState<string>("");
   const [filterNiveau, setFilterNiveau] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"liste" | "ajouter">("liste");
-  const [showModalAjout, setShowModalAjout] = useState(false);
+
+  // Missing state variables
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState<any>({
+    niveauId: "",
+    matiereId: "",
+    anneeScolaireId: ""
+  });
+  const [editingCours, setEditingCours] = useState<Cours | null>(null);
+  const initialFormData = {
+    niveauId: "",
+    matiereId: "",
+    anneeScolaireId: ""
+  };
+
   const [coursAModifier, setCoursAModifier] = useState<Cours | null>(null);
   const [showModalModification, setShowModalModification] = useState(false);
   const [showModalDetails, setShowModalDetails] = useState(false);
@@ -1155,7 +1306,32 @@ const CoursAdmin: React.FC = () => {
     try {
       const response = await adminService.getCours();
       if (response.success && response.data) {
-        setCours(response.data);
+        // Transformer les données pour correspondre au modèle frontend
+        const coursTransformes = response.data.map((cours: any) => ({
+          id: cours.id,
+          titre: cours.titre,
+          description: cours.description,
+          matiereId: cours.matiere_id,
+          matiereNom: cours.matiere?.nom || 'Matière inconnue',
+          niveauId: cours.niveau_id,
+          niveauNom: cours.niveau?.nom || 'Niveau inconnu',
+          anneeScolaireId: cours.annee_scolaire_id,
+          anneeScolaireNom: cours.annee_scolaire?.nom || 'Année inconnue',
+          heuresParSemaine: cours.heures_par_semaine,
+          coefficient: cours.coefficient,
+          statut: cours.statut,
+          dateCreation: cours.date_creation || cours.created_at,
+          dateModification: cours.date_modification || cours.updated_at,
+          professeurId: cours.professeurs?.[0]?.id,
+          professeurNom: cours.professeurs?.[0]?.nom,
+          classes: cours.classes || [],
+          creneaux: cours.creneaux || [],
+          assignations: cours.assignations || [],
+          ressources: cours.ressources || [],
+          semestresIds: cours.semestres_ids || []
+        }));
+        console.log('Cours transformés:', coursTransformes);
+        setCours(coursTransformes);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des cours:', error);
@@ -1164,27 +1340,13 @@ const CoursAdmin: React.FC = () => {
     }
   };
 
-  const loadProfesseurs = async () => {
-    try {
-      const response = await adminService.getUtilisateurs({
-        page: 1,
-        limit: 100,
-        filters: { role: 'professeur' }
-      });
-      if (response.success && response.data) {
-        setProfesseurs(response.data.data as Professeur[]);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des professeurs:', error);
-    }
-  };
-
   const loadMatieres = async () => {
     try {
-      const response = await matiereService.getMatieres();
-      if (response.success && response.data) {
-        setMatieres(response.data);
-      }
+      const response = await adminService.getMatieres();
+      const matieresData = response.data || [];
+      
+      // For now, load all matieres without filtering
+      setMatieres(matieresData);
     } catch (error) {
       console.error('Erreur lors du chargement des matières:', error);
     }
@@ -1193,9 +1355,8 @@ const CoursAdmin: React.FC = () => {
   const loadNiveaux = async () => {
     try {
       const response = await adminService.getNiveaux();
-      if (response.success && response.data) {
-        setNiveaux(response.data);
-      }
+      const niveauxData = response.data || [];
+      setNiveaux(niveauxData);
     } catch (error) {
       console.error('Erreur lors du chargement des niveaux:', error);
     }
@@ -1204,11 +1365,31 @@ const CoursAdmin: React.FC = () => {
   const loadAnneesScolaires = async () => {
     try {
       const response = await adminService.getAnneesScolaires();
-      if (response.success && response.data) {
-        setAnneesScolaires(response.data);
+      const anneesData = response.data || [];
+      setAnneesScolaires(anneesData);
+      
+      // Trouver l'année scolaire active
+      const anneeActive = anneesData.find((annee: any) => annee.statut === 'active');
+      if (anneeActive) {
+        setFormData((prev: any) => ({ ...prev, anneeScolaireId: anneeActive.id }));
       }
     } catch (error) {
       console.error('Erreur lors du chargement des années scolaires:', error);
+    }
+  };
+
+  const loadProfesseurs = async () => {
+    try {
+      const response = await adminService.getAllUsers();
+      const usersData = response.data || [];
+      
+      // Filtrer les professeurs
+      const professeurs = usersData.filter((user: any) => user.role === 'professeur');
+      
+      // For now, load all professors without filtering by subject
+      setProfesseurs(professeurs);
+    } catch (error) {
+      console.error('Erreur lors du chargement des professeurs:', error);
     }
   };
 
@@ -1237,56 +1418,41 @@ const CoursAdmin: React.FC = () => {
   const loadNotifications = async () => {
     if (utilisateur?.id) {
       try {
-        const response = await notificationService.getNotifications(utilisateur.id);
-        if (response.success && response.data) {
-          setNotifications(response.data);
-        }
+        const notifications = await notificationService.getNotifications();
+        setNotifications(notifications);
       } catch (error) {
         console.error('Erreur lors du chargement des notifications:', error);
       }
     }
   };
 
-  const handleCreateCours = async (cours: Omit<Cours, 'id' | 'dateCreation'>) => {
+  const handleCreateCours = async (coursData: any) => {
     try {
-      const response = await adminService.createCours(cours);
-      if (response.success) {
-        setShowModalAjout(false);
-        loadCours(); // Recharger la liste
-        console.log('Cours créé avec succès');
-      } else {
-        console.error('Erreur lors de la création:', response.error);
-      }
+      await adminService.createCours(coursData);
+      loadCours();
+      setShowModal(false);
+      setFormData(initialFormData);
     } catch (error) {
       console.error('Erreur lors de la création du cours:', error);
     }
   };
 
-  const handleUpdateCours = async (id: number, updates: Partial<Cours>) => {
+  const handleUpdateCours = async (coursData: any) => {
     try {
-      const response = await adminService.updateCours(id, updates);
-      if (response.success) {
-        setShowModalModification(false);
-        setCoursAModifier(null);
-        loadCours(); // Recharger la liste
-        console.log('Cours mis à jour avec succès');
-      } else {
-        console.error('Erreur lors de la mise à jour:', response.error);
-      }
+      await adminService.updateCours(coursData.id, coursData);
+      loadCours();
+      setShowModal(false);
+      setFormData(initialFormData);
+      setEditingCours(null);
     } catch (error) {
       console.error('Erreur lors de la mise à jour du cours:', error);
     }
   };
 
-  const handleDeleteCours = async (id: number) => {
+  const handleDeleteCours = async (coursId: number) => {
     try {
-      const response = await adminService.deleteCours(id);
-      if (response.success) {
-        loadCours(); // Recharger la liste
-        console.log('Cours supprimé avec succès');
-      } else {
-        console.error('Erreur lors de la suppression:', response.error);
-      }
+      await adminService.deleteCours(coursId);
+      loadCours();
     } catch (error) {
       console.error('Erreur lors de la suppression du cours:', error);
     }
@@ -1333,13 +1499,7 @@ const CoursAdmin: React.FC = () => {
           </p>
         </div>
         
-        <button
-          onClick={() => setShowModalAjout(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Nouveau Cours
-        </button>
+
       </div>
 
       {/* Onglets */}
@@ -1413,7 +1573,7 @@ const CoursAdmin: React.FC = () => {
                   className="px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">Toutes les matières</option>
-                  {matieres.map(matiere => (
+                  {Array.isArray(matieres) && matieres.map(matiere => (
                     <option key={matiere.id} value={matiere.id}>{matiere.nom}</option>
                   ))}
                 </select>
@@ -1647,33 +1807,17 @@ const CoursAdmin: React.FC = () => {
               coursAModifier={coursAModifier || undefined}
               classes={classes}
               professeurs={professeurs}
+              matieres={matieres}
+              niveaux={niveaux}
+              anneesScolaires={anneesScolaires}
+              anneeScolaireActive={anneeScolaireActive}
             />
           </div>
         </div>
       )}
 
       {/* Modal d'ajout/modification */}
-      <Modal
-        isOpen={showModalAjout || showModalModification}
-        onClose={() => {
-          setShowModalAjout(false);
-          setShowModalModification(false);
-          setCoursAModifier(null);
-        }}
-        title={`${coursAModifier ? "Modifier" : "Ajouter"} un cours`}
-      >
-        <FormulaireCours
-          onSubmit={handleCreateCours}
-          onClose={() => {
-            setShowModalAjout(false);
-            setShowModalModification(false);
-            setCoursAModifier(null);
-          }}
-          coursAModifier={coursAModifier || undefined}
-                      classes={classes}
-            professeurs={professeurs}
-        />
-      </Modal>
+
 
       {/* Modal détails cours */}
       {coursSelectionne && (

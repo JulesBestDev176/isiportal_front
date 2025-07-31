@@ -10,7 +10,9 @@ use App\Services\EmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Http\JsonResponse;
 
 class UserController extends Controller
 {
@@ -22,14 +24,53 @@ class UserController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = User::with(['classe', 'classe.niveau']);
+            $currentUser = auth()->user();
+            $query = User::with(['classe', 'classe.niveau', 'matieres']);
 
-            // Log pour diagnostiquer
-            \Log::info('UserController@index - Requête reçue', [
-                'user_id' => auth()->id(),
-                'user_role' => auth()->user()->role ?? 'guest',
-                'request_params' => $request->all()
-            ]);
+            // Filtrage selon le rôle de l'utilisateur connecté
+            if ($currentUser->role === 'gestionnaire') {
+                $gestionnaireSections = $currentUser->sections ?? [];
+                
+                $query->where(function ($q) use ($gestionnaireSections) {
+                    // Exclure les autres gestionnaires
+                    $q->where('role', '!=', 'gestionnaire')
+                      ->where(function ($subQ) use ($gestionnaireSections) {
+                          // Professeurs de la même section
+                          $subQ->where(function ($profQ) use ($gestionnaireSections) {
+                              $profQ->where('role', 'professeur')
+                                   ->where(function ($sectionQ) use ($gestionnaireSections) {
+                                       foreach ($gestionnaireSections as $section) {
+                                           $sectionQ->orWhereJsonContains('sections', $section);
+                                       }
+                                   });
+                          })
+                          // Élèves de la même section (college/lycee)
+                          ->orWhere(function ($eleveQ) use ($gestionnaireSections) {
+                              $eleveQ->where('role', 'eleve')
+                                     ->whereHas('classe.niveau', function ($niveauQ) use ($gestionnaireSections) {
+                                         $niveauQ->whereIn('cycle', $gestionnaireSections);
+                                     });
+                          })
+                          // Parents ayant au moins un enfant dans la section
+                          ->orWhere(function ($parentQ) use ($gestionnaireSections) {
+                              $parentQ->where('role', 'parent')
+                                      ->whereExists(function ($existsQ) use ($gestionnaireSections) {
+                                          $existsQ->select(\DB::raw(1))
+                                                  ->from('users as enfants')
+                                                  ->whereRaw('JSON_CONTAINS(users.enfants_ids, CAST(enfants.id as JSON))')
+                                                  ->where('enfants.role', 'eleve')
+                                                  ->join('classes', 'enfants.classe_id', '=', 'classes.id')
+                                                  ->join('niveaux', 'classes.niveau_id', '=', 'niveaux.id')
+                                                  ->whereIn('niveaux.cycle', $gestionnaireSections);
+                                      });
+                          });
+                      });
+                });
+            }
+            // Admin voit tout, autres rôles voient selon leurs permissions
+            elseif ($currentUser->role !== 'administrateur') {
+                // Autres restrictions selon le rôle si nécessaire
+            }
 
             // Filtre par recherche
             if ($request->has('search') && !empty($request->search)) {
@@ -46,40 +87,15 @@ class UserController extends Controller
                 $query->where('role', $request->filters['role']);
             }
 
-            // Filtre par statut - temporairement désactivé pour voir tous les utilisateurs
-            // if ($request->has('filters.actif')) {
-            //     $query->where('actif', $request->filters['actif']);
-            // }
-
-            // Pagination - si la limite est élevée, retourner tous les utilisateurs
+            // Pagination
             $perPage = $request->get('per_page', $request->get('limit', 15));
-            
-            \Log::info('UserController@index - Pagination', [
-                'perPage' => $perPage,
-                'perPage >= 1000' => $perPage >= 1000,
-                'request_params' => $request->all()
-            ]);
             
             if ($perPage >= 1000) {
                 $users = $query->get();
-                \Log::info('UserController@index - Retourne tous les utilisateurs', [
-                    'total_users' => $users->count()
-                ]);
                 return $this->successResponse($users, 'Utilisateurs récupérés avec succès');
             } else {
                 $users = $query->paginate($perPage);
-                \Log::info('UserController@index - Retourne pagination', [
-                    'total_users' => $users->total(),
-                    'current_page' => $users->currentPage()
-                ]);
             }
-
-            // Log pour diagnostiquer
-            \Log::info('UserController@index - Résultats', [
-                'total_users' => $users->total(),
-                'roles_found' => $users->pluck('role')->unique()->toArray(),
-                'per_page' => $perPage
-            ]);
 
             return $this->successResponse($users, 'Utilisateurs récupérés avec succès');
         } catch (\Exception $e) {
@@ -511,5 +527,212 @@ class UserController extends Controller
                 }
             }
         }
+    }
+
+    /**
+     * Récupérer les élèves d'une classe spécifique
+     */
+    public function getElevesByClasse(int $classeId): JsonResponse
+    {
+        try {
+            $eleves = User::where('role', 'eleve')
+                         ->where('classe_id', $classeId)
+                         ->with(['classe', 'classe.niveau'])
+                         ->get();
+
+            $elevesTransformes = $eleves->map(function ($eleve) {
+                return [
+                    'id' => $eleve->id,
+                    'nom' => $eleve->nom,
+                    'prenom' => $eleve->prenom,
+                    'email' => $eleve->email,
+                    'moyenneAnnuelle' => $eleve->moyenne_annuelle ?? 0,
+                    'statut' => $eleve->statut ?? 'inscrit',
+                    'dateInscription' => $eleve->date_inscription ?? '2024-09-01',
+                    'classe' => $eleve->classe ? [
+                        'id' => $eleve->classe->id,
+                        'nom' => $eleve->classe->nom,
+                        'niveau' => $eleve->classe->niveau ? [
+                            'id' => $eleve->classe->niveau->id,
+                            'nom' => $eleve->classe->niveau->nom
+                        ] : null
+                    ] : null
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Élèves de la classe récupérés avec succès',
+                'data' => $elevesTransformes
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la récupération des élèves de la classe',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Évolution vers l'année scolaire supérieure
+     */
+    public function evolutionAnneeScolaire()
+    {
+        try {
+            \DB::beginTransaction();
+            
+            // 1. Changer l'année scolaire active
+            $anneeActive = \App\Models\AnneeScolaire::where('statut', 'active')->first();
+            $prochaineAnnee = \App\Models\AnneeScolaire::where('statut', 'inactive')
+                ->orderBy('date_debut')
+                ->first();
+            
+            if (!$anneeActive || !$prochaineAnnee) {
+                return $this->errorResponse('Années scolaires non trouvées');
+            }
+            
+            // Trouver la dernière année terminée pour calculer les moyennes
+            $derniereAnneeTerminee = \App\Models\AnneeScolaire::where('statut', 'terminee')
+                ->orderBy('date_debut', 'desc')
+                ->first();
+            
+            $anneeActive->update(['statut' => 'terminee']);
+            $prochaineAnnee->update(['statut' => 'active']);
+            
+            // 2. Transférer les élèves vers le niveau supérieur selon leur moyenne
+            $eleves = User::where('role', 'eleve')
+                ->with(['classe.niveau'])
+                ->get();
+            
+            $transferes = 0;
+            $redoublants = 0;
+            $niveauxMap = [
+                1 => 2, // 6ème -> 5ème
+                2 => 3, // 5ème -> 4ème
+                3 => 4, // 4ème -> 3ème
+                4 => 5, // 3ème -> 2nde
+                5 => 6, // 2nde -> 1ère
+                6 => 7, // 1ère -> Terminale
+                7 => null // Terminale -> Sortie
+            ];
+            
+            foreach ($eleves as $eleve) {
+                if ($eleve->classe && $eleve->classe->niveau) {
+                    $niveauActuel = $eleve->classe->niveau_id;
+                    
+                    // Calculer la moyenne de la dernière année terminée
+                    $moyenneAnnuelle = $this->calculerMoyenneAnnuelleEleve($eleve->id, $derniereAnneeTerminee->id);
+                    
+                    // Si l'élève a la moyenne (>=10), il passe au niveau supérieur
+                    if ($moyenneAnnuelle >= 10) {
+                        $niveauSuivant = $niveauxMap[$niveauActuel] ?? null;
+                        
+                        if ($niveauSuivant) {
+                            // Trouver une classe du niveau suivant pour la nouvelle année
+                            $nouvelleClasse = \App\Models\Classe::where('niveau_id', $niveauSuivant)
+                                ->where('annee_scolaire_id', $prochaineAnnee->id)
+                                ->first();
+                            
+                            if ($nouvelleClasse) {
+                                $eleve->update(['classe_id' => $nouvelleClasse->id]);
+                                $transferes++;
+                            }
+                        }
+                    } else {
+                        // L'élève redouble : rester dans le même niveau mais changer d'année
+                        $classeRedoublement = \App\Models\Classe::where('niveau_id', $niveauActuel)
+                            ->where('annee_scolaire_id', $prochaineAnnee->id)
+                            ->first();
+                        
+                        if ($classeRedoublement) {
+                            $eleve->update(['classe_id' => $classeRedoublement->id]);
+                            $redoublants++;
+                        }
+                    }
+                }
+            }
+            
+            \DB::commit();
+            
+            return $this->successResponse([
+                'ancienne_annee' => $anneeActive->nom,
+                'nouvelle_annee' => $prochaineAnnee->nom,
+                'eleves_transferes' => $transferes,
+                'eleves_redoublants' => $redoublants
+            ], 'Évolution réussie ! ' . $transferes . ' élèves transférés, ' . $redoublants . ' redoublants.');
+            
+        } catch (\Exception $e) {
+            \DB::rollback();
+            return $this->errorResponse('Erreur lors de l\'évolution: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Calculer la moyenne annuelle d'un élève pour une année scolaire donnée
+     */
+    private function calculerMoyenneAnnuelleEleve($eleveId, $anneeScolaireId)
+    {
+        $notes = \App\Models\Note::where('eleve_id', $eleveId)
+            ->where('annee_scolaire_id', $anneeScolaireId)
+            ->where('note', '>', 0)
+            ->get();
+        
+        if ($notes->isEmpty()) {
+            return 0;
+        }
+        
+        // Coefficients par type d'évaluation
+        $coeffsEvaluation = [
+            'devoir1' => 1,
+            'devoir2' => 1,
+            'examen' => 2
+        ];
+        
+        // Grouper par semestre
+        $notesSemestre1 = $notes->where('semestre', 1);
+        $notesSemestre2 = $notes->where('semestre', 2);
+        
+        // Calculer moyenne semestre 1
+        $moyenneSemestre1 = 0;
+        if ($notesSemestre1->count() > 0) {
+            $totalPondere = 0;
+            $totalCoefficients = 0;
+            
+            foreach ($notesSemestre1 as $note) {
+                $coeff = $coeffsEvaluation[$note->type_evaluation] ?? 1;
+                $totalPondere += $note->note * $coeff;
+                $totalCoefficients += $coeff;
+            }
+            
+            $moyenneSemestre1 = $totalCoefficients > 0 ? $totalPondere / $totalCoefficients : 0;
+        }
+        
+        // Calculer moyenne semestre 2
+        $moyenneSemestre2 = 0;
+        if ($notesSemestre2->count() > 0) {
+            $totalPondere = 0;
+            $totalCoefficients = 0;
+            
+            foreach ($notesSemestre2 as $note) {
+                $coeff = $coeffsEvaluation[$note->type_evaluation] ?? 1;
+                $totalPondere += $note->note * $coeff;
+                $totalCoefficients += $coeff;
+            }
+            
+            $moyenneSemestre2 = $totalCoefficients > 0 ? $totalPondere / $totalCoefficients : 0;
+        }
+        
+        // Calculer moyenne annuelle
+        $moyenneAnnuelle = 0;
+        if ($moyenneSemestre1 > 0 && $moyenneSemestre2 > 0) {
+            $moyenneAnnuelle = ($moyenneSemestre1 + $moyenneSemestre2) / 2;
+        } elseif ($moyenneSemestre1 > 0) {
+            $moyenneAnnuelle = $moyenneSemestre1;
+        } elseif ($moyenneSemestre2 > 0) {
+            $moyenneAnnuelle = $moyenneSemestre2;
+        }
+        
+        return round($moyenneAnnuelle, 2);
     }
 } 

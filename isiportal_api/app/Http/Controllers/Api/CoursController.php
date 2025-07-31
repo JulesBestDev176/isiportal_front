@@ -15,7 +15,7 @@ class CoursController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Cours::with(['matiere', 'niveau', 'anneeScolaire', 'classes', 'professeurs']);
+        $query = Cours::with(['matiere', 'niveau', 'anneeScolaire', 'classes']);
 
         // Filtrage par matière
         if ($request->has('matiere_id')) {

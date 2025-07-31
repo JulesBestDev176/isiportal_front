@@ -20,7 +20,11 @@ class DatabaseSeeder extends Seeder
             AnneeScolaireSeeder::class,
             ClasseSeeder::class,
             UserSeeder::class,
+            UserMatiereSeeder::class,
+            EleveClasseSeeder::class,
             CoursSeeder::class,
+            
+            // Seeders de relations
             
             // Seeders de données métier
             NotificationSeeder::class,

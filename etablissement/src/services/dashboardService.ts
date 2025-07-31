@@ -116,8 +116,11 @@ class DashboardService {
           bulletinsGeneres: 0
         };
       }
-    } catch (error) {
-      console.error('Erreur lors de la récupération des détails admin:', error);
+    } catch (error: any) {
+      // Ne pas logger les erreurs 400 qui sont attendues si la DB n'est pas configurée
+      if (error.response?.status !== 400) {
+        console.error('Erreur lors de la récupération des détails admin:', error);
+      }
       // En cas d'erreur, retourner des valeurs par défaut
       return {
         nouvellesInscriptions: 0,

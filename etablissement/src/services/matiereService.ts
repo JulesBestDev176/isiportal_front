@@ -17,7 +17,7 @@ export interface MatiereFilters {
 export class MatiereService {
   private baseUrl: string;
 
-  constructor(baseUrl: string = '/api/matieres') {
+  constructor(baseUrl: string = 'http://127.0.0.1:8000/api/admin/matieres') {
     this.baseUrl = baseUrl;
   }
 
@@ -31,10 +31,30 @@ export class MatiereService {
       if (filters?.statut) queryParams.append('statut', filters.statut);
       if (filters?.search) queryParams.append('search', filters.search);
 
-      const response = await fetch(`${this.baseUrl}?${queryParams}`);
+      const headers: HeadersInit = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      };
+
+      // Ajouter le token d'authentification si disponible
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}?${queryParams}`, {
+        method: 'GET',
+        headers,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       return data;
     } catch (error) {
+      console.error('Erreur lors de la récupération des matières:', error);
       return {
         success: false,
         error: 'Erreur lors de la récupération des matières'

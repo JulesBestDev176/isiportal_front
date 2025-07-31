@@ -1,7 +1,23 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { Navigate } from "react-router-dom";
 import { Users, GraduationCap, Heart, Baby } from "lucide-react";
+import { useAuth } from "../../contexts/ContexteAuth";
 
 const Accueil: React.FC = () => {
+  const { utilisateur, chargement } = useAuth();
+
+  if (chargement) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (utilisateur) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
       <div className="max-w-6xl mx-auto">

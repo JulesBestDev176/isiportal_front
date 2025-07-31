@@ -15,7 +15,14 @@ class NiveauController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $currentUser = auth()->user();
         $query = Niveau::query();
+
+        // Filtrage selon le rôle de l'utilisateur connecté
+        if ($currentUser->role === 'gestionnaire') {
+            $gestionnaireSections = $currentUser->sections ?? [];
+            $query->whereIn('cycle', $gestionnaireSections);
+        }
 
         // Filtrage par cycle
         if ($request->has('cycle')) {

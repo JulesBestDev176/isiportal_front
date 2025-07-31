@@ -14,16 +14,26 @@ class ClasseSeeder extends Seeder
      */
     public function run(): void
     {
-        $anneeActive = AnneeScolaire::where('statut', 'active')->first();
+        $anneesScolaires = AnneeScolaire::all();
         
-        if (!$anneeActive) {
-            $this->command->error('Aucune année scolaire active trouvée');
+        if ($anneesScolaires->isEmpty()) {
+            $this->command->error('Aucune année scolaire trouvée');
             return;
         }
 
         // Créer des professeurs si ils n'existent pas
         $professeurs = $this->createProfesseurs();
 
+        // Créer des classes pour chaque année scolaire
+        foreach ($anneesScolaires as $anneeScolaire) {
+            $this->createClassesForAnnee($anneeScolaire, $professeurs);
+        }
+
+        $this->command->info('Classes créées avec succès pour toutes les années scolaires !');
+    }
+
+    private function createClassesForAnnee($anneeScolaire, $professeurs)
+    {
         $classes = [
             [
                 'nom' => '6ème A',
@@ -32,7 +42,6 @@ class ClasseSeeder extends Seeder
                 'description' => 'Classe de 6ème A',
                 'professeur_principal_id' => $professeurs[0]->id,
                 'statut' => 'active',
-                'annee_scolaire_id' => $anneeActive->id,
             ],
             [
                 'nom' => '6ème B',
@@ -41,7 +50,6 @@ class ClasseSeeder extends Seeder
                 'description' => 'Classe de 6ème B',
                 'professeur_principal_id' => $professeurs[1]->id,
                 'statut' => 'active',
-                'annee_scolaire_id' => $anneeActive->id,
             ],
             [
                 'nom' => '5ème A',
@@ -50,7 +58,6 @@ class ClasseSeeder extends Seeder
                 'description' => 'Classe de 5ème A',
                 'professeur_principal_id' => $professeurs[2]->id,
                 'statut' => 'active',
-                'annee_scolaire_id' => $anneeActive->id,
             ],
             [
                 'nom' => '4ème A',
@@ -59,7 +66,6 @@ class ClasseSeeder extends Seeder
                 'description' => 'Classe de 4ème A',
                 'professeur_principal_id' => $professeurs[3]->id,
                 'statut' => 'active',
-                'annee_scolaire_id' => $anneeActive->id,
             ],
             [
                 'nom' => '3ème A',
@@ -68,7 +74,6 @@ class ClasseSeeder extends Seeder
                 'description' => 'Classe de 3ème A',
                 'professeur_principal_id' => $professeurs[4]->id,
                 'statut' => 'active',
-                'annee_scolaire_id' => $anneeActive->id,
             ],
             [
                 'nom' => '2nde A',
@@ -77,7 +82,6 @@ class ClasseSeeder extends Seeder
                 'description' => 'Classe de 2nde A',
                 'professeur_principal_id' => $professeurs[5]->id,
                 'statut' => 'active',
-                'annee_scolaire_id' => $anneeActive->id,
             ],
             [
                 'nom' => '1ère S',
@@ -86,7 +90,6 @@ class ClasseSeeder extends Seeder
                 'description' => 'Classe de 1ère S',
                 'professeur_principal_id' => $professeurs[6]->id,
                 'statut' => 'active',
-                'annee_scolaire_id' => $anneeActive->id,
             ],
             [
                 'nom' => 'Terminale S',
@@ -95,45 +98,13 @@ class ClasseSeeder extends Seeder
                 'description' => 'Classe de Terminale S',
                 'professeur_principal_id' => $professeurs[7]->id,
                 'statut' => 'active',
-                'annee_scolaire_id' => $anneeActive->id,
             ],
         ];
 
         foreach ($classes as $classe) {
+            $classe['annee_scolaire_id'] = $anneeScolaire->id;
             Classe::create($classe);
         }
-
-        // Créer des élèves pour chaque classe
-        $this->createEleves();
-    }
-
-    private function createProfesseurs(): \Illuminate\Database\Eloquent\Collection
-    {
-        $professeurs = User::where('role', 'professeur')->get();
-        
-        if ($professeurs->count() < 8) {
-            // Créer des professeurs supplémentaires si nécessaire
-            $noms = ['Bernard', 'Dupont', 'Moreau', 'Leroy', 'Petit', 'Roux', 'Martin', 'Durand'];
-            $prenoms = ['Sophie', 'Marie', 'Isabelle', 'Pierre', 'Michel', 'Catherine', 'Jean', 'Paul'];
-            
-            for ($i = $professeurs->count(); $i < 8; $i++) {
-                $professeur = User::create([
-                    'nom' => $noms[$i],
-                    'prenom' => $prenoms[$i],
-                    'email' => strtolower($prenoms[$i]) . '.' . strtolower($noms[$i]) . '@isiportal.com',
-                    'password' => bcrypt('password123'),
-                    'role' => 'professeur',
-                    'actif' => true,
-                    'doit_changer_mot_de_passe' => false,
-                    'telephone' => '01' . rand(10000000, 99999999),
-                    'adresse' => rand(1, 100) . ' rue de l\'Éducation, Paris',
-                ]);
-                
-                $professeurs->push($professeur);
-            }
-        }
-        
-        return $professeurs->take(8);
     }
 
     private function createEleves(): void
@@ -172,6 +143,35 @@ class ClasseSeeder extends Seeder
                 $parent->save();
             }
         }
+    }
+
+    private function createProfesseurs(): \Illuminate\Database\Eloquent\Collection
+    {
+        $professeurs = User::where('role', 'professeur')->get();
+        
+        if ($professeurs->count() < 8) {
+            // Créer des professeurs supplémentaires si nécessaire
+            $noms = ['Bernard', 'Dupont', 'Moreau', 'Leroy', 'Petit', 'Roux', 'Martin', 'Durand'];
+            $prenoms = ['Sophie', 'Marie', 'Isabelle', 'Pierre', 'Michel', 'Catherine', 'Jean', 'Paul'];
+            
+            for ($i = $professeurs->count(); $i < 8; $i++) {
+                $professeur = User::create([
+                    'nom' => $noms[$i],
+                    'prenom' => $prenoms[$i],
+                    'email' => strtolower($prenoms[$i]) . '.' . strtolower($noms[$i]) . '@isiportal.com',
+                    'password' => bcrypt('password123'),
+                    'role' => 'professeur',
+                    'actif' => true,
+                    'doit_changer_mot_de_passe' => false,
+                    'telephone' => '01' . rand(10000000, 99999999),
+                    'adresse' => rand(1, 100) . ' rue de l\'Éducation, Paris',
+                ]);
+                
+                $professeurs->push($professeur);
+            }
+        }
+        
+        return $professeurs->take(8);
     }
 
     private function createParents(): \Illuminate\Database\Eloquent\Collection

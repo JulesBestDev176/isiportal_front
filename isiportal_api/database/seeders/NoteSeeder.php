@@ -4,10 +4,9 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Note;
-use App\Models\User;
 use App\Models\Cours;
-use App\Models\Matiere;
 use App\Models\AnneeScolaire;
+use Carbon\Carbon;
 
 class NoteSeeder extends Seeder
 {
@@ -16,49 +15,35 @@ class NoteSeeder extends Seeder
      */
     public function run(): void
     {
-        $eleves = User::where('role', 'eleve')->get();
-        $cours = Cours::all();
-        $matieres = Matiere::all();
-        $anneeScolaire = AnneeScolaire::where('statut', 'active')->first();
-
-        if (!$anneeScolaire) {
-            $anneeScolaire = AnneeScolaire::first();
-        }
-
-        $typesEvaluation = ['devoir1', 'devoir2', 'composition', 'examen'];
+        $eleveId = 215;
+        $coursIds = [1, 2, 3];
+        $anneeIds = [1, 2];
+        $semestres = [1, 2];
+        $types = ['devoir1', 'devoir2', 'examen'];
         $appreciations = [
-            'Très bien',
-            'Bien',
-            'Assez bien',
-            'Passable',
-            'Insuffisant',
-            'Excellent travail',
-            'Bon travail',
-            'Peut mieux faire',
-            'Efforts à fournir',
-            'Satisfaisant'
+            'Très bien', 'Bien', 'Assez bien', 'Passable', 'Insuffisant',
+            'Excellent travail', 'Bon travail', 'Peut mieux faire', 'Efforts à fournir', 'Satisfaisant'
         ];
 
-        foreach ($eleves as $eleve) {
-            // Générer des notes pour chaque cours de l'élève
-            foreach ($cours as $coursItem) {
-                foreach ($typesEvaluation as $type) {
-                    // 70% de chance d'avoir une note
-                    if (rand(1, 100) <= 70) {
-                        $note = rand(8, 20); // Note entre 8 et 20
-                        $coefficient = $type === 'examen' ? 2.0 : 1.0;
-                        
+        foreach ($anneeIds as $anneeId) {
+            foreach ($semestres as $semestre) {
+                foreach ($coursIds as $coursId) {
+                    $cours = Cours::find($coursId);
+                    if (!$cours) continue;
+                    foreach ($types as $type) {
+                        $note = rand(8, 20);
+                        $coefficient = $cours->coefficient ?? 1.0;
                         Note::create([
-                            'eleve_id' => $eleve->id,
-                            'cours_id' => $coursItem->id,
-                            'matiere_id' => $coursItem->matiere_id,
-                            'annee_scolaire_id' => $anneeScolaire->id,
-                            'semestre' => rand(1, 2),
+                            'eleve_id' => $eleveId,
+                            'cours_id' => $coursId,
+                            'matiere_id' => $cours->matiere_id,
+                            'annee_scolaire_id' => $anneeId,
+                            'semestre' => $semestre,
                             'type_evaluation' => $type,
                             'note' => $note,
                             'coefficient' => $coefficient,
                             'appreciation' => $appreciations[array_rand($appreciations)],
-                            'date_evaluation' => now()->subDays(rand(1, 90)),
+                            'date_evaluation' => Carbon::now()->subDays(rand(1, 90)),
                             'commentaire' => rand(1, 100) <= 30 ? 'Commentaire du professeur' : null,
                         ]);
                     }
@@ -66,6 +51,6 @@ class NoteSeeder extends Seeder
             }
         }
 
-        $this->command->info('Notes créées avec succès !');
+        $this->command->info('Notes créées pour l\'élève 215, cours 1,2,3, années 1 et 2, tous semestres/types.');
     }
 } 

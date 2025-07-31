@@ -75,7 +75,7 @@ class Cours extends Model
      */
     public function professeurs(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'cours_professeurs')
+        return $this->belongsToMany(User::class, 'cours_professeurs', 'cours_id', 'professeur_id')
                     ->where('role', 'professeur');
     }
 

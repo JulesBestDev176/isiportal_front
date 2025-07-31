@@ -26,21 +26,35 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
   useEffect(() => {
     const verifierAuth = async () => {
       try {
-        const utilisateurActuel = authService.getCurrentUser();
-        if (utilisateurActuel && authService.isAuthenticated()) {
-          setUtilisateur({
-            id: parseInt(utilisateurActuel.id),
-            nom: utilisateurActuel.nom,
-            prenom: utilisateurActuel.prenom,
-            email: utilisateurActuel.email,
-            role: utilisateurActuel.role as any,
-            dateCreation: new Date().toISOString(),
-            actif: true,
-            doitChangerMotDePasse: false
-          });
+        if (authService.isAuthenticated()) {
+          // D'abord, essayer de récupérer l'utilisateur depuis le token local
+          const utilisateurLocal = authService.getCurrentUser();
+          console.log('Données utilisateur récupérées:', utilisateurLocal);
+          if (utilisateurLocal) {
+            const utilisateurFormate = {
+              id: utilisateurLocal.id,
+              nom: utilisateurLocal.nom,
+              prenom: utilisateurLocal.prenom,
+              email: utilisateurLocal.email,
+              role: utilisateurLocal.role as any,
+              dateCreation: new Date().toISOString(),
+              actif: true,
+              doitChangerMotDePasse: utilisateurLocal.doitChangerMotDePasse || false
+            };
+            console.log('Utilisateur formaté pour le contexte:', utilisateurFormate);
+            setUtilisateur(utilisateurFormate);
+            setDoitChangerMotDePasse(utilisateurLocal.doitChangerMotDePasse || false);
+          }
+          
+          // Pour Sanctum, on utilise uniquement les données locales
         }
       } catch (error) {
-        console.error('Erreur lors de la vérification de l\'authentification:', error);
+        console.error('Erreur lors de la vérification d\'authentification:', error);
+        // Ne déconnecter que si on n'a vraiment aucun token valide
+        if (!authService.getToken()) {
+          authService.logout();
+          setUtilisateur(null);
+        }
       } finally {
         setChargement(false);
       }
@@ -72,7 +86,7 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
         };
         
         setUtilisateur(nouvelUtilisateur);
-        setDoitChangerMotDePasse(nouvelUtilisateur.doitChangerMotDePasse);
+        setDoitChangerMotDePasse(nouvelUtilisateur.doitChangerMotDePasse || false);
       }
     } catch (error) {
       throw error;
@@ -82,9 +96,14 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
   const deconnexion = async () => {
     try {
       await authService.logout();
-      setUtilisateur(null);
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
+    } finally {
+      // Toujours nettoyer l'état utilisateur
+      setUtilisateur(null);
+      setDoitChangerMotDePasse(false);
+      // Rediriger vers la page de connexion
+      window.location.href = '/connexion';
     }
   };
 
@@ -98,22 +117,7 @@ export const FournisseurAuth: React.FC<FournisseurAuthProps> = ({ children }) =>
     return rolesAutorises.includes(role);
   };
 
-  // Simulation pour le développement
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && !utilisateur && !chargement) {
-      const utilisateurSimule: Utilisateur = {
-        id: 1,
-        nom: 'Admin',
-        prenom: 'Super',
-        email: 'admin@ecole.fr',
-        role: 'administrateur',
-        dateCreation: new Date().toISOString(),
-        actif: true,
-        doitChangerMotDePasse: false
-      };
-      setUtilisateur(utilisateurSimule);
-    }
-  }, [utilisateur, chargement]);
+
 
   const valeur: ContexteAuthType = {
     utilisateur,
