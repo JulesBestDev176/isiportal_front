@@ -87,6 +87,7 @@ Route::group(['middleware' => 'cors'], function () {
 
 // Routes de test
 Route::get('/test', [TestController::class, 'test'])->middleware('cors');
+Route::get('/test/cours-professeurs-public', [TestController::class, 'testCoursProfesseurs'])->middleware('cors');
 Route::options('/{any}', function() {
     return response('', 200)
         ->header('Access-Control-Allow-Origin', '*')
@@ -259,6 +260,7 @@ Route::get('/test/eleves-list', function() {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/test/auth', [TestController::class, 'testAuth']);
     Route::get('/test/users/all', [TestController::class, 'getAllUsers']);
+    Route::get('/test/cours-professeurs', [TestController::class, 'testCoursProfesseurs']);
 });
 
 // Routes protégées par authentification
@@ -271,6 +273,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/check-auth', [AuthController::class, 'checkAuth']);
         Route::post('/refresh-token', [AuthController::class, 'refreshToken']);
         Route::post('/change-password', [AuthController::class, 'changePassword']);
+        Route::post('/test-change-password', function(Request $request) {
+            return response()->json([
+                'success' => true,
+                'received_data' => $request->all(),
+                'headers' => $request->headers->all(),
+                'method' => $request->method(),
+                'content_type' => $request->header('Content-Type')
+            ]);
+        });
         Route::post('/send-connection-info', [AuthController::class, 'sendConnectionInfo']);
         Route::get('/active-sessions', [AuthController::class, 'getActiveSessions']);
         Route::post('/terminate-session', [AuthController::class, 'terminateSession']);
@@ -281,6 +292,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/stats/{role}', [DashboardController::class, 'getStats']);
         Route::get('/activites/{role}', [DashboardController::class, 'getActivites']);
         Route::get('/admin/details', [DashboardController::class, 'getAdminDetails']);
+        
+        // Dashboard professeur
+        Route::get('/professeur/stats', [\App\Http\Controllers\Api\ProfesseurDashboardController::class, 'getStats']);
+        Route::get('/professeur/classes', [\App\Http\Controllers\Api\ProfesseurDashboardController::class, 'getClasses']);
+        Route::get('/professeur/cours', [\App\Http\Controllers\Api\ProfesseurDashboardController::class, 'getCours']);
+        Route::get('/professeur/notes-recentes', [\App\Http\Controllers\Api\ProfesseurDashboardController::class, 'getNotesRecentes']);
     });
 
     // Routes des notifications
@@ -326,6 +343,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard/class-performances', [UserController::class, 'getClassPerformances']);
         Route::get('/dashboard/user-activity', [UserController::class, 'getUserActivity']);
         Route::get('/dashboard/role-statistics', [UserController::class, 'getRoleStatistics']);
+        
+        // Données initiales optimisées
+        Route::get('/initial-data', [\App\Http\Controllers\Api\InitialDataController::class, 'getInitialData']);
 
         // Gestion des utilisateurs
         Route::apiResource('users', UserController::class);
@@ -529,6 +549,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{historique}', [HistoriqueConnexionController::class, 'destroy']);
         Route::get('/user/{userId}', [HistoriqueConnexionController::class, 'getHistoriqueByUser']);
         Route::get('/statistiques', [HistoriqueConnexionController::class, 'getStatistiques']);
+    });
+    
+    // Routes spécifiques pour les professeurs
+    Route::prefix('professeur')->group(function () {
+        Route::get('/cours', [\App\Http\Controllers\Api\ProfesseurCoursController::class, 'index']);
     });
 });
 

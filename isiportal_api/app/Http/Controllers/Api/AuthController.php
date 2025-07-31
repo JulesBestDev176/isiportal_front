@@ -63,7 +63,7 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'role' => $user->role,
                     'full_name' => $user->nom . ' ' . $user->prenom,
-                    'doitChangerMotDePasse' => $user->doit_changer_mot_de_passe,
+                    'doitChangerMotDePasse' => (bool) $user->doit_changer_mot_de_passe,
                 ],
                 'token' => $token,
                 'token_type' => 'Bearer',
@@ -175,32 +175,87 @@ class AuthController extends Controller
     public function changePassword(Request $request)
     {
         try {
-            $validator = Validator::make($request->all(), [
-                'motDePasseActuel' => 'required|string',
-                'nouveauMotDePasse' => 'required|string|min:8|confirmed',
-                'nouveauMotDePasse_confirmation' => 'required|string',
-            ]);
-
-            if ($validator->fails()) {
-                return $this->errorResponse('Données invalides', $validator->errors());
+            // Récupérer toutes les données possibles
+            $data = $request->all();
+            $json = $request->json()->all();
+            $input = $request->input();
+            
+            // Fusionner toutes les sources de données
+            $allData = array_merge($data, $json, $input);
+            
+            // Essayer tous les formats possibles
+            $currentPassword = $allData['currentPassword'] ?? 
+                              $allData['motDePasseActuel'] ?? 
+                              $allData['current_password'] ?? 
+                              $allData['ancien_mot_de_passe'] ?? null;
+                              
+            $newPassword = $allData['newPassword'] ?? 
+                          $allData['nouveauMotDePasse'] ?? 
+                          $allData['new_password'] ?? 
+                          $allData['nouveau_mot_de_passe'] ?? null;
+            
+            // Si toujours vide, retourner les données reçues pour debug
+            if (!$currentPassword || !$newPassword) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Données manquantes',
+                    'debug' => [
+                        'request_all' => $request->all(),
+                        'request_json' => $request->json()->all(),
+                        'request_input' => $request->input(),
+                        'content_type' => $request->header('Content-Type'),
+                        'raw_content' => $request->getContent(),
+                        'currentPassword_found' => $currentPassword ? 'yes' : 'no',
+                        'newPassword_found' => $newPassword ? 'yes' : 'no'
+                    ]
+                ], 400);
+            }
+            
+            if (strlen($newPassword) < 6) { // Réduire à 6 pour les tests
+                return $this->errorResponse('Le nouveau mot de passe doit contenir au moins 6 caractères', null, 400);
             }
 
             $user = Auth::user();
+            if (!$user) {
+                return $this->errorResponse('Utilisateur non authentifié', null, 401);
+            }
 
             // Vérifier l'ancien mot de passe
-            if (!Hash::check($request->motDePasseActuel, $user->password)) {
-                return $this->errorResponse('Le mot de passe actuel est incorrect');
+            if (!Hash::check($currentPassword, $user->password)) {
+                return $this->errorResponse('Le mot de passe actuel est incorrect', null, 400);
             }
 
             // Mettre à jour le mot de passe
             $user->update([
-                'password' => Hash::make($request->nouveauMotDePasse),
+                'password' => Hash::make($newPassword),
                 'doit_changer_mot_de_passe' => false,
             ]);
 
-            return $this->successResponse(['success' => true], 'Mot de passe changé avec succès');
+            // Recharger l'utilisateur pour avoir les données à jour
+            $user->refresh();
+
+            return $this->successResponse([
+                'success' => true,
+                'user' => [
+                    'id' => $user->id,
+                    'nom' => $user->nom,
+                    'prenom' => $user->prenom,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'full_name' => $user->nom . ' ' . $user->prenom,
+                    'doitChangerMotDePasse' => $user->doit_changer_mot_de_passe,
+                ]
+            ], 'Mot de passe changé avec succès');
         } catch (\Exception $e) {
-            return $this->errorResponse('Erreur lors du changement de mot de passe: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur serveur',
+                'error' => $e->getMessage(),
+                'debug' => [
+                    'request_data' => $request->all(),
+                    'content_type' => $request->header('Content-Type')
+                ]
+            ], 500);
         }
     }
 

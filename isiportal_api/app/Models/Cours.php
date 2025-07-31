@@ -96,6 +96,14 @@ class Cours extends Model
     }
 
     /**
+     * Relation avec les assignations professeur-classe
+     */
+    public function assignationsProfesseurs(): HasMany
+    {
+        return $this->hasMany(CoursClasseProfesseur::class);
+    }
+
+    /**
      * Relation avec les progressions de séance
      */
     public function progressions(): HasMany

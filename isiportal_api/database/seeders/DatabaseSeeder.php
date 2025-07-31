@@ -12,39 +12,27 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            // Seeders de base
-            BatimentSeeder::class,
-            SalleSeeder::class,
-            NiveauSeeder::class,
-            MatiereSeeder::class,
+            // 1. Structure de base
             AnneeScolaireSeeder::class,
-            ClasseSeeder::class,
-            UserSeeder::class,
-            UserMatiereSeeder::class,
-            EleveClasseSeeder::class,
+            NiveauxSeeder::class,
+            MatieresSeeder::class,
+            BatimentsSeeder::class,
+            SallesSeeder::class,
+            
+            // 2. Utilisateurs
+            AdminSeeder::class,
+            ProfesseursSeeder::class,
+            
+            // 3. Classes et élèves
+            ClassesSeeder::class,
+            ElevesSeeder::class,
+            
+            // 4. Cours et créneaux
             CoursSeeder::class,
+            CreneauxSeeder::class,
             
-            // Seeders de relations
-            
-            // Seeders de données métier
-            NotificationSeeder::class,
-            BulletinSeeder::class,
-            HistoriqueEleveSeeder::class,
-            RegleTransfertSeeder::class,
-            NoteSeeder::class,
-            AbsenceSeeder::class,
-            EmploiDuTempsSeeder::class,
-            SectionSeeder::class,
-            CreneauSeeder::class,
-            AssignationCoursClasseSeeder::class,
-            RessourceSeeder::class,
-            HistoriqueConnexionSeeder::class,
+            // 5. Notes (optionnel pour les tests)
+            NotesSeeder::class,
         ]);
-
-        $this->command->info('Base de données initialisée avec succès !');
-        $this->command->info('Comptes de test créés :');
-        $this->command->info('- Administrateur: admin@isiportal.com / password123');
-        $this->command->info('- Gestionnaire: gestionnaire@isiportal.com / password123');
-        $this->command->info('- Professeur: professeur@isiportal.com / password123');
     }
 }
