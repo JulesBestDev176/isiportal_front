@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/ContexteAuth';
 import { dashboardService, DashboardStats, ActiviteRecente } from '../../services/dashboardService';
+import { professeurService } from '../../services/professeurService';
 import { safeString, safeNumber, safeDate } from '../../utils/safeRender';
 
 interface StatistiqueCard {
@@ -36,23 +37,119 @@ const TableauDeBord: React.FC = () => {
 
   const [chargement, setChargement] = useState(true);
 
+  const getProfesseurStats = async (statsData?: any) => {
+    // Si les données sont déjà fournies, les utiliser directement
+    if (statsData) {
+      return [
+        {
+          titre: 'Classes comme Prof Principal',
+          valeur: statsData.classes_comme_prof_principal || 0,
+          icone: <GraduationCap className="w-6 h-6" />,
+          couleur: 'bg-blue-500'
+        },
+        {
+          titre: 'Cours Assignés',
+          valeur: statsData.cours_assignes || 0,
+          icone: <BookOpen className="w-6 h-6" />,
+          couleur: 'bg-green-500'
+        },
+        {
+          titre: 'Élèves Total',
+          valeur: statsData.eleves_total || 0,
+          icone: <Users className="w-6 h-6" />,
+          couleur: 'bg-purple-500'
+        },
+        {
+          titre: 'Notes Saisies',
+          valeur: statsData.notes_saisies || 0,
+          icone: <Clock className="w-6 h-6" />,
+          couleur: 'bg-orange-500'
+        }
+      ];
+    }
+
+    // Fallback avec valeurs par défaut
+    return [
+      {
+        titre: 'Classes comme Prof Principal',
+        valeur: 0,
+        icone: <GraduationCap className="w-6 h-6" />,
+        couleur: 'bg-blue-500'
+      },
+      {
+        titre: 'Cours Assignés',
+        valeur: 0,
+        icone: <BookOpen className="w-6 h-6" />,
+        couleur: 'bg-green-500'
+      },
+      {
+        titre: 'Élèves Total',
+        valeur: 0,
+        icone: <Users className="w-6 h-6" />,
+        couleur: 'bg-purple-500'
+      },
+      {
+        titre: 'Notes Saisies',
+        valeur: 0,
+        icone: <Clock className="w-6 h-6" />,
+        couleur: 'bg-orange-500'
+      }
+    ];
+  };
+
   useEffect(() => {
     const chargerDonnees = async () => {
       try {
         if (!utilisateur?.role) return;
 
-        // Récupérer les statistiques depuis l'API
+        // Chargement optimisé pour les professeurs
+        if (utilisateur.role === 'professeur') {
+          // Utiliser le chargement parallèle pour les professeurs
+          const professeurData = await professeurService.getAllDashboardData();
+          const statsFinales = await getProfesseurStats(professeurData.stats);
+          setStatistiques(statsFinales);
+          
+          // Charger les notifications en parallèle
+          dashboardService.getNotifications()
+            .then(notificationsData => {
+              setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
+            })
+            .catch(error => {
+              console.error('Erreur notifications:', error);
+              setNotifications([]);
+            });
+          
+          setChargement(false);
+          return;
+        }
+
+        // Pour les autres rôles, utiliser l'ancien système
         let statsData: DashboardStats = {};
-        try {
-          statsData = await dashboardService.getDashboardStats(utilisateur.role);
-        } catch (error) {
-          console.error('Erreur lors du chargement des statistiques:', error);
-          statsData = {};
+        let statsFinales: StatistiqueCard[] = [];
+        
+        // Charger les stats et notifications en parallèle
+        const [statsResult, notificationsResult] = await Promise.allSettled([
+          dashboardService.getDashboardStats(utilisateur.role),
+          dashboardService.getNotifications()
+        ]);
+        
+        // Traiter les statistiques
+        if (statsResult.status === 'fulfilled') {
+          statsData = statsResult.value;
+        } else {
+          console.error('Erreur stats:', statsResult.reason);
         }
         
-        // Transformer les données selon le rôle
-        const statsParRole = {
-          administrateur: [
+        // Traiter les notifications
+        if (notificationsResult.status === 'fulfilled') {
+          setNotifications(Array.isArray(notificationsResult.value) ? notificationsResult.value : []);
+        } else {
+          console.error('Erreur notifications:', notificationsResult.reason);
+          setNotifications([]);
+        }
+        
+        if (utilisateur.role === 'administrateur') {
+          statsFinales = [
             {
               titre: 'Total Utilisateurs',
               valeur: statsData.totalUtilisateurs || 0,
@@ -81,8 +178,9 @@ const TableauDeBord: React.FC = () => {
               couleur: 'bg-orange-500',
               evolution: '+2%'
             }
-          ],
-          gestionnaire: [
+          ];
+        } else if (utilisateur.role === 'gestionnaire') {
+          statsFinales = [
             {
               titre: 'Élèves Inscrits',
               valeur: statsData.elevesInscrits || 0,
@@ -104,52 +202,13 @@ const TableauDeBord: React.FC = () => {
               couleur: 'bg-purple-500',
               evolution: '+3%'
             }
-          ],
-          professeur: [
-            {
-              titre: 'Mes Classes',
-              valeur: statsData.mesClasses || 0,
-              icone: <GraduationCap className="w-6 h-6" />,
-              couleur: 'bg-blue-500'
-            },
-            {
-              titre: 'Élèves Total',
-              valeur: statsData.elevesTotal || 0,
-              icone: <Users className="w-6 h-6" />,
-              couleur: 'bg-green-500'
-            },
-            {
-              titre: 'Cours Cette Semaine',
-              valeur: statsData.coursCetteSemaine || 0,
-              icone: <BookOpen className="w-6 h-6" />,
-              couleur: 'bg-purple-500'
-            },
-            {
-              titre: 'Devoirs à Corriger',
-              valeur: statsData.devoirsACorriger || 0,
-              icone: <Clock className="w-6 h-6" />,
-              couleur: 'bg-orange-500'
-            }
-          ]
-        };
-
-        setStatistiques(statsParRole[utilisateur.role as keyof typeof statsParRole] || []);
-
-        // Récupérer les notifications depuis l'API
-        try {
-          const notificationsData = await dashboardService.getNotifications();
-          // S'assurer que les notifications sont un tableau
-          setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
-        } catch (error) {
-          console.error('Erreur lors du chargement des notifications:', error);
-          setNotifications([]);
+          ];
         }
 
-
+        setStatistiques(statsFinales);
 
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
-        // En cas d'erreur, utiliser des données par défaut
         setStatistiques([]);
         setNotifications([]);
       } finally {
@@ -184,8 +243,31 @@ const TableauDeBord: React.FC = () => {
 
   if (chargement) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      <div className="space-y-6">
+        {/* Skeleton pour l'en-tête */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </div>
+        
+        {/* Skeleton pour les cartes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
+                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div className="text-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="text-sm text-gray-500 mt-2">Chargement des données...</p>
+        </div>
       </div>
     );
   }
@@ -322,29 +404,7 @@ const TableauDeBord: React.FC = () => {
               )}
               
               {utilisateur?.role === 'professeur' && (
-                <>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900">Notes saisies</p>
-                      <p className="text-xs text-gray-500">Il y a 30 min</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900">Appel effectué</p>
-                      <p className="text-xs text-gray-500">Il y a 2 heures</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm text-gray-900">Cours planifié</p>
-                      <p className="text-xs text-gray-500">Hier</p>
-                    </div>
-                  </div>
-                </>
+                <ProfesseurActivites />
               )}
             </div>
           </div>
@@ -450,6 +510,70 @@ const AdminDetails: React.FC = () => {
         </div>
         <span className="text-lg font-bold text-purple-600">{safeString(details.bulletinsGeneres, '0')}</span>
       </div>
+    </>
+  );
+};
+
+// Composant pour les activités du professeur
+const ProfesseurActivites: React.FC = () => {
+  const [activites, setActivites] = useState<any[]>([]);
+  const [chargement, setChargement] = useState(true);
+
+  useEffect(() => {
+    const chargerActivites = async () => {
+      try {
+        const notesResult = await professeurService.getNotesRecentes();
+        if (notesResult.success && notesResult.data) {
+          const activitesFormatees = notesResult.data.slice(0, 3).map((note: any, index: number) => ({
+            id: note.id,
+            texte: `Note saisie pour ${note.eleve}`,
+            temps: 'Il y a ' + (index + 1) * 30 + ' min',
+            couleur: index === 0 ? 'bg-blue-500' : index === 1 ? 'bg-green-500' : 'bg-purple-500'
+          }));
+          setActivites(activitesFormatees);
+        }
+      } catch (error) {
+        console.error('Erreur activités professeur:', error);
+        setActivites([
+          { id: 1, texte: 'Notes saisies', temps: 'Il y a 30 min', couleur: 'bg-blue-500' },
+          { id: 2, texte: 'Appel effectué', temps: 'Il y a 2 heures', couleur: 'bg-green-500' },
+          { id: 3, texte: 'Cours planifié', temps: 'Hier', couleur: 'bg-purple-500' }
+        ]);
+      } finally {
+        setChargement(false);
+      }
+    };
+
+    chargerActivites();
+  }, []);
+
+  if (chargement) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="animate-pulse flex items-center space-x-3">
+            <div className="w-2 h-2 bg-gray-200 rounded-full"></div>
+            <div className="flex-1">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {activites.map((activite) => (
+        <div key={activite.id} className="flex items-center space-x-3">
+          <div className={`w-2 h-2 ${activite.couleur} rounded-full`}></div>
+          <div className="flex-1">
+            <p className="text-sm text-gray-900">{activite.texte}</p>
+            <p className="text-xs text-gray-500">{activite.temps}</p>
+          </div>
+        </div>
+      ))}
     </>
   );
 };

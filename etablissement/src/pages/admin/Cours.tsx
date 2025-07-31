@@ -126,7 +126,8 @@ const FormulaireCours: React.FC<{
   niveaux: any[];
   anneesScolaires: any[];
   anneeScolaireActive: any;
-}> = ({ onSubmit, onClose, coursAModifier, modeEdition = false, classes, professeurs, matieres, niveaux, anneesScolaires, anneeScolaireActive }) => {
+  salles: any[];
+}> = ({ onSubmit, onClose, coursAModifier, modeEdition = false, classes, professeurs, matieres, niveaux, anneesScolaires, anneeScolaireActive, salles }) => {
   const [formData, setFormData] = useState<FormDataCours>({
     titre: coursAModifier?.titre || "",
     description: coursAModifier?.description || "",
@@ -193,26 +194,59 @@ const FormulaireCours: React.FC<{
   }, [formData.niveauId]);
 
   // Obtenir les classes du niveau sélectionné
-  const classesDuNiveau = Array.isArray(classes) ? classes.filter(classe => classe.niveauId === formData.niveauId) : [];
+  const classesDuNiveau = Array.isArray(classes) ? classes.filter(classe => {
+    // Support pour différentes structures de données
+    const niveauId = classe.niveauId || classe.niveau_id;
+    return niveauId === formData.niveauId;
+  }) : [];
+  
+  console.log('Debug classes:', {
+    niveauSelectionne: formData.niveauId,
+    totalClasses: classes.length,
+    classesDuNiveau: classesDuNiveau.length,
+    premieresClasses: classes.slice(0, 3),
+    classesFiltrees: classesDuNiveau
+  });
 
   // Obtenir les professeurs de la matière sélectionnée
   const professeursDeLaMatiere = Array.isArray(professeurs) ? professeurs.filter(prof => {
-    console.log('Filtrage professeur:', prof.nom, prof.prenom, '- Matières:', prof.matieres, '- Type:', typeof prof.matieres);
-    return prof.matieres && Array.isArray(prof.matieres) && prof.matieres.some((matiere: any) => matiere.id === formData.matiereId);
+    // Vérifier différentes structures possibles pour les matières du professeur
+    if (!prof.matieres) return false;
+    
+    // Si c'est un tableau d'objets avec id
+    if (Array.isArray(prof.matieres)) {
+      return prof.matieres.some((matiere: any) => {
+        return matiere.id === formData.matiereId || matiere.matiere_id === formData.matiereId;
+      });
+    }
+    
+    // Si c'est un tableau d'IDs
+    if (typeof prof.matieres === 'string') {
+      try {
+        const matieresIds = JSON.parse(prof.matieres);
+        return Array.isArray(matieresIds) && matieresIds.includes(formData.matiereId);
+      } catch {
+        return false;
+      }
+    }
+    
+    return false;
   }) : [];
   
-  console.log('Professeurs disponibles:', professeurs);
-  console.log('Structure du premier professeur:', professeurs[0]);
+  console.log('Professeurs disponibles:', professeurs.length);
   console.log('Matière sélectionnée:', formData.matiereId);
-  console.log('Professeurs de la matière:', professeursDeLaMatiere);
+  console.log('Professeurs de la matière:', professeursDeLaMatiere.length);
   
-  // Debug: afficher les matières de chaque professeur
-  if (Array.isArray(professeurs)) {
-    professeurs.forEach((prof, index) => {
-      console.log(`Professeur ${index + 1}:`, prof.nom, prof.prenom, '- Matières:', prof.matieres, '- Type:', typeof prof.matieres);
-      if (prof.matieres) {
-        console.log(`  Matières détaillées pour ${prof.nom}:`, JSON.stringify(prof.matieres));
-      }
+  // Debug amélioré
+  if (formData.matiereId && professeurs.length > 0) {
+    console.log('Debug filtrage professeurs:');
+    professeurs.slice(0, 3).forEach((prof, index) => {
+      console.log(`Professeur ${index + 1}:`, {
+        nom: prof.nom,
+        prenom: prof.prenom,
+        matieres: prof.matieres,
+        type: typeof prof.matieres
+      });
     });
   }
 
@@ -239,27 +273,7 @@ const FormulaireCours: React.FC<{
     );
   };
 
-  // Ajouter un créneau
-  const ajouterCreneau = () => {
-    const nouveauCreneau: Creneau = {
-      id: Date.now(),
-      jour: "lundi",
-      heureDebut: "08:00",
-      heureFin: "10:00",
-      salleId: 1, // ID de la première salle par défaut
-      salleNom: "Salle 101", // Nom de la salle par défaut
-      classeId: formData.niveauId,
-      professeurId: 1,
-      classeNom: "Classe",
-      professeurNom: "Professeur",
-      statut: "planifie",
-      dateCreation: new Date().toISOString()
-    };
-    setFormData({
-      ...formData,
-      creneaux: [...(formData.creneaux || []), nouveauCreneau]
-    });
-  };
+
 
   // Supprimer un créneau
   const supprimerCreneau = (id: number) => {
@@ -296,9 +310,7 @@ const FormulaireCours: React.FC<{
     } else if (formData.coefficient < 0 || formData.coefficient > 10) {
       newErrors.coefficient = "Le coefficient doit être entre 0 et 10";
     }
-    if (!formData.professeurId || formData.professeurId === 0) {
-      newErrors.professeurId = "Le professeur est requis";
-    }
+
     if (!formData.semestresIds || formData.semestresIds.length === 0) {
       newErrors.semestresIds = "Au moins un semestre doit être sélectionné";
     }
@@ -309,16 +321,59 @@ const FormulaireCours: React.FC<{
       newErrors.assignations = `Veuillez assigner un professeur pour ${assignationsIncompletes.length} classe(s)`;
     }
 
-    // Validation des créneaux
-    const totalHeuresCreneaux = (formData.creneaux || []).reduce((total: number, creneau: Creneau) => {
+    // Validation des créneaux par classe
+    let erreurCreneaux = false;
+    const creneauxRequis = formData.heuresParSemaine / 2; // Nombre de créneaux de 2h requis
+    
+    assignationsProfesseurs.forEach(assignation => {
+      const creneauxClasse = (formData.creneaux || []).filter(c => c.classeId === assignation.classeId);
+      
+      if (assignation.professeurId !== 0) { // Seulement valider si un professeur est assigné
+        if (creneauxClasse.length === 0) {
+          newErrors.creneaux = `La classe ${assignation.classeNom} doit avoir ${creneauxRequis} créneau(x) de 2h`;
+          erreurCreneaux = true;
+        } else if (creneauxClasse.length !== creneauxRequis) {
+          newErrors.creneaux = `La classe ${assignation.classeNom} doit avoir exactement ${creneauxRequis} créneau(x) de 2h (actuellement: ${creneauxClasse.length})`;
+          erreurCreneaux = true;
+        }
+      }
+    });
+    
+    // Vérifier que chaque créneau fait exactement 2h
+    (formData.creneaux || []).forEach((creneau, index) => {
       const debut = new Date(`2000-01-01T${creneau.heureDebut}`);
       const fin = new Date(`2000-01-01T${creneau.heureFin}`);
-      const heures = (fin.getTime() - debut.getTime()) / (1000 * 60 * 60);
-      return total + heures;
-    }, 0);
-
-    if (totalHeuresCreneaux > formData.heuresParSemaine) {
-      newErrors.creneaux = `Le total des heures des créneaux (${totalHeuresCreneaux}h) ne peut pas dépasser les heures par semaine (${formData.heuresParSemaine}h)`;
+      const duree = (fin.getTime() - debut.getTime()) / (1000 * 60 * 60);
+      
+      if (duree !== 2) {
+        newErrors.creneaux = `Chaque créneau doit durer exactement 2 heures (Créneau ${index + 1}: ${duree}h)`;
+      }
+    });
+    
+    // Vérifier les conflits de créneaux (même jour/heure)
+    const creneauxActifs = formData.creneaux || [];
+    for (let i = 0; i < creneauxActifs.length; i++) {
+      for (let j = i + 1; j < creneauxActifs.length; j++) {
+        const creneau1 = creneauxActifs[i];
+        const creneau2 = creneauxActifs[j];
+        
+        if (creneau1.jour === creneau2.jour && 
+            creneau1.heureDebut === creneau2.heureDebut) {
+          newErrors.creneaux = `Conflit de créneaux: ${creneau1.jour} à ${creneau1.heureDebut}`;
+          break;
+        }
+        
+        // Vérifier les conflits de salles
+        if (creneau1.salleId && creneau2.salleId && 
+            creneau1.salleId === creneau2.salleId &&
+            creneau1.jour === creneau2.jour && 
+            creneau1.heureDebut === creneau2.heureDebut) {
+          const salle = salles.find(s => s.id === creneau1.salleId);
+          newErrors.creneaux = `Conflit de salle: ${salle?.nom || 'Salle'} occupée le ${creneau1.jour} à ${creneau1.heureDebut}`;
+          break;
+        }
+      }
+      if (newErrors.creneaux) break;
     }
 
     setErrors(newErrors);
@@ -331,41 +386,69 @@ const FormulaireCours: React.FC<{
 
     setLoading(true);
     try {
+      // Préparer les données pour l'API backend
+      const coursData = {
+        titre: formData.titre,
+        description: formData.description,
+        matiere_id: formData.matiereId,
+        niveau_id: formData.niveauId,
+        annee_scolaire_id: formData.anneeScolaireId,
+        semestres_ids: [1, 2],
+        heures_par_semaine: formData.heuresParSemaine,
+        coefficient: formData.coefficient,
+        statut: formData.statut || "planifie",
+        assignations: assignationsProfesseurs.map(assignation => ({
+          classeId: assignation.classeId,
+          professeurId: assignation.professeurId
+        })),
+        creneaux: (formData.creneaux || []).map(creneau => ({
+          jour: creneau.jour,
+          heureDebut: creneau.heureDebut,
+          heureFin: creneau.heureFin,
+          classeId: creneau.classeId,
+          salleId: creneau.salleId || null,
+          professeurId: creneau.professeurId
+        }))
+      };
+
+      // Créer l'objet Cours pour l'interface
       const nouveauCours: Cours = {
-      id: modeEdition ? (coursAModifier?.id || Date.now()) : Date.now(),
+        id: modeEdition ? (coursAModifier?.id || Date.now()) : Date.now(),
         titre: formData.titre,
         description: formData.description,
         matiereId: formData.matiereId,
         niveauId: formData.niveauId,
         anneeScolaireId: formData.anneeScolaireId,
-      semestresIds: [1, 2], // Valeur par défaut
-      dateCreation: modeEdition ? (coursAModifier?.dateCreation || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
-      dateModification: modeEdition ? new Date().toISOString().split('T')[0] : undefined,
+        semestresIds: [1, 2],
+        dateCreation: modeEdition ? (coursAModifier?.dateCreation || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
+        dateModification: modeEdition ? new Date().toISOString().split('T')[0] : undefined,
         matiereNom: matieres.find(m => m.id === formData.matiereId)?.nom || "",
         niveauNom: niveaux.find(n => n.id === formData.niveauId)?.nom || "",
         anneeScolaireNom: anneesScolaires.find(a => a.id === formData.anneeScolaireId)?.nom || "",
-      ressources: modeEdition ? (coursAModifier?.ressources || []) : [],
+        ressources: modeEdition ? (coursAModifier?.ressources || []) : [],
         statut: formData.statut || "planifie",
-      assignations: assignationsProfesseurs.map((assignation, index) => ({
-        id: index + 1,
-        classeId: assignation.classeId,
+        assignations: assignationsProfesseurs.map((assignation, index) => ({
+          id: index + 1,
+          classeId: assignation.classeId,
           coursId: modeEdition ? (coursAModifier?.id || Date.now()) : Date.now(),
           anneeScolaireId: formData.anneeScolaireId,
           heuresParSemaine: formData.heuresParSemaine,
-        statut: "active" as const
-      })),
-      creneaux: (formData.creneaux || []).map((creneau: Creneau, index: number) => ({
-        ...creneau,
-        id: index + 1,
-        classeNom: classesDuNiveau.find(c => c.id === creneau.classeId)?.nom || "",
+          statut: "active" as const,
+          professeurNom: assignation.professeurNom
+        })),
+        creneaux: (formData.creneaux || []).map((creneau: Creneau, index: number) => ({
+          ...creneau,
+          id: index + 1,
+          classeNom: classesDuNiveau.find(c => c.id === creneau.classeId)?.nom || "",
           professeurNom: professeursDeLaMatiere.find(p => p.id === creneau.professeurId)?.nom || ""
         })),
         heuresParSemaine: formData.heuresParSemaine,
         coefficient: formData.coefficient
-    };
+      };
 
-    onSubmit(nouveauCours);
-    setLoading(false);
+      // Envoyer les données au backend via onSubmit
+      onSubmit(coursData as any);
+      setLoading(false);
     } catch (error) {
       console.error('Erreur lors de la soumission:', error);
       setLoading(false);
@@ -456,63 +539,7 @@ const FormulaireCours: React.FC<{
 
         </div>
 
-        {/* Sélection du professeur */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Professeur *
-            </label>
-            <select
-              value={formData.professeurId || ""}
-              onChange={(e) => setFormData({...formData, professeurId: parseInt(e.target.value) || undefined})}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.professeurId ? 'border-red-500' : 'border-neutral-300'
-              }`}
-              disabled={!formData.matiereId || formData.matiereId === 0}
-            >
-              <option value="">
-                {!formData.matiereId || formData.matiereId === 0 
-                  ? "Sélectionnez d'abord une matière" 
-                  : "Sélectionner un professeur"}
-              </option>
-              {Array.isArray(professeursDeLaMatiere) && professeursDeLaMatiere.map((professeur: any) => (
-                <option key={professeur.id} value={professeur.id}>
-                  {professeur.prenom} {professeur.nom} - {professeur.email}
-                </option>
-              ))}
-            </select>
-            {errors.professeurId && <p className="text-red-500 text-sm mt-1">{errors.professeurId}</p>}
-            {formData.matiereId && formData.matiereId !== 0 && Array.isArray(professeursDeLaMatiere) && professeursDeLaMatiere.length === 0 && (
-              <p className="text-orange-500 text-sm mt-1">
-                Aucun professeur disponible pour cette matière
-              </p>
-            )}
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
-              Informations sur les professeurs
-            </label>
-            <div className="w-full px-4 py-3 border border-neutral-300 rounded-lg bg-neutral-50 text-neutral-700">
-              {Array.isArray(professeursDeLaMatiere) && professeursDeLaMatiere.length > 0 ? (
-                <div className="text-sm">
-                  <p><strong>{professeursDeLaMatiere.length}</strong> professeur(s) disponible(s) pour cette matière</p>
-                  <p className="text-xs text-neutral-600 mt-1">
-                    {professeursDeLaMatiere.map(prof => `${prof.prenom} ${prof.nom}`).join(', ')}
-                  </p>
-                </div>
-              ) : formData.matiereId && formData.matiereId !== 0 ? (
-                <div className="text-sm text-orange-600">
-                  Aucun professeur assigné à cette matière
-                </div>
-              ) : (
-                <div className="text-sm text-neutral-500">
-                  Sélectionnez une matière pour voir les professeurs disponibles
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -602,43 +629,226 @@ const FormulaireCours: React.FC<{
           </div>
         )}
 
-        {/* Assignation des professeurs par classe */}
-        {classesDuNiveau.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">Assignation des professeurs par classe</h3>
-            <div className="space-y-3">
-              {assignationsProfesseurs.map((assignation, index) => (
-                <div key={assignation.classeId} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {assignation.classeNom}
-                    </label>
-                    <select
-                      value={assignation.professeurId}
-                      onChange={(e) => updateProfesseurNom(assignation.classeId, parseInt(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      disabled={loading}
-                    >
-                      <option value={0}>Sélectionner un professeur</option>
-                      {professeursDeLaMatiere.map(prof => (
-                        <option key={prof.id} value={prof.id}>
-                          {prof.prenom} {prof.nom}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {assignation.professeurNom && (
-                    <div className="flex items-center gap-2 text-sm text-green-600">
-                      <Check className="w-4 h-4" />
-                      <span>{assignation.professeurNom}</span>
+        {/* Assignation par classe avec professeur et horaires */}
+        {formData.niveauId && formData.niveauId !== 0 && (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Assignation par classe ({formData.heuresParSemaine}h/semaine)
+            </h3>
+            
+            {classesDuNiveau.length > 0 ? (
+              <div className="space-y-4">
+                {assignationsProfesseurs.map((assignation, index) => {
+                const creneauxClasse = (formData.creneaux || []).filter(c => c.classeId === assignation.classeId);
+                const totalHeuresClasse = creneauxClasse.reduce((total, creneau) => {
+                  const debut = new Date(`2000-01-01T${creneau.heureDebut}`);
+                  const fin = new Date(`2000-01-01T${creneau.heureFin}`);
+                  return total + (fin.getTime() - debut.getTime()) / (1000 * 60 * 60);
+                }, 0);
+                
+                return (
+                  <div key={assignation.classeId} className="border border-gray-200 rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                        <School className="w-4 h-4" />
+                        {assignation.classeNom}
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          totalHeuresClasse === formData.heuresParSemaine 
+                            ? 'bg-green-100 text-green-800' 
+                            : totalHeuresClasse > formData.heuresParSemaine
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-orange-100 text-orange-800'
+                        }`}>
+                          {totalHeuresClasse}h/{formData.heuresParSemaine}h
+                        </span>
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                    
+                    {/* Sélection du professeur */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Professeur assigné *
+                        {professeursDeLaMatiere.length === 0 && (
+                          <span className="text-red-500 text-xs ml-1">(Aucun professeur disponible pour cette matière)</span>
+                        )}
+                      </label>
+                      <select
+                        value={assignation.professeurId}
+                        onChange={(e) => updateProfesseurNom(assignation.classeId, parseInt(e.target.value))}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                          assignation.professeurId === 0 ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                        }`}
+                        disabled={loading || professeursDeLaMatiere.length === 0}
+                      >
+                        <option value={0}>
+                          {professeursDeLaMatiere.length === 0 
+                            ? "Aucun professeur disponible" 
+                            : "Sélectionner un professeur"}
+                        </option>
+                        {professeursDeLaMatiere.map(prof => (
+                          <option key={prof.id} value={prof.id}>
+                            {prof.prenom} {prof.nom}
+                          </option>
+                        ))}
+                      </select>
+                      {assignation.professeurId === 0 && professeursDeLaMatiere.length > 0 && (
+                        <p className="text-red-500 text-xs mt-1">Veuillez sélectionner un professeur avant d'ajouter des créneaux</p>
+                      )}
+                    </div>
+                    
+                    {/* Créneaux horaires pour cette classe */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Créneaux horaires (2h par créneau)</label>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Requis: {formData.heuresParSemaine / 2} créneau(x) de 2h | 
+                            Actuel: {creneauxClasse.length} créneau(x)
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nouveauCreneau: Creneau = {
+                              id: Date.now(),
+                              jour: "lundi",
+                              heureDebut: "08:00",
+                              heureFin: "10:00",
+                              classeId: assignation.classeId,
+                              salleId: undefined,
+                              salleNom: "",
+                              professeurId: assignation.professeurId,
+                              classeNom: assignation.classeNom,
+                              professeurNom: assignation.professeurNom,
+                              statut: "planifie" as const,
+                              dateCreation: new Date().toISOString()
+                            };
+                            setFormData(prev => ({
+                              ...prev,
+                              creneaux: [...(prev.creneaux || []), nouveauCreneau]
+                            }));
+                          }}
+                          disabled={creneauxClasse.length >= (formData.heuresParSemaine / 2) || assignation.professeurId === 0}
+                          className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={assignation.professeurId === 0 ? "Sélectionnez d'abord un professeur" : 
+                                 creneauxClasse.length >= (formData.heuresParSemaine / 2) ? "Nombre maximum de créneaux atteint" : "Ajouter un nouveau créneau"}
+                        >
+                          <Plus className="w-3 h-3" />
+                          Ajouter créneau
+                        </button>
+                      </div>
+                      
+                      {creneauxClasse.map((creneau, creneauIndex) => (
+                        <div key={creneau.id} className="bg-gray-50 rounded-lg p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">Créneau {creneauIndex + 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => supprimerCreneau(creneau.id)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-4 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Jour</label>
+                              <select
+                                value={creneau.jour}
+                                onChange={(e) => updateCreneau(creneau.id, 'jour', e.target.value)}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              >
+                                {JOURS_SEMAINE.map(jour => (
+                                  <option key={jour.value} value={jour.value}>{jour.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Début</label>
+                              <input
+                                type="time"
+                                value={creneau.heureDebut}
+                                onChange={(e) => {
+                                  updateCreneau(creneau.id, 'heureDebut', e.target.value);
+                                  // Auto-calculer l'heure de fin (+2h)
+                                  const debut = new Date(`2000-01-01T${e.target.value}`);
+                                  debut.setHours(debut.getHours() + 2);
+                                  const heureFin = debut.toTimeString().slice(0, 5);
+                                  updateCreneau(creneau.id, 'heureFin', heureFin);
+                                }}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Fin</label>
+                              <input
+                                type="time"
+                                value={creneau.heureFin}
+                                readOnly
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-100"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-xs text-gray-600 mb-1">Salle (optionnel)</label>
+                              <select
+                                value={creneau.salleId || ''}
+                                onChange={(e) => {
+                                  const salleId = e.target.value ? parseInt(e.target.value) : undefined;
+                                  updateCreneau(creneau.id, 'salleId', salleId || 0);
+                                  const salle = salles.find(s => s.id === salleId);
+                                  updateCreneau(creneau.id, 'salleNom', salle?.nom || '');
+                                }}
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+                              >
+                                <option value="">Aucune salle</option>
+                                {salles.map(salle => (
+                                  <option key={salle.id} value={salle.id}>{salle.nom}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {creneauxClasse.length === 0 && (
+                        <div className="text-center py-4 text-gray-500 text-sm bg-gray-50 rounded border-2 border-dashed border-gray-300">
+                          {assignation.professeurId === 0 
+                            ? "Veuillez d'abord sélectionner un professeur pour ajouter des créneaux"
+                            : "Aucun créneau défini pour cette classe - Cliquez sur 'Ajouter créneau' pour commencer"
+                          }
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 bg-gray-50 rounded-lg">
+                <School className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune classe trouvée</h3>
+                <p className="text-gray-600 mb-4">
+                  Aucune classe n'est disponible pour le niveau sélectionné ({niveaux.find(n => n.id === formData.niveauId)?.nom}).
+                </p>
+                <p className="text-sm text-gray-500">
+                  Veuillez d'abord créer des classes pour ce niveau dans la section "Gestion des Classes".
+                </p>
+              </div>
+            )}
             
             {errors.assignations && (
               <p className="text-red-500 text-sm">{errors.assignations}</p>
+            )}
+            
+            {errors.creneaux && (
+              <p className="text-red-500 text-sm">{errors.creneaux}</p>
             )}
             
             {professeursDeLaMatiere.length === 0 && (
@@ -651,90 +861,7 @@ const FormulaireCours: React.FC<{
           </div>
         )}
 
-        {/* Gestion des créneaux */}
-        {classesDuNiveau.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">Créneaux horaires</h3>
-              <button
-                type="button"
-                onClick={ajouterCreneau}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Ajouter un créneau
-              </button>
-            </div>
-            
-            {(formData.creneaux || []).map((creneau, index) => (
-              <div key={creneau.id} className="p-4 border border-gray-200 rounded-lg space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium text-gray-700">Créneau {index + 1}</h4>
-                  <button
-                    type="button"
-                    onClick={() => supprimerCreneau(creneau.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Jour</label>
-                    <select
-                      value={creneau.jour}
-                      onChange={(e) => updateCreneau(creneau.id, 'jour', e.target.value as any)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      {JOURS_SEMAINE.map(jour => (
-                        <option key={jour.value} value={jour.value}>{jour.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Heure début</label>
-                    <input
-                      type="time"
-                      value={creneau.heureDebut}
-                      onChange={(e) => updateCreneau(creneau.id, 'heureDebut', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Heure fin</label>
-                    <input
-                      type="time"
-                      value={creneau.heureFin}
-                      onChange={(e) => updateCreneau(creneau.id, 'heureFin', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Classe</label>
-                    <select
-                      value={creneau.classeId}
-                      onChange={(e) => updateCreneau(creneau.id, 'classeId', parseInt(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value={0}>Sélectionner une classe</option>
-                      {classesDuNiveau.map(classe => (
-                        <option key={classe.id} value={classe.id}>{classe.nom}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            ))}
-            
-            {errors.creneaux && (
-              <p className="text-red-500 text-sm">{errors.creneaux}</p>
-            )}
-          </div>
-        )}
+
       </div>
 
       <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
@@ -774,10 +901,16 @@ const ModalDetailsCoursComplet: React.FC<{
   classes: any[];
   eleves: any[];
   onClose: () => void;
-}> = ({ cours, professeurs, classes, eleves, onClose }) => {
-  const [activeTab, setActiveTab] = useState<"infos" | "classes" | "emploi">("infos");
+  isProfesseur?: boolean;
+}> = ({ cours, professeurs, classes, eleves, onClose, isProfesseur = false }) => {
+  const [activeTab, setActiveTab] = useState<"infos" | "classes" | "emploi" | "notes" | "presences">(isProfesseur ? "classes" : "infos");
   const [classeDetails, setClasseDetails] = useState<any>(null);
   const [showClasseDetails, setShowClasseDetails] = useState(false);
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [showPresencesModal, setShowPresencesModal] = useState(false);
+  const [selectedEleve, setSelectedEleve] = useState<any>(null);
+  const [notes, setNotes] = useState<any>({});
+  const [presences, setPresences] = useState<any>({});
 
   const getStatutColor = (statut: string) => {
     switch (statut) {
@@ -809,7 +942,11 @@ const ModalDetailsCoursComplet: React.FC<{
 
 
 
-  const tabs = [
+  const tabs = isProfesseur ? [
+    { id: "classes", label: "Mes Classes", icon: <Users2 className="w-4 h-4" /> },
+    { id: "infos", label: "Informations", icon: <Info className="w-4 h-4" /> },
+    { id: "emploi", label: "Emploi du temps", icon: <CalendarCheck className="w-4 h-4" /> }
+  ] : [
     { id: "infos", label: "Informations", icon: <Info className="w-4 h-4" /> },
     { id: "classes", label: "Classes assignées", icon: <Users2 className="w-4 h-4" /> },
     { id: "emploi", label: "Emploi du temps", icon: <CalendarCheck className="w-4 h-4" /> }
@@ -981,14 +1118,10 @@ const ModalDetailsCoursComplet: React.FC<{
                       {classesDuCours.map((classe) => {
                         const assignation = cours.assignations?.find(a => a.classeId === classe.id);
                         const professeur = professeurs.find(p => p.id === assignation?.professeurId);
-                        const elevesClasse = eleves.filter(eleve => eleve.classeId === classe.id);
+                        const elevesClasse = eleves.filter(eleve => (eleve.classeId || eleve.classe_id) === classe.id);
                         
                         return (
-                          <div key={classe.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                               onClick={() => {
-                                 setClasseDetails(classe);
-                                 setShowClasseDetails(true);
-                               }}>
+                          <div key={classe.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                             <div className="flex items-center justify-between mb-3">
                               <h4 className="font-semibold text-gray-900">{classe.nom}</h4>
                               <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
@@ -1020,7 +1153,47 @@ const ModalDetailsCoursComplet: React.FC<{
                         </div>
                             
                             <div className="mt-3 pt-3 border-t border-gray-100">
-                              <p className="text-xs text-gray-500">Cliquez pour voir les détails</p>
+                              {isProfesseur ? (
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setClasseDetails(classe);
+                                      setShowNotesModal(true);
+                                    }}
+                                    className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                                  >
+                                    Gérer Notes
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setClasseDetails(classe);
+                                      setShowPresencesModal(true);
+                                    }}
+                                    className="flex-1 px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                                  >
+                                    Présences
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setClasseDetails(classe);
+                                      setShowClasseDetails(true);
+                                    }}
+                                    className="px-3 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"
+                                  >
+                                    Détails
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setClasseDetails(classe);
+                                    setShowClasseDetails(true);
+                                  }}
+                                  className="w-full text-left"
+                                >
+                                  <p className="text-xs text-gray-500">Cliquez pour voir les détails</p>
+                                </button>
+                              )}
                             </div>
                           </div>
                         );
@@ -1089,7 +1262,7 @@ const ModalDetailsCoursComplet: React.FC<{
                                 <p className="text-sm text-blue-600 font-medium">Élèves</p>
                                 <p className="text-xl font-bold text-blue-900">
                                   {(() => {
-                                    const elevesClasse = eleves.filter(eleve => eleve.classeId === classeDetails.id);
+                                    const elevesClasse = eleves.filter(eleve => (eleve.classeId || eleve.classe_id) === classeDetails.id);
                                     return elevesClasse.length;
                                   })()}
                                 </p>
@@ -1105,7 +1278,7 @@ const ModalDetailsCoursComplet: React.FC<{
                                 <p className="text-sm text-green-600 font-medium">Moyenne</p>
                                 <p className="text-xl font-bold text-green-900">
                                   {(() => {
-                                    const elevesClasse = eleves.filter(eleve => eleve.classeId === classeDetails.id);
+                                    const elevesClasse = eleves.filter(eleve => (eleve.classeId || eleve.classe_id) === classeDetails.id);
                                     return elevesClasse.length > 0 
                                       ? (elevesClasse.reduce((acc: number, eleve: any) => acc + eleve.moyenne, 0) / elevesClasse.length).toFixed(2)
                                       : "0.00";
@@ -1133,7 +1306,7 @@ const ModalDetailsCoursComplet: React.FC<{
                           </thead>
                           <tbody className="divide-y divide-gray-200">
                             {(() => {
-                              const elevesClasse = eleves.filter(eleve => eleve.classeId === classeDetails.id);
+                              const elevesClasse = eleves.filter(eleve => (eleve.classeId || eleve.classe_id) === classeDetails.id);
                               return elevesClasse.map((eleve: any) => (
                                 <tr key={eleve.id} className="hover:bg-gray-50">
                                   <td className="px-4 py-3 text-sm font-medium text-gray-900">
@@ -1245,6 +1418,165 @@ const ModalDetailsCoursComplet: React.FC<{
         </div>
       </motion.div>
 
+      {/* Modal Gestion des Notes */}
+      {showNotesModal && classeDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-xl font-semibold">Gestion des Notes - {classeDetails.nom}</h3>
+              <button onClick={() => setShowNotesModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-4">
+                {eleves.filter(eleve => (eleve.classeId || eleve.classe_id) === classeDetails.id).map((eleve: any) => (
+                  <div key={eleve.id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium">{eleve.prenom} {eleve.nom}</h4>
+                      <span className="text-sm text-gray-600">Moyenne: {eleve.moyenne?.toFixed(2) || '0.00'}/20</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      {['devoir1', 'devoir2', 'examen'].map((type) => (
+                        <div key={type} className="space-y-2">
+                          <label className="block text-sm font-medium text-gray-700 capitalize">
+                            {type === 'devoir1' ? 'Devoir 1' : type === 'devoir2' ? 'Devoir 2' : 'Examen'}
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="20"
+                            step="0.25"
+                            placeholder="/20"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            onChange={(e) => {
+                              const key = `${eleve.id}-${type}`;
+                              setNotes((prev: any) => ({ ...prev, [key]: e.target.value }));
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Appréciation</label>
+                      <textarea
+                        rows={2}
+                        placeholder="Commentaire sur le travail de l'élève..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        onChange={(e) => {
+                          const key = `${eleve.id}-appreciation`;
+                          setNotes((prev: any) => ({ ...prev, [key]: e.target.value }));
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+                <button
+                  onClick={() => setShowNotesModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    // Ici on sauvegarderait les notes
+                    console.log('Notes à sauvegarder:', notes);
+                    setShowNotesModal(false);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Sauvegarder
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Gestion des Présences */}
+      {showPresencesModal && classeDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-xl font-semibold">Présences - {classeDetails.nom}</h3>
+              <button onClick={() => setShowPresencesModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date du cours</label>
+                <input
+                  type="date"
+                  defaultValue={new Date().toISOString().split('T')[0]}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="space-y-3">
+                {eleves.filter(eleve => (eleve.classeId || eleve.classe_id) === classeDetails.id).map((eleve: any) => (
+                  <div key={eleve.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{eleve.prenom} {eleve.nom}</p>
+                        <p className="text-sm text-gray-600">{eleve.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setPresences((prev: any) => ({ ...prev, [eleve.id]: 'present' }));
+                        }}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          presences[eleve.id] === 'present'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-green-100'
+                        }`}
+                      >
+                        Présent
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPresences((prev: any) => ({ ...prev, [eleve.id]: 'absent' }));
+                        }}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          presences[eleve.id] === 'absent'
+                            ? 'bg-red-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-red-100'
+                        }`}
+                      >
+                        Absent
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+                <button
+                  onClick={() => setShowPresencesModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    // Ici on sauvegarderait les présences
+                    console.log('Présences à sauvegarder:', presences);
+                    setShowPresencesModal(false);
+                  }}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  Sauvegarder
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
@@ -1260,12 +1592,14 @@ const CoursAdmin: React.FC = () => {
   const [matieres, setMatieres] = useState<any[]>([]);
   const [anneesScolaires, setAnneesScolaires] = useState<any[]>([]);
   const [anneeScolaireActive, setAnneeScolaireActive] = useState<any>(null);
+  const [salles, setSalles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatut, setFilterStatut] = useState<string>("");
   const [filterMatiere, setFilterMatiere] = useState<string>("");
   const [filterNiveau, setFilterNiveau] = useState<string>("");
   const [activeTab, setActiveTab] = useState<"liste" | "ajouter">("liste");
+
 
   // Missing state variables
   const [showModal, setShowModal] = useState(false);
@@ -1297,6 +1631,7 @@ const CoursAdmin: React.FC = () => {
       loadAnneesScolaires();
       loadClasses();
       loadEleves();
+      loadSalles();
       loadNotifications();
     }
   }, [utilisateur]);
@@ -1304,37 +1639,76 @@ const CoursAdmin: React.FC = () => {
   const loadCours = async () => {
     setLoading(true);
     try {
+      console.log('Chargement des cours...');
       const response = await adminService.getCours();
+      console.log('Réponse getCours:', response);
+      
       if (response.success && response.data) {
         // Transformer les données pour correspondre au modèle frontend
-        const coursTransformes = response.data.map((cours: any) => ({
-          id: cours.id,
-          titre: cours.titre,
-          description: cours.description,
-          matiereId: cours.matiere_id,
-          matiereNom: cours.matiere?.nom || 'Matière inconnue',
-          niveauId: cours.niveau_id,
-          niveauNom: cours.niveau?.nom || 'Niveau inconnu',
-          anneeScolaireId: cours.annee_scolaire_id,
-          anneeScolaireNom: cours.annee_scolaire?.nom || 'Année inconnue',
-          heuresParSemaine: cours.heures_par_semaine,
-          coefficient: cours.coefficient,
-          statut: cours.statut,
-          dateCreation: cours.date_creation || cours.created_at,
-          dateModification: cours.date_modification || cours.updated_at,
-          professeurId: cours.professeurs?.[0]?.id,
-          professeurNom: cours.professeurs?.[0]?.nom,
-          classes: cours.classes || [],
-          creneaux: cours.creneaux || [],
-          assignations: cours.assignations || [],
-          ressources: cours.ressources || [],
-          semestresIds: cours.semestres_ids || []
-        }));
+        const coursTransformes = response.data.map((cours: any) => {
+          console.log('Cours brut:', cours);
+          console.log('Créneaux du cours:', cours.creneaux);
+          
+          // Gérer les assignations (peut être assignations ou assignations_professeurs)
+          const assignations = cours.assignations || cours.assignations_professeurs || [];
+          
+          return {
+            id: cours.id,
+            titre: cours.titre,
+            description: cours.description,
+            matiereId: cours.matiere_id,
+            matiereNom: cours.matiere?.nom || 'Matière inconnue',
+            niveauId: cours.niveau_id,
+            niveauNom: cours.niveau?.nom || 'Niveau inconnu',
+            anneeScolaireId: cours.annee_scolaire_id,
+            anneeScolaireNom: cours.annee_scolaire?.nom || 'Année inconnue',
+            heuresParSemaine: cours.heures_par_semaine,
+            coefficient: cours.coefficient,
+            statut: cours.statut,
+            dateCreation: cours.date_creation || cours.created_at,
+            dateModification: cours.date_modification || cours.updated_at,
+            professeurId: undefined,
+            professeurNom: 'Professeurs assignés par classe',
+            professeurs: cours.professeurs || [],
+            classes: cours.classes || [],
+            creneaux: (cours.creneaux || []).map((creneau: any) => ({
+              id: creneau.id,
+              jour: creneau.jour,
+              heureDebut: creneau.heure_debut,
+              heureFin: creneau.heure_fin,
+              classeId: creneau.classe_id,
+              classeNom: creneau.classe?.nom || '',
+              professeurId: creneau.professeur_id,
+              professeurNom: creneau.professeur?.nom || '',
+              salleId: creneau.salle_id,
+              salleNom: creneau.salle?.nom || '',
+              statut: creneau.statut || 'planifie',
+              dateCreation: creneau.date_creation || creneau.created_at
+            })),
+            assignations: assignations.map((assign: any) => ({
+              id: assign.id,
+              classeId: assign.classe_id,
+              coursId: assign.cours_id,
+              anneeScolaireId: assign.annee_scolaire_id,
+              heuresParSemaine: cours.heures_par_semaine,
+              statut: assign.statut || 'active',
+              professeurNom: 'Professeur assigné'
+            })),
+            ressources: cours.ressources || [],
+            semestresIds: cours.semestres_ids || []
+          };
+        });
         console.log('Cours transformés:', coursTransformes);
+        console.log('Nombre de cours reçus:', response.data.length);
+        console.log('Nombre de cours transformés:', coursTransformes.length);
         setCours(coursTransformes);
+      } else {
+        console.log('Aucun cours trouvé ou erreur:', response);
+        setCours([]);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des cours:', error);
+      setCours([]);
     } finally {
       setLoading(false);
     }
@@ -1380,16 +1754,26 @@ const CoursAdmin: React.FC = () => {
 
   const loadProfesseurs = async () => {
     try {
-      const response = await adminService.getAllUsers();
-      const usersData = response.data || [];
+      const response = await adminService.getUsers({ role: 'professeur' });
+      const professeurs = response.data || [];
       
-      // Filtrer les professeurs
-      const professeurs = usersData.filter((user: any) => user.role === 'professeur');
+      console.log('Professeurs chargés:', professeurs.length);
+      if (professeurs.length > 0) {
+        console.log('Exemple professeur:', professeurs[0]);
+      }
       
-      // For now, load all professors without filtering by subject
       setProfesseurs(professeurs);
     } catch (error) {
       console.error('Erreur lors du chargement des professeurs:', error);
+      // Fallback avec getAllUsers si getUsers ne fonctionne pas
+      try {
+        const fallbackResponse = await adminService.getAllUsers();
+        const usersData = fallbackResponse.data || [];
+        const professeursFallback = usersData.filter((user: any) => user.role === 'professeur');
+        setProfesseurs(professeursFallback);
+      } catch (fallbackError) {
+        console.error('Erreur fallback professeurs:', fallbackError);
+      }
     }
   };
 
@@ -1408,10 +1792,27 @@ const CoursAdmin: React.FC = () => {
     try {
       const response = await eleveService.getEleves();
       if (response.success && response.data) {
-        setEleves(response.data);
+        // Normaliser les données pour compatibilité
+        const elevesNormalises = response.data.map((eleve: any) => ({
+          ...eleve,
+          classeId: eleve.classe_id || eleve.classeId,
+          moyenne: eleve.moyenne || 12.5
+        }));
+        setEleves(elevesNormalises);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des élèves:', error);
+    }
+  };
+
+  const loadSalles = async () => {
+    try {
+      const response = await adminService.getSalles();
+      if (response.success && response.data) {
+        setSalles(response.data);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des salles:', error);
     }
   };
 
@@ -1428,10 +1829,18 @@ const CoursAdmin: React.FC = () => {
 
   const handleCreateCours = async (coursData: any) => {
     try {
-      await adminService.createCours(coursData);
-      loadCours();
-      setShowModal(false);
-      setFormData(initialFormData);
+      console.log('Données envoyées au backend:', coursData);
+      const response = await adminService.createCours(coursData);
+      console.log('Réponse du backend:', response);
+      
+      if (response.success) {
+        await loadCours(); // Recharger la liste
+        setActiveTab("liste"); // Retourner à la liste
+        setCoursAModifier(null);
+        console.log('Cours créé avec succès');
+      } else {
+        console.error('Erreur lors de la création:', response.message);
+      }
     } catch (error) {
       console.error('Erreur lors de la création du cours:', error);
     }
@@ -1439,11 +1848,18 @@ const CoursAdmin: React.FC = () => {
 
   const handleUpdateCours = async (coursData: any) => {
     try {
-      await adminService.updateCours(coursData.id, coursData);
-      loadCours();
-      setShowModal(false);
-      setFormData(initialFormData);
-      setEditingCours(null);
+      console.log('Données de mise à jour envoyées:', coursData);
+      const response = await adminService.updateCours(coursData.id, coursData);
+      console.log('Réponse de mise à jour:', response);
+      
+      if (response.success) {
+        await loadCours(); // Recharger la liste
+        setActiveTab("liste"); // Retourner à la liste
+        setCoursAModifier(null);
+        console.log('Cours mis à jour avec succès');
+      } else {
+        console.error('Erreur lors de la mise à jour:', response.message);
+      }
     } catch (error) {
       console.error('Erreur lors de la mise à jour du cours:', error);
     }
@@ -1493,51 +1909,56 @@ const CoursAdmin: React.FC = () => {
       {/* En-tête */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Gestion des Cours</h1>
+          <h1 className="text-2xl font-bold text-neutral-900">
+            {utilisateur?.role === 'professeur' ? 'Mes Cours' : 'Gestion des Cours'}
+          </h1>
           <p className="text-neutral-600 mt-1">
-            Gérez les cours par niveau, année scolaire et professeur
+            {utilisateur?.role === 'professeur' 
+              ? 'Consultez vos cours assignés et leurs détails'
+              : 'Gérez les cours par niveau, année scolaire et professeur'
+            }
           </p>
         </div>
-        
-
       </div>
 
-      {/* Onglets */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab("liste")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "liste"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <BookOpen className="w-4 h-4" />
-                Liste des cours
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("ajouter")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "ajouter"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                Ajouter/Modifier
-              </div>
-            </button>
-          </nav>
+      {/* Onglets - Masqués pour les professeurs */}
+      {utilisateur?.role !== 'professeur' && (
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab("liste")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "liste"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4" />
+                  Liste des cours
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab("ajouter")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "ajouter"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Ajouter/Modifier
+                </div>
+              </button>
+            </nav>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Contenu des onglets */}
-      {activeTab === "liste" ? (
+      {(activeTab === "liste" || utilisateur?.role === 'professeur') ? (
         <div>
           {/* Filtres et recherche */}
           <div className="bg-white rounded-lg border border-neutral-200 p-4 mb-6">
@@ -1561,7 +1982,7 @@ const CoursAdmin: React.FC = () => {
                   onChange={(e) => setFilterStatut(e.target.value)}
                   className="px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="all">Tous les statuts</option>
+                  <option value="">Tous les statuts</option>
                   {STATUTS_COURS.map(statut => (
                     <option key={statut.value} value={statut.value}>{statut.label}</option>
                   ))}
@@ -1572,12 +1993,30 @@ const CoursAdmin: React.FC = () => {
                   onChange={(e) => setFilterMatiere(e.target.value)}
                   className="px-4 py-3 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="all">Toutes les matières</option>
+                  <option value="">Toutes les matières</option>
                   {Array.isArray(matieres) && matieres.map(matiere => (
                     <option key={matiere.id} value={matiere.id}>{matiere.nom}</option>
                   ))}
                 </select>
               </div>
+            </div>
+            <div className="mt-2 text-sm text-gray-600">
+              {(() => {
+                const filteredCount = cours.filter(coursItem => {
+                  const matchesSearch = !searchTerm || 
+                    coursItem.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    coursItem.matiereNom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    coursItem.niveauNom.toLowerCase().includes(searchTerm.toLowerCase());
+                  
+                  const matchesStatut = !filterStatut || coursItem.statut === filterStatut;
+                  const matchesMatiere = !filterMatiere || coursItem.matiereId.toString() === filterMatiere;
+                  
+                  return matchesSearch && matchesStatut && matchesMatiere;
+                }).length;
+                
+                return `Affichage de ${filteredCount} cours sur ${cours.length} au total`;
+              })()
+              }
             </div>
           </div>
 
@@ -1591,10 +2030,10 @@ const CoursAdmin: React.FC = () => {
                       Cours
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Matière & Classe
+                      Matière & Niveau
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                      Professeur
+                      Classes assignées
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                       Horaires
@@ -1608,7 +2047,17 @@ const CoursAdmin: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
-                  {cours.map((coursItem, index) => (
+                  {cours.filter(coursItem => {
+                    const matchesSearch = !searchTerm || 
+                      coursItem.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      coursItem.matiereNom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      coursItem.niveauNom.toLowerCase().includes(searchTerm.toLowerCase());
+                    
+                    const matchesStatut = !filterStatut || coursItem.statut === filterStatut;
+                    const matchesMatiere = !filterMatiere || coursItem.matiereId.toString() === filterMatiere;
+                    
+                    return matchesSearch && matchesStatut && matchesMatiere;
+                  }).map((coursItem, index) => (
                     <motion.tr
                       key={coursItem.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -1648,9 +2097,16 @@ const CoursAdmin: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-green-500" />
-                          <span className="text-neutral-900">{coursItem.assignations && coursItem.assignations.length > 0 ? coursItem.assignations[0].professeurNom : "Non assigné"}</span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-green-500" />
+                            <span className="text-neutral-900">
+                              {coursItem.assignations?.length || 0} classe{(coursItem.assignations?.length || 0) > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <div className="text-xs text-neutral-500">
+                            Professeurs assignés par classe
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -1688,27 +2144,31 @@ const CoursAdmin: React.FC = () => {
                           >
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => {
-                              setCoursAModifier(coursItem);
-                              setShowModalModification(true);
-                            }}
-                            className="p-2 text-neutral-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                            title="Modifier"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm(`Êtes-vous sûr de vouloir supprimer le cours "${coursItem.titre}" ?`)) {
-                                handleDeleteCours(coursItem.id);
-                              }
-                            }}
-                            className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {utilisateur?.role !== 'professeur' && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setCoursAModifier(coursItem);
+                                  setActiveTab("ajouter");
+                                }}
+                                className="p-2 text-neutral-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                title="Modifier"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Êtes-vous sûr de vouloir supprimer le cours "${coursItem.titre}" ?`)) {
+                                    handleDeleteCours(coursItem.id);
+                                  }
+                                }}
+                                className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </motion.tr>
@@ -1717,18 +2177,37 @@ const CoursAdmin: React.FC = () => {
               </table>
             </div>
 
-            {cours.length === 0 && (
-              <div className="text-center py-12">
-                <BookOpen className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-neutral-900 mb-2">
-                  Aucun cours trouvé
-                </h3>
-                <p className="text-neutral-500">
-                  Essayez de modifier vos critères de recherche ou créez un nouveau cours.
-                </p>
-              </div>
-            )}
+            {(() => {
+              const filteredCours = cours.filter(coursItem => {
+                const matchesSearch = !searchTerm || 
+                  coursItem.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  coursItem.matiereNom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  coursItem.niveauNom.toLowerCase().includes(searchTerm.toLowerCase());
+                
+                const matchesStatut = !filterStatut || coursItem.statut === filterStatut;
+                const matchesMatiere = !filterMatiere || coursItem.matiereId.toString() === filterMatiere;
+                
+                return matchesSearch && matchesStatut && matchesMatiere;
+              });
+              
+              return filteredCours.length === 0 && (
+                <div className="text-center py-12">
+                  <BookOpen className="w-12 h-12 text-neutral-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-neutral-900 mb-2">
+                    {utilisateur?.role === 'professeur' ? 'Aucun cours assigné' : 'Aucun cours trouvé'}
+                  </h3>
+                  <p className="text-neutral-500">
+                    {utilisateur?.role === 'professeur' 
+                      ? 'Aucun cours ne vous a été assigné pour le moment.'
+                      : 'Essayez de modifier vos critères de recherche ou créez un nouveau cours.'
+                    }
+                  </p>
+                </div>
+              );
+            })()}
           </div>
+
+
 
           {/* Statistiques */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
@@ -1778,7 +2257,7 @@ const CoursAdmin: React.FC = () => {
             ))}
           </div>
         </div>
-      ) : (
+      ) : (utilisateur?.role === 'administrateur' || utilisateur?.role === 'gestionnaire') ? (
         <div>
           <div className="bg-white rounded-lg border border-neutral-200 p-6">
             <div className="flex items-center justify-between mb-6">
@@ -1798,136 +2277,49 @@ const CoursAdmin: React.FC = () => {
               </button>
             </div>
             <FormulaireCours
-              onSubmit={handleCreateCours}
+              onSubmit={coursAModifier ? handleUpdateCours : handleCreateCours}
               onClose={() => {
                 setActiveTab("liste");
-                setShowModalModification(false);
                 setCoursAModifier(null);
               }}
               coursAModifier={coursAModifier || undefined}
+              modeEdition={!!coursAModifier}
               classes={classes}
               professeurs={professeurs}
               matieres={matieres}
               niveaux={niveaux}
               anneesScolaires={anneesScolaires}
               anneeScolaireActive={anneeScolaireActive}
+              salles={salles}
             />
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Modal d'ajout/modification */}
 
 
-      {/* Modal détails cours */}
-      {coursSelectionne && (
-        <Modal
-          isOpen={!!coursSelectionne}
-          onClose={() => setCoursSelectionne(null)}
-          title={`Détails du cours: ${coursSelectionne.titre}`}
-          size="max-w-5xl"
-        >
-          <div className="space-y-6">
-            {/* Informations générales */}
-            <div className="bg-neutral-50 rounded-lg p-4">
-              <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-blue-600" />
-                Informations générales
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div className="space-y-2">
-                  <p><strong>Titre :</strong> {coursSelectionne.titre}</p>
-                  <p><strong>Matière :</strong> {coursSelectionne.matiereNom}</p>
-                  <p><strong>Niveau :</strong> {coursSelectionne.niveauNom}</p>
-                  <p><strong>Professeur :</strong> {coursSelectionne.assignations && coursSelectionne.assignations.length > 0 ? coursSelectionne.assignations[0].professeurNom : "Non assigné"}</p>
-                </div>
-                <div className="space-y-2">
-                  <p><strong>Heures/semaine :</strong> {coursSelectionne.heuresParSemaine}h</p>
-                  {coursSelectionne.coefficient && <p><strong>Coefficient :</strong> {coursSelectionne.coefficient}</p>}
-                  <p><strong>Statut :</strong> {getStatutBadge(coursSelectionne.statut)}</p>
-                  <p><strong>Date de création :</strong> {coursSelectionne.dateCreation}</p>
-                </div>
-              </div>
-              <div className="mt-4">
-                <p><strong>Description :</strong></p>
-                <p className="text-neutral-600 mt-1">{coursSelectionne.description}</p>
-              </div>
-            </div>
-
-            {/* Objectifs */}
-            {/* Removed Objectifs and Prerequis sections */}
-
-            {/* Ressources */}
-            {coursSelectionne.ressources && coursSelectionne.ressources.length > 0 && (
-              <div className="bg-blue-50 rounded-lg p-4">
-                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                  Ressources pédagogiques
-                </h3>
-                <div className="space-y-3">
-                  {coursSelectionne.ressources.map((ressource: any) => (
-                    <div key={ressource.id} className="flex items-center justify-between bg-white rounded-lg p-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                          {getIconeRessource(ressource.type)}
-                        </div>
-                        <div>
-                          <p className="font-medium text-neutral-900">{ressource.nom}</p>
-                          <div className="flex items-center gap-4 text-sm text-neutral-600">
-                            <span className="capitalize">{ressource.type}</span>
-                            {ressource.taille && <span>{ressource.taille}</span>}
-                            <span>Ajouté le {ressource.dateAjout}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {ressource.obligatoire && (
-                          <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-                            Obligatoire
-                          </span>
-                        )}
-                        <button className="text-blue-600 hover:text-blue-800 text-sm">
-                          Télécharger
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
-              <button
-                onClick={() => {
-                  setCoursAModifier(coursSelectionne);
-                  setShowModalModification(true);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-              >
-                <Edit3 className="w-4 h-4" />
-                Modifier
-              </button>
-              <button
-                onClick={() => setCoursSelectionne(null)}
-                className="flex items-center gap-2 px-4 py-2 bg-neutral-600 text-white rounded-lg hover:bg-neutral-700 transition-colors"
-              >
-                <X className="w-4 h-4" />
-                Fermer
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {/* Modal de détails complet du cours avec onglets */}
-      {coursSelectionne && (
+      {/* Modal détails cours - Pour professeurs avec gestion notes/présences */}
+      {coursSelectionne && utilisateur?.role === 'professeur' && (
         <ModalDetailsCoursComplet
           cours={coursSelectionne}
           professeurs={professeurs}
           classes={classes}
           eleves={eleves}
           onClose={() => setCoursSelectionne(null)}
+          isProfesseur={true}
+        />
+      )}
+
+      {/* Modal de détails complet du cours avec onglets - Pour admins/gestionnaires */}
+      {coursSelectionne && (utilisateur?.role === 'administrateur' || utilisateur?.role === 'gestionnaire') && (
+        <ModalDetailsCoursComplet
+          cours={coursSelectionne}
+          professeurs={professeurs}
+          classes={classes}
+          eleves={eleves}
+          onClose={() => setCoursSelectionne(null)}
+          isProfesseur={false}
         />
       )}
 

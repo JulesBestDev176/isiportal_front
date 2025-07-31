@@ -368,9 +368,21 @@ export const adminService = {
   },
 
   // Méthodes manquantes ajoutées
-  async getCours(): Promise<ApiResponse<any[]>> {
+  async getCours(params: any = {}): Promise<ApiResponse<any[]>> {
+    const queryParams = new URLSearchParams();
+    if (params.per_page) queryParams.append('per_page', params.per_page.toString());
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.search) queryParams.append('search', params.search);
+    if (params.matiere_id) queryParams.append('matiere_id', params.matiere_id.toString());
+    if (params.niveau_id) queryParams.append('niveau_id', params.niveau_id.toString());
+    if (params.statut) queryParams.append('statut', params.statut);
+
+    const url = queryParams.toString() ? 
+      `${API_BASE_URL}/admin/cours?${queryParams.toString()}` : 
+      `${API_BASE_URL}/admin/cours`;
+
     return safeApiCall(
-      () => fetch(`${API_BASE_URL}/admin/cours`, {
+      () => fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(),
       }),
@@ -684,5 +696,45 @@ export const adminService = {
       [],
       'Bâtiments récupérés avec succès'
     );
+  },
+
+  // Méthode optimisée pour récupérer toutes les données initiales
+  async getInitialData(): Promise<ApiResponse<any>> {
+    return safeApiCall(
+      () => fetch(`${API_BASE_URL}/admin/initial-data`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      }),
+      {},
+      'Données initiales récupérées avec succès'
+    );
+  },
+
+  // Méthode de test pour vérifier les cours-professeurs
+  async testCoursProfesseurs(): Promise<ApiResponse<any>> {
+    return safeApiCall(
+      () => fetch(`${API_BASE_URL}/test/cours-professeurs-public`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+      }),
+      {},
+      'Test cours-professeurs effectué'
+    );
   }
-}; 
+};
+
+// Fonction utilitaire pour tester les données
+export const testCoursProfesseurs = async () => {
+  try {
+    const result = await adminService.testCoursProfesseurs();
+    console.log('=== TEST COURS-PROFESSEURS ===');
+    console.log('Résultat:', result);
+    return result;
+  } catch (error) {
+    console.error('Erreur test cours-professeurs:', error);
+    return null;
+  }
+};

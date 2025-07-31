@@ -172,15 +172,31 @@ const FormulaireClasse: React.FC<{
 }> = ({ onSubmit, onClose, classeAModifier, modeEdition = false }) => {
   const [formData, setFormData] = useState<FormDataClasse>({
     nom: classeAModifier?.nom || "",
-    niveauId: classeAModifier?.niveauId?.toString() || "",
-    effectifMax: 30, // Valeur par défaut
+    niveauId: classeAModifier?.niveau_id?.toString() || classeAModifier?.niveauId?.toString() || "",
+    effectifMax: (classeAModifier as any)?.effectif_max || classeAModifier?.effectifMax || 30,
     description: classeAModifier?.description || "",
-    professeurPrincipalId: "", // À gérer avec le nouveau modèle
+    professeurPrincipalId: (classeAModifier as any)?.professeur_principal_id?.toString() || classeAModifier?.professeurPrincipalId?.toString() || "",
     statut: classeAModifier?.statut || "active"
   });
 
   const [errors, setErrors] = useState<Errors>({});
   const [loading, setLoading] = useState(false);
+
+  // Mettre à jour le formulaire quand classeAModifier change
+  useEffect(() => {
+    if (classeAModifier) {
+      setFormData({
+        nom: classeAModifier.nom || "",
+        niveauId: (classeAModifier as any)?.niveau_id?.toString() || classeAModifier?.niveauId?.toString() || "",
+        effectifMax: (classeAModifier as any)?.effectif_max || classeAModifier?.effectifMax || 30,
+        description: classeAModifier.description || "",
+        professeurPrincipalId: (classeAModifier as any)?.professeur_principal_id?.toString() || classeAModifier?.professeurPrincipalId?.toString() || "",
+        statut: classeAModifier.statut || "active"
+      });
+    } else {
+      setFormData(initialFormData);
+    }
+  }, [classeAModifier]);
 
   const niveaux = [
     { id: 1, nom: "6ème" },
@@ -192,13 +208,22 @@ const FormulaireClasse: React.FC<{
     { id: 7, nom: "Terminale" }
   ];
 
-  const professeurs = [
-    { id: 1, nom: "Mme Diallo" },
-    { id: 2, nom: "M. Sarr" },
-    { id: 3, nom: "Mme Cissé" },
-    { id: 4, nom: "M. Fall" },
-    { id: 5, nom: "Mme Ndiaye" }
-  ];
+  const [professeurs, setProfesseurs] = useState<any[]>([]);
+
+  // Charger les professeurs au montage du composant
+  useEffect(() => {
+    const loadProfesseurs = async () => {
+      try {
+        const response = await adminService.getUsers({ role: 'professeur' });
+        if (response.success && response.data) {
+          setProfesseurs(response.data);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des professeurs:', error);
+      }
+    };
+    loadProfesseurs();
+  }, []);
 
   const validateForm = () => {
     const newErrors: Errors = {};
@@ -217,37 +242,18 @@ const FormulaireClasse: React.FC<{
     setLoading(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Créer une année scolaire pour la classe
-    const anneeScolaire: ClasseAnneeScolaire = {
-      id: Date.now(),
-      classeId: modeEdition && classeAModifier ? classeAModifier.id : Date.now(),
-      anneeScolaireId: 1,
-      anneeScolaireNom: "2023-2024",
-      elevesIds: [],
-      effectif: 0,
-      effectifMax: formData.effectifMax,
-      professeurPrincipalId: formData.professeurPrincipalId ? parseInt(formData.professeurPrincipalId) : undefined,
-      professeurPrincipalNom: professeurs.find(p => p.id === parseInt(formData.professeurPrincipalId))?.nom,
-      profsMatieres: [],
-      description: formData.description,
-      statut: formData.statut as "active" | "inactive" | "archivee",
-      dateCreation: new Date().toISOString().split('T')[0]
-    };
-
-    const nouvelleClasse: Classe = {
-      id: modeEdition && classeAModifier ? classeAModifier.id : Date.now(),
+    const classeData = {
+      id: modeEdition && classeAModifier ? classeAModifier.id : undefined,
       nom: formData.nom,
-      niveauId: parseInt(formData.niveauId),
-      niveauNom: niveaux.find(n => n.id === parseInt(formData.niveauId))?.nom || "",
-      anneesScolaires: [anneeScolaire],
+      niveau_id: parseInt(formData.niveauId),
+      effectif_max: formData.effectifMax,
       description: formData.description,
-      dateCreation: modeEdition && classeAModifier ? classeAModifier.dateCreation : new Date().toISOString().split('T')[0],
-      dateModification: modeEdition ? new Date().toISOString().split('T')[0] : undefined,
+      professeur_principal_id: formData.professeurPrincipalId ? parseInt(formData.professeurPrincipalId) : null,
       statut: formData.statut as "active" | "inactive" | "archivee"
     };
 
-    console.log('Nouvelle classe créée:', nouvelleClasse);
-    onSubmit(nouvelleClasse);
+    console.log('Données classe:', classeData);
+    onSubmit(classeData);
     setLoading(false);
   };
 
@@ -324,7 +330,9 @@ const FormulaireClasse: React.FC<{
             >
               <option value="">Sélectionner un professeur</option>
               {professeurs.map(prof => (
-                <option key={prof.id} value={prof.id}>{prof.nom}</option>
+                <option key={prof.id} value={prof.id}>
+                  {prof.prenom} {prof.nom}
+                </option>
               ))}
             </select>
           </div>
@@ -554,17 +562,44 @@ const Classes: React.FC = () => {
   // Charger les données au montage
   useEffect(() => {
     const loadInitialData = async () => {
-      await Promise.all([
-        loadNiveaux(),
-        loadUtilisateurs(),
-        loadAnneesScolaires(),
-        loadEleves(),
-        loadNotifications(),
-        loadReglesTransfert()
-      ]);
+      setLoading(true);
+      try {
+        // Charger toutes les données en parallèle pour optimiser les performances
+        const [niveauxRes, utilisateursRes, anneesRes, elevesRes, notificationsRes] = await Promise.all([
+          adminService.getNiveaux(),
+          adminService.getUsers(),
+          adminService.getAnneesScolaires(),
+          eleveService.getEleves(),
+          utilisateur?.id ? notificationService.getNotifications() : Promise.resolve([])
+        ]);
+        
+        // Traiter les résultats
+        if (niveauxRes.success) setNiveaux(niveauxRes.data || []);
+        if (utilisateursRes.success) setUtilisateurs(utilisateursRes.data || []);
+        if (anneesRes.success) setAnneesScolaires(anneesRes.data || []);
+        if (elevesRes.success && elevesRes.data) {
+          const elevesClasse = elevesRes.data.map(eleve => ({
+            id: eleve.id,
+            nom: eleve.nom || '',
+            prenom: eleve.prenom || '',
+            statut: eleve.statut || 'inscrit',
+            moyenneAnnuelle: eleve.moyenneAnnuelle || 0,
+            dateInscription: eleve.dateInscription || new Date().toISOString()
+          }));
+          setEleves(elevesClasse);
+        }
+        setNotifications(Array.isArray(notificationsRes) ? notificationsRes : []);
+        
+        // Charger les classes après avoir les niveaux et utilisateurs
+        await loadClassesOptimized(niveauxRes.data || [], utilisateursRes.data || []);
+      } catch (error) {
+        console.error('Erreur lors du chargement initial:', error);
+      } finally {
+        setLoading(false);
+      }
     };
     loadInitialData();
-  }, []);
+  }, [utilisateur?.id]);
 
   const loadReglesTransfert = async () => {
     try {
@@ -580,23 +615,27 @@ const Classes: React.FC = () => {
     }
   };
 
-  // Recharger les classes quand les niveaux et utilisateurs sont disponibles
-  useEffect(() => {
-    if (niveaux.length > 0 && utilisateurs.length > 0) {
-      loadClasses();
-    }
-  }, [niveaux.length, utilisateurs.length]);
-
-  const loadClasses = useCallback(async () => {
-    if (loading) return;
-    setLoading(true);
+  // Fonction optimisée pour charger les classes
+  const loadClassesOptimized = useCallback(async (niveauxData?: any[], utilisateursData?: any[]) => {
     try {
       const response = await adminService.getClasses();
       if (response.success && response.data) {
+        const niveauxToUse = niveauxData || niveaux;
+        const utilisateursToUse = utilisateursData || utilisateurs;
+        
         const classesTransformees = response.data.map((classe: any) => {
-          const niveau = niveaux.find(n => n.id === classe.niveau_id);
+          const niveau = niveauxToUse.find(n => n.id === classe.niveau_id);
           const niveauNom = niveau ? niveau.nom : (classe.niveau?.nom || 'Niveau inconnu');
-          const professeurPrincipalNom = getProfesseurPrincipalNom(classe.professeur_principal_id);
+          
+          let professeurPrincipalNom = 'Non assigné';
+          if (classe.professeur_principal) {
+            professeurPrincipalNom = `${classe.professeur_principal.prenom || ''} ${classe.professeur_principal.nom || ''}`.trim();
+          } else if (classe.professeur_principal_id) {
+            const prof = utilisateursToUse.find(u => u.id === classe.professeur_principal_id && u.role === 'professeur');
+            if (prof) {
+              professeurPrincipalNom = `${prof.prenom || ''} ${prof.nom || ''}`.trim();
+            }
+          }
 
           return {
             ...classe,
@@ -611,97 +650,23 @@ const Classes: React.FC = () => {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des classes:', error);
-    } finally {
-      setLoading(false);
     }
-  }, [niveaux, utilisateurs, loading]);
+  }, [niveaux, utilisateurs]);
 
-  const loadEleves = async () => {
-    try {
-      const response = await eleveService.getEleves();
-      if (response.success && response.data) {
-        // Convertir les élèves en EleveClasse format
-        const elevesClasse = response.data.map(eleve => ({
-          id: eleve.id,
-          nom: eleve.nom || '',
-          prenom: eleve.prenom || '',
-          statut: eleve.statut || 'inscrit',
-          moyenneAnnuelle: eleve.moyenneAnnuelle || 0,
-          dateInscription: eleve.dateInscription || new Date().toISOString()
-        }));
-        setEleves(elevesClasse);
-      } else {
-        setEleves([]);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des élèves:', error);
-      setEleves([]);
-    }
-  };
+  // Fonction de rechargement des classes (utilisée après création/modification)
+  const reloadClasses = useCallback(async () => {
+    await loadClassesOptimized();
+  }, [loadClassesOptimized]);
 
 
-
-  const loadAnneesScolaires = async () => {
-    try {
-      const response = await adminService.getAnneesScolaires();
-      if (response.success && response.data) {
-        setAnneesScolaires(response.data);
-      } else {
-        setAnneesScolaires([]);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des années scolaires:', error);
-      setAnneesScolaires([]);
-    }
-  };
-
-  const loadNiveaux = async () => {
-    try {
-      const response = await adminService.getNiveaux();
-      if (response.success && response.data) {
-        setNiveaux(response.data);
-      } else {
-        setNiveaux([]);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des niveaux:', error);
-      setNiveaux([]);
-    }
-  };
-
-  const loadUtilisateurs = async () => {
-    try {
-      const response = await adminService.getUsers();
-      if (response.success && response.data) {
-        setUtilisateurs(response.data);
-      } else {
-        setUtilisateurs([]);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des utilisateurs:', error);
-      setUtilisateurs([]);
-    }
-  };
-
-  const loadNotifications = async () => {
-    if (utilisateur?.id) {
-      try {
-        const notifications = await notificationService.getNotifications();
-        setNotifications(notifications);
-      } catch (error) {
-        console.error('Erreur lors du chargement des notifications:', error);
-        setNotifications([]);
-      }
-    }
-  };
 
   const handleCreateClasse = async (classeData: any) => {
     try {
-      const response = await adminService.createClasse(classeData);
-      const nouvelleClasse = response.data;
-      setClasses(prev => [...prev, nouvelleClasse]);
-      setShowModal(false);
-      setFormData(initialFormData);
+      await adminService.createClasse(classeData);
+      await reloadClasses();
+      setActiveTab("liste");
+      setClasseAModifier(null);
+      setModeEdition(false);
     } catch (error) {
       console.error('Erreur lors de la création de la classe:', error);
     }
@@ -710,9 +675,10 @@ const Classes: React.FC = () => {
   const handleUpdateClasse = async (classeData: any) => {
     try {
       await adminService.updateClasse(classeData.id, classeData);
-      setClasses(prev => prev.map(c => c.id === classeData.id ? classeData : c));
-      setShowModal(false);
-      setFormData(initialFormData);
+      await reloadClasses();
+      setActiveTab("liste");
+      setClasseAModifier(null);
+      setModeEdition(false);
     } catch (error) {
       console.error('Erreur lors de la mise à jour de la classe:', error);
     }
@@ -808,7 +774,7 @@ const Classes: React.FC = () => {
     
     try {
       await adminService.transfererElevesAutomatiquement(classeSelectionnee.id);
-      loadClasses();
+      await reloadClasses();
     } catch (error) {
       console.error('Erreur lors du transfert des élèves:', error);
     }
@@ -824,19 +790,9 @@ const Classes: React.FC = () => {
 
   const handleEvolutionAnnee = async () => {
     try {
-      // Appeler l'API d'évolution d'année
       await adminService.evolutionAnneeScolaire();
-      
-      // Recharger les données
-      await Promise.all([
-        loadClasses(),
-        loadAnneesScolaires(),
-        loadEleves()
-      ]);
-      
+      await reloadClasses();
       setModalEvolutionAnnee(false);
-      
-      // Notification de succès
       alert('✅ Évolution réussie ! Tous les élèves ont été transférés vers l\'année supérieure.');
     } catch (error) {
       console.error('Erreur lors de l\'évolution d\'année:', error);
@@ -850,16 +806,9 @@ const Classes: React.FC = () => {
   }, []);
 
   const handleEdit = useCallback((classe: Classe) => {
-    setEditingClasse(classe);
-    setFormData({
-      nom: classe.nom,
-      niveauId: classe.niveauId?.toString() || '',
-      effectifMax: classe.effectifMax || 30,
-      description: classe.description || '',
-      professeurPrincipalId: classe.professeurPrincipalId?.toString() || '',
-      statut: classe.statut
-    });
-    setShowModal(true);
+    setClasseAModifier(classe);
+    setModeEdition(true);
+    setActiveTab("ajouter");
   }, []);
 
   const handleDeleteClick = useCallback((classe: Classe) => {
@@ -1145,14 +1094,7 @@ const Classes: React.FC = () => {
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => transfererElevesAutomatiquement(classe.id)}
-                        className="p-2 text-neutral-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Transférer automatiquement"
-                      >
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setShowModalModification(true)}
+                        onClick={() => handleEdit(classe)}
                         className="p-2 text-neutral-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
                         title="Modifier"
                       >
@@ -1258,7 +1200,7 @@ const Classes: React.FC = () => {
               {modeEdition ? "Modifier la classe" : "Ajouter une nouvelle classe"}
             </h2>
         <FormulaireClasse
-          onSubmit={handleCreateClasse}
+          onSubmit={modeEdition ? handleUpdateClasse : handleCreateClasse}
           onClose={() => {
                 setActiveTab("liste");
             setClasseAModifier(null);
@@ -1500,20 +1442,7 @@ const Classes: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-blue-50 border border-blue-200 rounded-lg p-4"
       >
-        <div className="flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div>
-            <p className="text-sm text-blue-800 font-medium">
-              Gestion des classes
-            </p>
-            <ul className="text-xs text-blue-600 mt-1 space-y-1">
-              <li>• Les effectifs sont calculés automatiquement selon les élèves inscrits</li>
-              <li>• Une classe peut avoir plusieurs professeurs pour différentes matières</li>
-              <li>• Le professeur principal coordonne la classe et fait le lien avec l'administration</li>
-              <li>• Les classes inactives sont conservées pour l'historique</li>
-            </ul>
-          </div>
-        </div>
+        
       </motion.div>
 
 

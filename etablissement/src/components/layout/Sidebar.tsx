@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, BookOpen, Users, MessageSquare, GraduationCap, User, Building, Layers, LogOut } from "lucide-react";
+import { Home, BookOpen, Users, MessageSquare, GraduationCap, User, Building, Layers, LogOut, UserX } from "lucide-react";
 import { useAuth } from "../../contexts/ContexteAuth";
 
 const getMenu = (role: string) => {
@@ -21,6 +21,7 @@ const getMenu = (role: string) => {
       { titre: 'Utilisateurs', lien: '/utilisateurs', icone: <Users className="w-5 h-5" /> },
       { titre: 'Niveaux', lien: '/niveaux', icone: <Layers className="w-5 h-5" /> },
       { titre: 'Classes', lien: '/classes', icone: <BookOpen className="w-5 h-5" /> },
+      { titre: 'Absences', lien: '/absences', icone: <UserX className="w-5 h-5" /> },
       { titre: 'Messagerie', lien: '/messagerie', icone: <MessageSquare className="w-5 h-5" /> }
     ];
   }

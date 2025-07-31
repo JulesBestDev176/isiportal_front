@@ -75,7 +75,7 @@ const CarteCoursProf: React.FC<{
           <div className="flex items-center gap-4 text-sm text-gray-600">
             <span className="flex items-center gap-1">
               <BookOpen className="w-4 h-4" />
-              Mathématiques {/* TODO: Récupérer le nom de la matière via matiereId */}
+              {cours.matiereNom || 'Matière inconnue'}
             </span>
             <span className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
@@ -208,14 +208,7 @@ const CarteCoursProf: React.FC<{
           <Eye className="w-4 h-4" />
           Voir détails
         </button>
-        {onModifier && (
-          <button
-            onClick={() => onModifier(cours)}
-            className="py-2 px-3 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-        )}
+
         <button className="py-2 px-3 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
           <FileText className="w-4 h-4" />
         </button>
@@ -551,7 +544,59 @@ const CoursProfesseur: React.FC = () => {
   const [rechercheTexte, setRechercheTexte] = useState("");
   const [filtreStatut, setFiltreStatut] = useState("");
   const [filtreNiveau, setFiltreNiveau] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Charger les cours du professeur
+  useEffect(() => {
+    const loadCoursProfesseur = async () => {
+      if (!utilisateur || utilisateur.role !== 'professeur') return;
+      
+      setIsLoading(true);
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/professeur/cours', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            // Transformer les données pour correspondre au modèle frontend
+            const coursTransformes = data.data.map((cours: any) => ({
+              id: cours.id,
+              titre: cours.titre,
+              description: cours.description,
+              matiereId: cours.matiere?.id,
+              matiereNom: cours.matiere?.nom,
+              niveauId: cours.niveau?.id,
+              niveauNom: cours.niveau?.nom,
+              anneeScolaireId: cours.annee_scolaire?.id,
+              anneeScolaireNom: cours.annee_scolaire?.nom,
+              heuresParSemaine: cours.heures_par_semaine,
+              coefficient: cours.coefficient,
+              statut: cours.statut,
+              dateCreation: cours.created_at,
+              dateModification: cours.updated_at,
+              classes: cours.classes || [],
+              ressources: [],
+              assignations: []
+            }));
+            setCours(coursTransformes);
+          }
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des cours:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadCoursProfesseur();
+  }, [utilisateur]);
 
   // Vérification des autorisations
   useEffect(() => {
@@ -562,13 +607,12 @@ const CoursProfesseur: React.FC = () => {
 
   // Filtrage des cours du professeur
   const coursFiltres = cours.filter(c => {
-    const matchProfesseur = c.assignations && c.assignations.some(a => a.professeurId === utilisateur?.id);
     const matchTexte = c.titre.toLowerCase().includes(rechercheTexte.toLowerCase()) ||
                       c.description?.toLowerCase().includes(rechercheTexte.toLowerCase()) || false;
     const matchStatut = !filtreStatut || c.statut === filtreStatut;
-    const matchNiveau = !filtreNiveau; // TODO: Implémenter le filtrage par niveau basé sur niveauId
+    const matchNiveau = !filtreNiveau || c.niveauNom?.toLowerCase().includes(filtreNiveau.toLowerCase());
     
-    return matchProfesseur && matchTexte && matchStatut && matchNiveau;
+    return matchTexte && matchStatut && matchNiveau;
   });
 
   const handleVoirCours = (cours: Cours) => {
@@ -576,10 +620,7 @@ const CoursProfesseur: React.FC = () => {
     setShowModalDetails(true);
   };
 
-  const handleModifierCours = (cours: Cours) => {
-    // Redirection vers la page d'édition ou ouverture d'un modal d'édition
-    console.log("Modifier cours:", cours);
-  };
+
 
   const resetFiltres = () => {
     setRechercheTexte("");
@@ -587,7 +628,7 @@ const CoursProfesseur: React.FC = () => {
     setFiltreNiveau("");
   };
 
-  if (!utilisateur) {
+  if (!utilisateur || isLoading) {
     return (
       <MainLayout>
         <div className="flex items-center justify-center min-h-96">
@@ -616,10 +657,6 @@ const CoursProfesseur: React.FC = () => {
             <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2">
               <Upload className="w-4 h-4" />
               Importer
-            </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Nouveau cours
             </button>
           </div>
         </div>
@@ -704,7 +741,7 @@ const CoursProfesseur: React.FC = () => {
                             assignations={assignations}
                             classes={classes}
                             onVoir={handleVoirCours}
-                            onModifier={handleModifierCours}
+                            onModifier={undefined}
                           />
                         ))}
                     </div>
@@ -786,7 +823,7 @@ const CoursProfesseur: React.FC = () => {
                           assignations={assignations}
                           classes={classes}
                           onVoir={handleVoirCours}
-                          onModifier={handleModifierCours}
+                          onModifier={undefined}
                         />
                       ))}
                     </div>

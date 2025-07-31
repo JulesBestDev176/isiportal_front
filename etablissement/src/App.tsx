@@ -16,6 +16,7 @@ import Niveaux from './pages/admin/Niveaux';
 import Salles from './pages/admin/Salles';
 import Analytics from './pages/admin/Analytics';
 import Messagerie from './pages/commun/Messagerie';
+import Absences from './pages/admin/Absences';
 
 const AppContent: React.FC = () => {
   return (
@@ -95,6 +96,14 @@ const AppContent: React.FC = () => {
         <RouteProtegee rolesAutorises={['administrateur', 'gestionnaire', 'professeur']}>
           <MainLayout>
             <Messagerie />
+          </MainLayout>
+        </RouteProtegee>
+      } />
+      
+      <Route path="/absences" element={
+        <RouteProtegee rolesAutorises={['administrateur', 'gestionnaire']}>
+          <MainLayout>
+            <Absences />
           </MainLayout>
         </RouteProtegee>
       } />
