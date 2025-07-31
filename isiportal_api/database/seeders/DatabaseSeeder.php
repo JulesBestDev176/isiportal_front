@@ -21,17 +21,20 @@ class DatabaseSeeder extends Seeder
             ClasseSeeder::class,
             UserSeeder::class,
             UserMatiereSeeder::class,
-            EleveClasseSeeder::class,
-            CoursSeeder::class,
+            
+            // Seeders spécifiques Sénégal
+            ElevesSenegalaisSeeder::class,
+            NotesSenegalaisesSeeder::class,
             
             // Seeders de relations
+            EleveClasseSeeder::class,
+            CoursSeeder::class,
             
             // Seeders de données métier
             NotificationSeeder::class,
             BulletinSeeder::class,
             HistoriqueEleveSeeder::class,
             RegleTransfertSeeder::class,
-            NoteSeeder::class,
             AbsenceSeeder::class,
             EmploiDuTempsSeeder::class,
             SectionSeeder::class,
@@ -41,10 +44,11 @@ class DatabaseSeeder extends Seeder
             HistoriqueConnexionSeeder::class,
         ]);
 
-        $this->command->info('Base de données initialisée avec succès !');
+        $this->command->info('Base de données initialisée avec succès pour le contexte sénégalais !');
         $this->command->info('Comptes de test créés :');
         $this->command->info('- Administrateur: admin@isiportal.com / password123');
-        $this->command->info('- Gestionnaire: gestionnaire@isiportal.com / password123');
-        $this->command->info('- Professeur: professeur@isiportal.com / password123');
+        $this->command->info('- Parents: mamadou.diallo@email.com, awa.sy@email.com / password123');
+        $this->command->info('- Professeurs: aminata.diop@isiportal.com, moussa.ndiaye@isiportal.com / password123');
+        $this->command->info('- Élèves: [prénom].[nom][classe_id]@eleve.isiportal.com / eleve123');
     }
 }

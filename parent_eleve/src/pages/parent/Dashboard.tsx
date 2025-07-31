@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { apiService } from '../../services/apiService';
 import { 
   Users, 
   MessageSquare, 
@@ -72,31 +73,9 @@ interface NextCourse {
   child: string;
 }
 
-// Données mockées pour les enfants
-const children: Child[] = [
-  {
-    id: 1,
-    name: "Julie Martin",
-    class: "3ème A",
-    average: 14.5,
-    teacher: "Mme Dubois"
-  },
-  {
-    id: 2,
-    name: "Thomas Martin",
-    class: "6ème B",
-    average: 16.2,
-    teacher: "M. Lefebvre"
-  }
-];
+// Les données des enfants seront chargées depuis l'API
 
-// Statistiques globales
-const stats = {
-  children: { value: children.length, trend: 0 },
-  averageGrade: { value: "15.4", trend: 8 },
-  messages: { value: 3, trend: -2 },
-  events: { value: 2, trend: 1 }
-};
+// Les statistiques seront chargées depuis l'API
 
 // Activités récentes pour tous les enfants
 const activities: Activity[] = [
@@ -362,6 +341,36 @@ const getGradeColor = (grade: number, max: number): string => {
 };
 
 const ParentDashboard: React.FC = () => {
+  const [dashboardData, setDashboardData] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        const data = await apiService.getDashboardData();
+        setDashboardData(data);
+      } catch (error) {
+        console.error('Erreur chargement dashboard:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  const children = dashboardData?.enfants || [];
+  const stats = dashboardData?.stats || {};
+  const activities = dashboardData?.activities || [];
+  const notifications = dashboardData?.notifications || [];
+
   return (
     <>
       <div className="space-y-6">
@@ -391,25 +400,25 @@ const ParentDashboard: React.FC = () => {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
-          {children.map((child, index) => (
+          {children.map((child: any, index: number) => (
             <div key={child.id} className="bg-white rounded-lg border border-neutral-200 p-6">
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
                   <User className="w-6 h-6 text-primary-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-neutral-900">{child.name}</h3>
-                  <p className="text-sm text-neutral-600">{child.class}</p>
+                  <h3 className="font-semibold text-neutral-900">{child.prenom} {child.nom}</h3>
+                  <p className="text-sm text-neutral-600">{child.classe?.nom || 'Non assigné'}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-3 bg-green-50 rounded-lg">
                   <p className="text-sm text-neutral-600">Moyenne</p>
-                  <p className="text-lg font-bold text-green-600">{child.average}/20</p>
+                  <p className="text-lg font-bold text-green-600">{child.moyenne || 0}/20</p>
                 </div>
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-neutral-600">Prof principal</p>
-                  <p className="text-sm font-medium text-blue-600">{child.teacher}</p>
+                  <p className="text-sm text-neutral-600">Niveau</p>
+                  <p className="text-sm font-medium text-blue-600">{child.classe?.niveau?.nom || 'N/A'}</p>
                 </div>
               </div>
             </div>
@@ -420,38 +429,38 @@ const ParentDashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <DashboardCard 
             title="Enfants" 
-            value={stats.children.value} 
+            value={stats.children?.value || 0} 
             icon={<Users className="w-6 h-6" />} 
             color="bg-primary-500" 
             description="Scolarisés" 
-            trend={stats.children.trend} 
+            trend={stats.children?.trend} 
             delay={0.1} 
           />
           <DashboardCard 
             title="Moyenne générale" 
-            value={stats.averageGrade.value} 
+            value={stats.averageGrade?.value || '--'} 
             icon={<GraduationCap className="w-6 h-6" />} 
             color="bg-green-500" 
             description="Sur 20" 
-            trend={stats.averageGrade.trend} 
+            trend={stats.averageGrade?.trend} 
             delay={0.2} 
           />
           <DashboardCard 
             title="Messages" 
-            value={stats.messages.value} 
+            value={stats.messages?.value || 0} 
             icon={<MessageSquare className="w-6 h-6" />} 
             color="bg-orange-500" 
             description="Non lus" 
-            trend={stats.messages.trend} 
+            trend={stats.messages?.trend} 
             delay={0.3} 
           />
           <DashboardCard 
             title="Événements" 
-            value={stats.events.value} 
+            value={stats.events?.value || 0} 
             icon={<Calendar className="w-6 h-6" />} 
             color="bg-purple-500" 
             description="À venir" 
-            trend={stats.events.trend} 
+            trend={stats.events?.trend} 
             delay={0.4} 
           />
         </div>
@@ -469,9 +478,13 @@ const ParentDashboard: React.FC = () => {
               <h2 className="text-lg font-semibold text-neutral-900">Activités récentes</h2>
             </div>
             <div className="p-3">
-              {activities.map((activity, index) => (
+              {activities.length > 0 ? activities.map((activity: any, index: number) => (
                 <ActivityItem key={index} activity={activity} index={index} />
-              ))}
+              )) : (
+                <div className="text-center py-8 text-neutral-500">
+                  <p>Aucune activité récente</p>
+                </div>
+              )}
             </div>
           </motion.div>
 

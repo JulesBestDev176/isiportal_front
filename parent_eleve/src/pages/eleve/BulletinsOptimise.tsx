@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Award, FileText, TrendingUp, Eye, Download, 
-  Clock, Star, X, Loader2, AlertCircle
+  Clock, Star, ChevronDown, X, Loader2, AlertCircle
 } from "lucide-react";
 
 interface Note {
@@ -283,7 +283,7 @@ const BulletinModal: React.FC<{
   );
 };
 
-const Bulletins: React.FC = () => {
+const BulletinsOptimise: React.FC = () => {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -434,4 +434,4 @@ const Bulletins: React.FC = () => {
   );
 };
 
-export default Bulletins;
+export default BulletinsOptimise;

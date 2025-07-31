@@ -1,261 +1,127 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Users, User, BookOpen, GraduationCap, Award, Calendar, 
-  MessageSquare, FileText, Eye, Download, Bell, Clock, 
-  TrendingUp, Target, Star, ChevronRight, Filter, Search,
-  AlertCircle, CheckCircle, Phone, Mail, MapPin
+  User, BookOpen, Award, TrendingUp, Eye, 
+  Clock, Star, X, Loader2, AlertCircle, 
+  Calendar, Target, GraduationCap
 } from "lucide-react";
 
-// Types
-interface Child {
+interface Note {
   id: number;
-  nom: string;
-  prenom: string;
-  classe: string;
-  niveau: string;
-  moyenneGenerale: number;
-  professeurPrincipal: string;
-  photo?: string;
-  progression: number;
-  dateNaissance: string;
-  absences: {
-    justifiees: number;
-    injustifiees: number;
-    retards: number;
+  note: number;
+  coefficient: number;
+  type_evaluation: string;
+  date_evaluation: string;
+  appreciation?: string;
+  matiere: {
+    nom: string;
+    code: string;
+  };
+  cours: {
+    titre: string;
   };
 }
 
-interface Note {
-  id: string;
-  matiere: string;
-  type: string;
-  note: number;
-  max: number;
-  coefficient: number;
-  date: string;
-  appreciation?: string;
-  enfantId: number;
+interface Cours {
+  id: number;
+  titre: string;
+  description: string;
+  matiere: {
+    id: number;
+    nom: string;
+    code: string;
+    coefficient: number;
+  };
+  professeur?: {
+    id: number;
+    nom_complet: string;
+  };
+  moyenne?: number;
+  nombre_notes: number;
+  heures_par_semaine: number;
 }
 
-interface Bulletin {
-  id: string;
-  periode: string;
-  moyenneGenerale: number;
-  rang: number;
-  totalEleves: number;
-  datePublication: string;
-  disponible: boolean;
-  enfantId: number;
-  appreciation: string;
+interface Enfant {
+  id: number;
+  nom: string;
+  prenom: string;
+  nom_complet: string;
+  email: string;
+  date_naissance?: string;
+  classe?: {
+    id: number;
+    nom: string;
+    niveau: {
+      id: number;
+      nom: string;
+    };
+  };
+  moyenne_generale?: number;
+  cours: Cours[];
+  notes_recentes: Note[];
+  statistiques: {
+    total_cours: number;
+    cours_avec_notes: number;
+    total_notes: number;
+    notes_recentes: number;
+  };
 }
 
-interface RendezVous {
-  id: string;
-  date: string;
-  heure: string;
-  professeur: string;
-  matiere: string;
-  motif: string;
-  statut: "programme" | "confirme" | "annule";
-  enfantId: number;
+interface ApiResponse {
+  enfants: Enfant[];
+  parent: {
+    id: number;
+    nom: string;
+    prenom: string;
+    nom_complet: string;
+  };
+  statistiques: {
+    total_enfants: number;
+    total_cours: number;
+    total_notes: number;
+  };
 }
 
-interface Message {
-  id: string;
-  expediteur: string;
-  sujet: string;
-  contenu: string;
-  date: string;
-  lu: boolean;
-  enfantId: number;
-  type: "general" | "absence" | "comportement" | "pedagogique";
-}
+const LoadingSpinner: React.FC = () => (
+  <div className="flex items-center justify-center py-12">
+    <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+    <span className="ml-2 text-neutral-600">Chargement des enfants...</span>
+  </div>
+);
 
-// Données mockées
-const enfantsMock: Child[] = [
-  {
-    id: 1,
-    nom: "Durand",
-    prenom: "Paul",
-    classe: "6ème A",
-    niveau: "6ème",
-    moyenneGenerale: 14.5,
-    professeurPrincipal: "Mme Dubois",
-    progression: 80,
-    dateNaissance: "2012-05-15",
-    absences: {
-      justifiees: 2,
-      injustifiees: 0,
-      retards: 1
-    }
-  },
-  {
-    id: 2,
-    nom: "Durand", 
-    prenom: "Julie",
-    classe: "3ème B",
-    niveau: "3ème",
-    moyenneGenerale: 16.2,
-    professeurPrincipal: "M. Lefebvre",
-    progression: 92,
-    dateNaissance: "2009-09-22",
-    absences: {
-      justifiees: 1,
-      injustifiees: 0,
-      retards: 0
-    }
-  }
-];
+const ErrorMessage: React.FC<{ message: string; onRetry: () => void }> = ({ message, onRetry }) => (
+  <div className="flex flex-col items-center justify-center py-12">
+    <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+    <h3 className="text-lg font-medium text-neutral-900 mb-2">Erreur</h3>
+    <p className="text-neutral-600 mb-4 text-center">{message}</p>
+    <button
+      onClick={onRetry}
+      className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+    >
+      Réessayer
+    </button>
+  </div>
+);
 
-const notesMock: Note[] = [
-  {
-    id: "n1",
-    matiere: "Mathématiques",
-    type: "Contrôle",
-    note: 16,
-    max: 20,
-    coefficient: 2,
-    date: "2025-07-20",
-    appreciation: "Très bon travail",
-    enfantId: 1
-  },
-  {
-    id: "n2",
-    matiere: "Français",
-    type: "Devoir",
-    note: 14,
-    max: 20,
-    coefficient: 1,
-    date: "2025-07-18",
-    appreciation: "Peut mieux faire",
-    enfantId: 1
-  },
-  {
-    id: "n3",
-    matiere: "Sciences",
-    type: "TP",
-    note: 18,
-    max: 20,
-    coefficient: 1,
-    date: "2025-07-19",
-    appreciation: "Excellent",
-    enfantId: 2
-  },
-  {
-    id: "n4",
-    matiere: "Histoire-Géo",
-    type: "Interrogation",
-    note: 15,
-    max: 20,
-    coefficient: 1,
-    date: "2025-07-17",
-    appreciation: "Bon niveau",
-    enfantId: 2
-  }
-];
-
-const bulletinsMock: Bulletin[] = [
-  {
-    id: "b1",
-    periode: "1er Trimestre 2024-2025",
-    moyenneGenerale: 14.5,
-    rang: 8,
-    totalEleves: 28,
-    datePublication: "2024-12-20",
-    disponible: true,
-    enfantId: 1,
-    appreciation: "Élève sérieux qui progresse bien. Continuez vos efforts."
-  },
-  {
-    id: "b2",
-    periode: "1er Trimestre 2024-2025",
-    moyenneGenerale: 16.2,
-    rang: 3,
-    totalEleves: 25,
-    datePublication: "2024-12-20",
-    disponible: true,
-    enfantId: 2,
-    appreciation: "Excellent trimestre. Félicitations pour ce très bon niveau."
-  },
-  {
-    id: "b3",
-    periode: "2ème Trimestre 2024-2025",
-    moyenneGenerale: 0,
-    rang: 0,
-    totalEleves: 28,
-    datePublication: "",
-    disponible: false,
-    enfantId: 1,
-    appreciation: ""
-  }
-];
-
-const rendezVousMock: RendezVous[] = [
-  {
-    id: "rv1",
-    date: "2025-07-28",
-    heure: "14:30",
-    professeur: "Mme Dubois",
-    matiere: "Français",
-    motif: "Point sur les difficultés en expression écrite",
-    statut: "programme",
-    enfantId: 1
-  },
-  {
-    id: "rv2",
-    date: "2025-07-30",
-    heure: "16:00",
-    professeur: "M. Lefebvre",
-    matiere: "Général",
-    motif: "Réunion parents-professeurs",
-    statut: "confirme",
-    enfantId: 2
-  }
-];
-
-const messagesMock: Message[] = [
-  {
-    id: "m1",
-    expediteur: "Mme Dubois",
-    sujet: "Absence de Paul",
-    contenu: "Paul était absent ce matin. Merci de justifier cette absence.",
-    date: "2025-07-22T09:15:00",
-    lu: false,
-    enfantId: 1,
-    type: "absence"
-  },
-  {
-    id: "m2",
-    expediteur: "M. Lefebvre",
-    sujet: "Félicitations pour Julie",
-    contenu: "Je tenais à vous féliciter pour les excellents résultats de Julie ce trimestre.",
-    date: "2025-07-20T15:30:00",
-    lu: true,
-    enfantId: 2,
-    type: "pedagogique"
-  }
-];
-
-// Composants
-const EnfantCard: React.FC<{ enfant: Child; onSelect: (enfant: Child) => void; isSelected: boolean }> = ({ 
-  enfant, 
-  onSelect, 
-  isSelected 
-}) => {
-  const getMoyenneColor = (moyenne: number) => {
+const EnfantCard: React.FC<{
+  enfant: Enfant;
+  onVoir: (enfant: Enfant) => void;
+}> = ({ enfant, onVoir }) => {
+  const getMoyenneColor = (moyenne?: number) => {
+    if (!moyenne) return "text-gray-500";
     if (moyenne >= 16) return "text-green-600";
     if (moyenne >= 12) return "text-blue-600";
     if (moyenne >= 10) return "text-orange-600";
     return "text-red-600";
   };
 
-  const calculateAge = (dateNaissance: string) => {
+  const getAge = (dateNaissance?: string) => {
+    if (!dateNaissance) return null;
     const today = new Date();
-    const birthDate = new Date(dateNaissance);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    const birth = new Date(dateNaissance);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
       age--;
     }
     return age;
@@ -263,95 +129,99 @@ const EnfantCard: React.FC<{ enfant: Child; onSelect: (enfant: Child) => void; i
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02 }}
-      onClick={() => onSelect(enfant)}
-      className={`bg-white rounded-lg border-2 p-4 cursor-pointer transition-all ${
-        isSelected ? 'border-primary-500 shadow-lg' : 'border-neutral-200 hover:border-neutral-300'
-      }`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-lg border border-neutral-200 p-6 hover:shadow-md transition-all duration-300"
     >
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-          {enfant.photo ? (
-            <img src={enfant.photo} alt={enfant.prenom} className="w-full h-full rounded-full object-cover" />
-          ) : (
-            <User className="w-6 h-6 text-primary-600" />
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
+            <User className="w-8 h-8 text-primary-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-neutral-900">{enfant.nom_complet}</h3>
+            <p className="text-sm text-neutral-600">{enfant.classe?.nom || 'Non assigné'}</p>
+            <p className="text-xs text-neutral-500">{enfant.classe?.niveau.nom}</p>
+            {enfant.date_naissance && (
+              <p className="text-xs text-neutral-500">{getAge(enfant.date_naissance)} ans</p>
+            )}
+          </div>
+        </div>
+        
+        <div className="text-right">
+          {enfant.moyenne_generale && (
+            <div className="mb-2">
+              <span className="text-xs text-neutral-600">Moyenne</span>
+              <p className={`text-2xl font-bold ${getMoyenneColor(enfant.moyenne_generale)}`}>
+                {enfant.moyenne_generale}/20
+              </p>
+            </div>
           )}
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-bold text-neutral-900 truncate">{enfant.prenom} {enfant.nom}</h3>
-          <p className="text-sm text-neutral-600 truncate">{enfant.classe}</p>
-          <p className="text-xs text-neutral-500 truncate">{calculateAge(enfant.dateNaissance)} ans</p>
-        </div>
-        {isSelected && (
-          <CheckCircle className="w-5 h-5 text-primary-600 flex-shrink-0" />
-        )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        <div className="text-center p-2 bg-green-50 rounded">
-          <p className="text-xs text-neutral-600">Moyenne</p>
-          <p className={`text-lg font-bold ${getMoyenneColor(enfant.moyenneGenerale)}`}>
-            {enfant.moyenneGenerale}
-          </p>
+      {/* Statistiques */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="text-center p-3 bg-blue-50 rounded-lg">
+          <BookOpen className="w-5 h-5 text-blue-600 mx-auto mb-1" />
+          <p className="text-sm font-medium text-blue-900">{enfant.statistiques.total_cours}</p>
+          <p className="text-xs text-blue-600">Cours</p>
         </div>
-        <div className="text-center p-2 bg-blue-50 rounded">
-          <p className="text-xs text-neutral-600">Progression</p>
-          <p className="text-lg font-bold text-blue-600">{enfant.progression}%</p>
+        <div className="text-center p-3 bg-green-50 rounded-lg">
+          <Award className="w-5 h-5 text-green-600 mx-auto mb-1" />
+          <p className="text-sm font-medium text-green-900">{enfant.statistiques.total_notes}</p>
+          <p className="text-xs text-green-600">Notes</p>
+        </div>
+        <div className="text-center p-3 bg-purple-50 rounded-lg">
+          <Target className="w-5 h-5 text-purple-600 mx-auto mb-1" />
+          <p className="text-sm font-medium text-purple-900">{enfant.statistiques.cours_avec_notes}</p>
+          <p className="text-xs text-purple-600">Notés</p>
+        </div>
+        <div className="text-center p-3 bg-orange-50 rounded-lg">
+          <Clock className="w-5 h-5 text-orange-600 mx-auto mb-1" />
+          <p className="text-sm font-medium text-orange-900">{enfant.statistiques.notes_recentes}</p>
+          <p className="text-xs text-orange-600">Récentes</p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-1 text-green-600">
-          <CheckCircle className="w-3 h-3" />
-          <span>Abs: {enfant.absences.justifiees + enfant.absences.injustifiees}</span>
+      {/* Notes récentes */}
+      {enfant.notes_recentes.length > 0 && (
+        <div className="mb-4">
+          <h4 className="text-sm font-medium text-neutral-900 mb-2">Notes récentes</h4>
+          <div className="space-y-2">
+            {enfant.notes_recentes.slice(0, 3).map((note) => (
+              <div key={note.id} className="flex items-center justify-between p-2 bg-neutral-50 rounded">
+                <div>
+                  <p className="text-sm font-medium text-neutral-900">{note.matiere.nom}</p>
+                  <p className="text-xs text-neutral-600">{note.type_evaluation}</p>
+                </div>
+                <div className="text-right">
+                  <span className={`font-bold ${getMoyenneColor(note.note)}`}>
+                    {note.note}/20
+                  </span>
+                  <p className="text-xs text-neutral-500">{note.date_evaluation}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <ChevronRight className="w-3 h-3 text-neutral-400" />
-      </div>
+      )}
+
+      <button
+        onClick={() => onVoir(enfant)}
+        className="w-full py-2 px-3 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center gap-1"
+      >
+        <Eye className="w-4 h-4" />
+        Voir détails
+      </button>
     </motion.div>
   );
 };
 
-const NoteCard: React.FC<{ note: Note }> = ({ note }) => {
-  const getNoteColor = (note: number, max: number) => {
-    const percentage = (note / max) * 100;
-    if (percentage >= 80) return "text-green-600 bg-green-50 border-green-200";
-    if (percentage >= 60) return "text-blue-600 bg-blue-50 border-blue-200";
-    if (percentage >= 40) return "text-orange-600 bg-orange-50 border-orange-200";
-    return "text-red-600 bg-red-50 border-red-200";
-  };
-
-  return (
-    <div className="bg-white border border-neutral-200 rounded-lg p-4">
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h4 className="font-semibold text-neutral-900">{note.matiere}</h4>
-          <p className="text-sm text-neutral-600">{note.type}</p>
-        </div>
-        <div className={`px-3 py-1 rounded-full text-lg font-bold border ${getNoteColor(note.note, note.max)}`}>
-          {note.note}/{note.max}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-neutral-600">Date :</span>
-          <span className="font-medium">{new Date(note.date).toLocaleDateString('fr-FR')}</span>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-neutral-600">Coefficient :</span>
-          <span className="font-medium">{note.coefficient}</span>
-        </div>
-        {note.appreciation && (
-          <div className="p-2 bg-neutral-50 rounded text-sm text-neutral-700">
-            <span className="font-medium">Appréciation : </span>
-            {note.appreciation}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const BulletinCard: React.FC<{ bulletin: Bulletin }> = ({ bulletin }) => {
+const EnfantModal: React.FC<{
+  enfant: Enfant;
+  onClose: () => void;
+}> = ({ enfant, onClose }) => {
   const getMoyenneColor = (moyenne: number) => {
     if (moyenne >= 16) return "text-green-600";
     if (moyenne >= 12) return "text-blue-600";
@@ -360,441 +230,351 @@ const BulletinCard: React.FC<{ bulletin: Bulletin }> = ({ bulletin }) => {
   };
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-lg p-6">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h4 className="font-bold text-neutral-900">{bulletin.periode}</h4>
-          {bulletin.datePublication && (
-            <p className="text-sm text-neutral-600">Publié le {new Date(bulletin.datePublication).toLocaleDateString('fr-FR')}</p>
-          )}
-        </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-          bulletin.disponible 
-            ? 'bg-green-100 text-green-800' 
-            : 'bg-orange-100 text-orange-800'
-        }`}>
-          {bulletin.disponible ? 'Disponible' : 'En cours'}
-        </span>
-      </div>
-
-      {bulletin.disponible && (
-        <>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="text-center p-3 bg-neutral-50 rounded-lg">
-              <p className="text-sm text-neutral-600">Moyenne générale</p>
-              <p className={`text-2xl font-bold ${getMoyenneColor(bulletin.moyenneGenerale)}`}>
-                {bulletin.moyenneGenerale}/20
-              </p>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="p-6 border-b border-neutral-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
+                <User className="w-8 h-8 text-primary-600" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-neutral-900">{enfant.nom_complet}</h2>
+                <p className="text-neutral-600 mt-1">
+                  Classe {enfant.classe?.nom} - {enfant.classe?.niveau.nom}
+                </p>
+              </div>
             </div>
-            <div className="text-center p-3 bg-neutral-50 rounded-lg">
-              <p className="text-sm text-neutral-600">Classement</p>
-              <p className="text-2xl font-bold text-primary-600">
-                {bulletin.rang}e
-              </p>
-              <p className="text-xs text-neutral-500">sur {bulletin.totalEleves}</p>
-            </div>
-          </div>
-
-          <div className="p-3 bg-blue-50 rounded-lg mb-4">
-            <p className="text-sm text-blue-800">
-              <span className="font-medium">Appréciation : </span>
-              {bulletin.appreciation}
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <button className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700 transition-colors">
-              <Eye className="w-4 h-4" />
-              Consulter
-            </button>
-            <button className="flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-2 px-4 rounded-lg hover:bg-neutral-200 transition-colors">
-              <Download className="w-4 h-4" />
-              PDF
+            <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700">
+              <X className="w-6 h-6" />
             </button>
           </div>
-        </>
-      )}
-
-      {!bulletin.disponible && (
-        <div className="text-center py-6">
-          <Clock className="w-12 h-12 text-neutral-300 mx-auto mb-2" />
-          <p className="text-neutral-500">Bulletin en cours de préparation</p>
         </div>
-      )}
-    </div>
-  );
-};
 
-const RendezVousCard: React.FC<{ rdv: RendezVous }> = ({ rdv }) => {
-  const getStatutColor = (statut: string) => {
-    switch (statut) {
-      case "confirme": return "bg-green-100 text-green-800";
-      case "programme": return "bg-blue-100 text-blue-800";
-      case "annule": return "bg-red-100 text-red-800";
-      default: return "bg-neutral-100 text-neutral-800";
-    }
-  };
-
-  const getStatutLabel = (statut: string) => {
-    switch (statut) {
-      case "confirme": return "Confirmé";
-      case "programme": return "Programmé";
-      case "annule": return "Annulé";
-      default: return statut;
-    }
-  };
-
-  return (
-    <div className="bg-white border border-neutral-200 rounded-lg p-4">
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h4 className="font-semibold text-neutral-900">{rdv.professeur}</h4>
-          <p className="text-sm text-neutral-600">{rdv.matiere}</p>
-        </div>
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatutColor(rdv.statut)}`}>
-          {getStatutLabel(rdv.statut)}
-        </span>
-      </div>
-
-      <div className="space-y-2 mb-3">
-        <div className="flex items-center gap-2 text-sm">
-          <Calendar className="w-4 h-4 text-neutral-500" />
-          <span>{new Date(rdv.date).toLocaleDateString('fr-FR', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <Clock className="w-4 h-4 text-neutral-500" />
-          <span>{rdv.heure}</span>
-        </div>
-      </div>
-
-      <div className="p-3 bg-neutral-50 rounded text-sm">
-        <span className="font-medium">Motif : </span>
-        {rdv.motif}
-      </div>
-
-      {rdv.statut === "programme" && (
-        <div className="flex gap-2 mt-3">
-          <button className="flex-1 bg-green-600 text-white py-2 px-3 rounded text-sm hover:bg-green-700 transition-colors">
-            Confirmer
-          </button>
-          <button className="bg-red-600 text-white py-2 px-3 rounded text-sm hover:bg-red-700 transition-colors">
-            Annuler
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const MessageCard: React.FC<{ message: Message }> = ({ message }) => {
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "absence": return "bg-orange-100 text-orange-800";
-      case "comportement": return "bg-red-100 text-red-800";
-      case "pedagogique": return "bg-green-100 text-green-800";
-      default: return "bg-blue-100 text-blue-800";
-    }
-  };
-
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case "absence": return "Absence";
-      case "comportement": return "Comportement";
-      case "pedagogique": return "Pédagogique";
-      default: return "Général";
-    }
-  };
-
-  const formatDate = (date: string) => {
-    const now = new Date();
-    const msgDate = new Date(date);
-    const diffHours = Math.floor((now.getTime() - msgDate.getTime()) / (1000 * 60 * 60));
-    
-    if (diffHours < 24) {
-      return `Il y a ${diffHours}h`;
-    } else {
-      return msgDate.toLocaleDateString('fr-FR');
-    }
-  };
-
-  return (
-    <div className={`bg-white border rounded-lg p-4 ${!message.lu ? 'border-primary-200 bg-primary-50/30' : 'border-neutral-200'}`}>
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-semibold text-neutral-900">{message.sujet}</h4>
-            {!message.lu && <div className="w-2 h-2 bg-primary-600 rounded-full"></div>}
+        <div className="p-6 space-y-6">
+          {/* Statistiques générales */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg text-center">
+              <p className="text-sm text-primary-600">Moyenne générale</p>
+              <p className={`text-2xl font-bold ${getMoyenneColor(enfant.moyenne_generale || 0)}`}>
+                {enfant.moyenne_generale?.toFixed(1) || '--'}/20
+              </p>
+            </div>
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+              <p className="text-sm text-blue-600">Cours</p>
+              <p className="text-2xl font-bold text-blue-900">{enfant.statistiques.total_cours}</p>
+            </div>
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+              <p className="text-sm text-green-600">Notes</p>
+              <p className="text-2xl font-bold text-green-900">{enfant.statistiques.total_notes}</p>
+            </div>
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg text-center">
+              <p className="text-sm text-purple-600">Cours notés</p>
+              <p className="text-2xl font-bold text-purple-900">{enfant.statistiques.cours_avec_notes}</p>
+            </div>
           </div>
-          <p className="text-sm text-neutral-600">De : {message.expediteur}</p>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(message.type)}`}>
-            {getTypeLabel(message.type)}
-          </span>
-          <span className="text-xs text-neutral-500">{formatDate(message.date)}</span>
-        </div>
-      </div>
 
-      <p className="text-sm text-neutral-700 mb-3 line-clamp-2">{message.contenu}</p>
+          {/* Cours de l'enfant */}
+          <div>
+            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Cours assignés</h3>
+            {enfant.cours.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {enfant.cours.map((cours) => (
+                  <div key={cours.id} className="p-4 border border-neutral-200 rounded-lg">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h4 className="font-medium text-neutral-900">{cours.titre}</h4>
+                        <p className="text-sm text-neutral-600">{cours.matiere.nom}</p>
+                        <p className="text-xs text-neutral-500">{cours.professeur?.nom_complet || 'Non assigné'}</p>
+                      </div>
+                      {cours.moyenne && (
+                        <span className={`font-bold ${getMoyenneColor(cours.moyenne)}`}>
+                          {cours.moyenne}/20
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex justify-between text-xs text-neutral-500">
+                      <span>{cours.nombre_notes} note{cours.nombre_notes > 1 ? 's' : ''}</span>
+                      <span>{cours.heures_par_semaine}h/sem</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-neutral-500 text-center py-4">Aucun cours assigné</p>
+            )}
+          </div>
 
-      <div className="flex gap-2">
-        <button className="flex-1 bg-primary-600 text-white py-2 px-3 rounded text-sm hover:bg-primary-700 transition-colors">
-          Lire
-        </button>
-        <button className="bg-neutral-100 text-neutral-700 py-2 px-3 rounded text-sm hover:bg-neutral-200 transition-colors">
-          Répondre
-        </button>
-      </div>
+          {/* Notes récentes */}
+          <div>
+            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Notes récentes</h3>
+            {enfant.notes_recentes.length > 0 ? (
+              <div className="space-y-3">
+                {enfant.notes_recentes.map((note) => (
+                  <div key={note.id} className="p-4 border border-neutral-200 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="font-medium text-neutral-900">{note.matiere.nom}</p>
+                        <p className="text-sm text-neutral-600">{note.type_evaluation}</p>
+                        <p className="text-xs text-neutral-500">{note.cours.titre}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-lg font-bold ${getMoyenneColor(note.note)}`}>
+                          {note.note}/20
+                        </span>
+                        <p className="text-xs text-neutral-500">Coef. {note.coefficient}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-neutral-500">{note.date_evaluation}</span>
+                      {note.appreciation && (
+                        <span className="text-xs text-neutral-600 italic">{note.appreciation}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-neutral-500 text-center py-4">Aucune note récente</p>
+            )}
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };
 
-// Composant principal
 const MesEnfants: React.FC = () => {
-  const [enfantSelectionne, setEnfantSelectionne] = useState<Child | null>(enfantsMock[0]);
-  const [ongletActif, setOngletActif] = useState<"apercu" | "notes" | "bulletins">("apercu");
-  const [rechercheTexte, setRechercheTexte] = useState("");
+  const [data, setData] = useState<ApiResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [enfantSelectionne, setEnfantSelectionne] = useState<Enfant | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
-  if (!enfantSelectionne) {
-    return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-neutral-900">Mes enfants</h1>
-        <div className="text-center py-12">
-          <Users className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-          <p className="text-neutral-500">Aucun enfant lié à ce compte.</p>
-        </div>
-      </div>
-    );
-  }
+  const fetchEnfants = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('🔍 Chargement des données simulées...');
+      
+      // Simulation d'un délai de chargement
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const simulatedData = {
+        enfants: [
+          {
+            id: 1,
+            nom: 'Diallo',
+            prenom: 'Aicha',
+            nom_complet: 'Aicha Diallo',
+            email: 'aicha@test.com',
+            date_naissance: '2010-05-15',
+            classe: {
+              id: 1,
+              nom: '6ème A',
+              niveau: {
+                id: 1,
+                nom: '6ème',
+              },
+            },
+            moyenne_generale: 14.5,
+            cours: [],
+            notes_recentes: [
+              {
+                id: 1,
+                note: 16,
+                coefficient: 1,
+                type_evaluation: 'Contrôle',
+                date_evaluation: '25/07/2025',
+                appreciation: 'Bon travail',
+                matiere: { nom: 'Mathématiques', code: 'MATH' },
+                cours: { titre: 'Mathématiques 6ème' }
+              },
+              {
+                id: 2,
+                note: 13,
+                coefficient: 1,
+                type_evaluation: 'Devoir',
+                date_evaluation: '23/07/2025',
+                appreciation: 'Peut mieux faire',
+                matiere: { nom: 'Français', code: 'FR' },
+                cours: { titre: 'Français 6ème' }
+              }
+            ],
+            statistiques: {
+              total_cours: 8,
+              cours_avec_notes: 6,
+              total_notes: 15,
+              notes_recentes: 2,
+            }
+          },
+          {
+            id: 2,
+            nom: 'Diallo',
+            prenom: 'Omar',
+            nom_complet: 'Omar Diallo',
+            email: 'omar@test.com',
+            date_naissance: '2012-08-22',
+            classe: {
+              id: 2,
+              nom: '4ème B',
+              niveau: {
+                id: 2,
+                nom: '4ème',
+              },
+            },
+            moyenne_generale: 12.8,
+            cours: [],
+            notes_recentes: [
+              {
+                id: 3,
+                note: 15,
+                coefficient: 1,
+                type_evaluation: 'Interrogation',
+                date_evaluation: '24/07/2025',
+                appreciation: 'Très bien',
+                matiere: { nom: 'Histoire-Géo', code: 'HG' },
+                cours: { titre: 'Histoire-Géographie 4ème' }
+              }
+            ],
+            statistiques: {
+              total_cours: 10,
+              cours_avec_notes: 8,
+              total_notes: 22,
+              notes_recentes: 1,
+            }
+          }
+        ],
+        parent: {
+          id: 1,
+          nom: 'Diallo',
+          prenom: 'Mamadou',
+          nom_complet: 'Mamadou Diallo',
+        },
+        statistiques: {
+          total_enfants: 2,
+          total_cours: 18,
+          total_notes: 37,
+        }
+      };
+      
+      console.log('✅ Données simulées chargées:', simulatedData);
+      setData(simulatedData);
+    } catch (err: any) {
+      console.error('💥 Erreur:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const notesEnfant = notesMock.filter(note => note.enfantId === enfantSelectionne.id);
-  const bulletinsEnfant = bulletinsMock.filter(bulletin => bulletin.enfantId === enfantSelectionne.id);
-  const rdvEnfant = rendezVousMock.filter(rdv => rdv.enfantId === enfantSelectionne.id);
-  const messagesEnfant = messagesMock.filter(msg => msg.enfantId === enfantSelectionne.id);
+  useEffect(() => {
+    fetchEnfants();
+  }, []);
 
-  const notesFiltrees = notesEnfant.filter(note => 
-    note.matiere.toLowerCase().includes(rechercheTexte.toLowerCase()) ||
-    note.type.toLowerCase().includes(rechercheTexte.toLowerCase())
-  );
+  const handleVoirEnfant = (enfant: Enfant) => {
+    setEnfantSelectionne(enfant);
+    setShowModal(true);
+  };
 
-  const tabs = [
-    { id: 'apercu', label: 'Aperçu', icon: <User className="w-4 h-4" /> },
-    { id: 'notes', label: 'Notes', icon: <Award className="w-4 h-4" />, count: notesEnfant.length },
-    { id: 'bulletins', label: 'Bulletins', icon: <FileText className="w-4 h-4" />, count: bulletinsEnfant.filter(b => b.disponible).length }
-  ];
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage message={error} onRetry={fetchEnfants} />;
+  if (!data) return <ErrorMessage message="Aucune donnée disponible" onRetry={fetchEnfants} />;
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* En-tête */}
+    <div className="space-y-6">
+      {/* En-tête */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900 mb-1">Mes enfants</h1>
-          <p className="text-neutral-600">Suivez la scolarité et les résultats de vos enfants</p>
+          <h1 className="text-3xl font-bold text-neutral-900">Mes enfants</h1>
+          <p className="text-neutral-600 mt-1">
+            Parent: {data.parent.nom_complet}
+          </p>
+        </div>
+      </div>
+
+      {/* Statistiques générales */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-primary-500 rounded-lg flex items-center justify-center">
+              <User className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-primary-600">Enfants</p>
+              <p className="text-2xl font-bold text-primary-900">{data.statistiques.total_enfants}</p>
+            </div>
+          </div>
         </div>
 
-        {/* Sélection d'enfant */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {enfantsMock.map(enfant => (
-            <EnfantCard
-              key={enfant.id}
-              enfant={enfant}
-              onSelect={setEnfantSelectionne}
-              isSelected={enfantSelectionne.id === enfant.id}
-            />
-          ))}
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
+              <BookOpen className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-green-600">Total cours</p>
+              <p className="text-2xl font-bold text-green-900">{data.statistiques.total_cours}</p>
+            </div>
+          </div>
         </div>
 
-        {/* Navigation par onglets */}
-        <div className="bg-white rounded-lg border border-neutral-200">
-          <div className="flex border-b border-neutral-200 overflow-x-auto">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setOngletActif(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  ongletActif === tab.id
-                    ? "border-primary-500 text-primary-600"
-                    : "border-transparent text-neutral-500 hover:text-neutral-700"
-                }`}
-              >
-                {tab.icon}
-                <span className="hidden sm:inline">{tab.label}</span>
-                <span className="sm:hidden">{tab.label.charAt(0)}</span>
-                {tab.count !== undefined && tab.count > 0 && (
-                  <span className="bg-primary-100 text-primary-600 text-xs rounded-full px-2 py-0.5 min-w-[18px] text-center">
-                    {tab.count}
-                  </span>
-                )}
-              </button>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
+              <Award className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-blue-600">Total notes</p>
+              <p className="text-2xl font-bold text-blue-900">{data.statistiques.total_notes}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Liste des enfants */}
+      <div className="bg-white rounded-lg border border-neutral-200 p-6">
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">
+          Liste de mes enfants ({data.enfants.length})
+        </h2>
+        {data.enfants.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {data.enfants.map((enfant) => (
+              <EnfantCard
+                key={enfant.id}
+                enfant={enfant}
+                onVoir={handleVoirEnfant}
+              />
             ))}
           </div>
-
-          {/* Contenu des onglets */}
-          <div className="p-6">
-            <AnimatePresence mode="wait">
-              {ongletActif === "apercu" && (
-                <motion.div
-                  key="apercu"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-6"
-                >
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    {/* Informations générales */}
-                    <div className="lg:col-span-2 space-y-4">
-                      <h3 className="text-lg font-semibold text-neutral-900">Informations générales</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="bg-neutral-50 p-4 rounded-lg">
-                          <p className="text-sm text-neutral-600">Classe</p>
-                          <p className="text-lg font-medium text-neutral-900">{enfantSelectionne.classe}</p>
-                        </div>
-                        <div className="bg-neutral-50 p-4 rounded-lg">
-                          <p className="text-sm text-neutral-600">Professeur principal</p>
-                          <p className="text-lg font-medium text-neutral-900">{enfantSelectionne.professeurPrincipal}</p>
-                        </div>
-                        <div className="bg-neutral-50 p-4 rounded-lg">
-                          <p className="text-sm text-neutral-600">Absences justifiées</p>
-                          <p className="text-lg font-medium text-green-600">{enfantSelectionne.absences.justifiees}</p>
-                        </div>
-                        <div className="bg-neutral-50 p-4 rounded-lg">
-                          <p className="text-sm text-neutral-600">Retards</p>
-                          <p className="text-lg font-medium text-orange-600">{enfantSelectionne.absences.retards}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Statistiques */}
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold text-neutral-900">Résumé</h3>
-                      <div className="space-y-3">
-                        <div className="bg-green-50 border border-green-200 p-4 rounded-lg text-center">
-                          <p className="text-sm text-green-600">Moyenne générale</p>
-                          <p className="text-2xl font-bold text-green-700">{enfantSelectionne.moyenneGenerale}/20</p>
-                        </div>
-                        <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg text-center">
-                          <p className="text-sm text-blue-600">Notes ce mois</p>
-                          <p className="text-2xl font-bold text-blue-700">{notesEnfant.length}</p>
-                        </div>
-                        <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg text-center">
-                          <p className="text-sm text-purple-600">Messages non lus</p>
-                          <p className="text-2xl font-bold text-purple-700">{messagesEnfant.filter(m => !m.lu).length}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Activités récentes */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-neutral-900">Activités récentes</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Dernières notes */}
-                      <div className="bg-neutral-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-neutral-900 mb-3">Dernières notes</h4>
-                        <div className="space-y-2">
-                          {notesEnfant.slice(0, 3).map(note => (
-                            <div key={note.id} className="flex items-center justify-between text-sm">
-                              <span className="text-neutral-600">{note.matiere}</span>
-                              <span className="font-medium">{note.note}/{note.max}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Prochains événements */}
-                      <div className="bg-neutral-50 p-4 rounded-lg">
-                        <h4 className="font-medium text-neutral-900 mb-3">Prochains événements</h4>
-                        <div className="space-y-2">
-                          {rdvEnfant.slice(0, 2).map(rdv => (
-                            <div key={rdv.id} className="text-sm">
-                              <p className="font-medium text-neutral-900">{rdv.professeur}</p>
-                              <p className="text-neutral-600">{new Date(rdv.date).toLocaleDateString('fr-FR')}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {ongletActif === "notes" && (
-                <motion.div
-                  key="notes"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-6"
-                >
-                  {/* Filtres et recherche */}
-                  <div className="flex flex-col sm:flex-row gap-4 items-center">
-                    <div className="flex-1 relative">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" />
-                      <input
-                        type="text"
-                        placeholder="Rechercher une matière..."
-                        value={rechercheTexte}
-                        onChange={(e) => setRechercheTexte(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      />
-                    </div>
-                    <button className="flex items-center gap-2 px-4 py-2 border border-neutral-300 rounded-lg hover:bg-neutral-50">
-                      <Filter className="w-4 h-4" />
-                      Filtrer
-                    </button>
-                  </div>
-
-                  {/* Liste des notes */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {notesFiltrees.map(note => (
-                      <NoteCard key={note.id} note={note} />
-                    ))}
-                  </div>
-
-                  {notesFiltrees.length === 0 && (
-                    <div className="text-center py-12">
-                      <Award className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-                      <p className="text-neutral-500">Aucune note trouvée</p>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-
-              {ongletActif === "bulletins" && (
-                <motion.div
-                  key="bulletins"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-6"
-                >
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {bulletinsEnfant.map(bulletin => (
-                      <BulletinCard key={bulletin.id} bulletin={bulletin} />
-                    ))}
-                  </div>
-
-                  {bulletinsEnfant.length === 0 && (
-                    <div className="text-center py-12">
-                      <FileText className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
-                      <p className="text-neutral-500">Aucun bulletin disponible</p>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+        ) : (
+          <div className="text-center py-12">
+            <User className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-neutral-900 mb-2">Aucun enfant trouvé</h3>
+            <p className="text-neutral-600">
+              Vos enfants apparaîtront ici une fois qu'ils seront liés à votre compte parent.
+            </p>
           </div>
-        </div>
+        )}
       </div>
-    </>
+
+      {/* Modal */}
+      <AnimatePresence>
+        {showModal && enfantSelectionne && (
+          <EnfantModal
+            enfant={enfantSelectionne}
+            onClose={() => {
+              setShowModal(false);
+              setEnfantSelectionne(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 

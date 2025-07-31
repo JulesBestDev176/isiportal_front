@@ -53,10 +53,10 @@ const menuParRole: Record<string, { titre: string; lien: string; icone: React.Re
 };
 
 const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const [sidebarRéduite, setSidebarRéduite] = useState(false);
 
-  if (!user) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50">
         <div className="text-center">

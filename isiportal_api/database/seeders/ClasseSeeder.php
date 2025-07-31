@@ -163,8 +163,8 @@ class ClasseSeeder extends Seeder
                     'role' => 'professeur',
                     'actif' => true,
                     'doit_changer_mot_de_passe' => false,
-                    'telephone' => '01' . rand(10000000, 99999999),
-                    'adresse' => rand(1, 100) . ' rue de l\'Éducation, Paris',
+                    'telephone' => '77 ' . rand(100, 999) . ' ' . rand(10, 99) . ' ' . rand(10, 99),
+                    'adresse' => 'Dakar, Sénégal',
                 ]);
                 
                 $professeurs->push($professeur);
@@ -180,15 +180,15 @@ class ClasseSeeder extends Seeder
         
         for ($i = 1; $i <= 20; $i++) {
             $parent = User::create([
-                'nom' => 'Parent' . $i,
-                'prenom' => 'Prénom' . $i,
+                'nom' => ['Diallo', 'Sy', 'Cissé', 'Touré', 'Kane', 'Wade', 'Mbaye', 'Diouf'][($i-1) % 8],
+                'prenom' => ['Mamadou', 'Awa', 'Abdoulaye', 'Khady', 'Cheikh', 'Fatima', 'Omar', 'Bineta'][($i-1) % 8],
                 'email' => "parent{$i}@isiportal.com",
                 'password' => bcrypt('password123'),
                 'role' => 'parent',
                 'actif' => true,
                 'doit_changer_mot_de_passe' => false,
-                'telephone' => '01' . rand(10000000, 99999999),
-                'adresse' => rand(1, 100) . ' rue des Parents, Paris',
+                'telephone' => '77 ' . rand(100, 999) . ' ' . rand(10, 99) . ' ' . rand(10, 99),
+                'adresse' => ['Dakar', 'Thiès', 'Saint-Louis', 'Kaolack', 'Ziguinchor'][($i-1) % 5] . ', Sénégal',
                 'profession' => 'Profession ' . $i,
                 'enfants_ids' => [],
             ]);
