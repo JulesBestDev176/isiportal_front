@@ -16,119 +16,137 @@ class MatiereSeeder extends Seeder
             [
                 'nom' => 'Mathématiques',
                 'code' => 'MATH',
-                'description' => 'Mathématiques',
+                'description' => 'Mathématiques - Algèbre, Géométrie, Analyse',
                 'coefficient' => 4.00,
-                'heures_par_semaine' => 4,
+                'heures_par_semaine' => 5,
                 'statut' => 'active',
-                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7]
+                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7, 8, 9]
             ],
             [
                 'nom' => 'Français',
                 'code' => 'FRAN',
-                'description' => 'Français',
+                'description' => 'Français - Littérature, Expression écrite et orale',
                 'coefficient' => 4.00,
-                'heures_par_semaine' => 4,
+                'heures_par_semaine' => 5,
                 'statut' => 'active',
-                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7]
+                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7, 8, 9]
             ],
             [
                 'nom' => 'Histoire-Géographie',
                 'code' => 'HIST',
-                'description' => 'Histoire-Géographie',
+                'description' => 'Histoire-Géographie du Sénégal et du monde',
                 'coefficient' => 3.00,
-                'heures_par_semaine' => 3,
+                'heures_par_semaine' => 4,
                 'statut' => 'active',
-                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7]
+                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7, 8, 9]
             ],
             [
                 'nom' => 'Anglais',
                 'code' => 'ANGL',
-                'description' => 'Anglais',
-                'coefficient' => 2.00,
-                'heures_par_semaine' => 2,
+                'description' => 'Anglais - Langue vivante 1',
+                'coefficient' => 3.00,
+                'heures_par_semaine' => 4,
                 'statut' => 'active',
-                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7]
+                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7, 8, 9]
+            ],
+            [
+                'nom' => 'Arabe',
+                'code' => 'ARAB',
+                'description' => 'Arabe - Langue et civilisation',
+                'coefficient' => 2.00,
+                'heures_par_semaine' => 3,
+                'statut' => 'active',
+                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7, 8, 9]
             ],
             [
                 'nom' => 'Espagnol',
                 'code' => 'ESP',
-                'description' => 'Espagnol',
+                'description' => 'Espagnol - Langue vivante 2',
                 'coefficient' => 2.00,
-                'heures_par_semaine' => 2,
+                'heures_par_semaine' => 3,
                 'statut' => 'active',
-                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7]
-            ],
-            [
-                'nom' => 'Allemand',
-                'code' => 'ALLE',
-                'description' => 'Allemand',
-                'coefficient' => 2.00,
-                'heures_par_semaine' => 2,
-                'statut' => 'active',
-                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7]
+                'niveaux_ids' => [3, 4, 5, 6, 7, 8, 9]
             ],
             [
                 'nom' => 'Physique-Chimie',
-                'code' => 'PHYS',
-                'description' => 'Physique-Chimie',
-                'coefficient' => 3.00,
-                'heures_par_semaine' => 3,
+                'code' => 'PC',
+                'description' => 'Sciences Physiques et Chimie',
+                'coefficient' => 4.00,
+                'heures_par_semaine' => 4,
                 'statut' => 'active',
-                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7]
+                'niveaux_ids' => [3, 4, 5, 7, 9]
             ],
             [
                 'nom' => 'Sciences de la Vie et de la Terre',
                 'code' => 'SVT',
-                'description' => 'Sciences de la Vie et de la Terre',
-                'coefficient' => 2.00,
-                'heures_par_semaine' => 2,
+                'description' => 'Biologie et Sciences de la Terre',
+                'coefficient' => 3.00,
+                'heures_par_semaine' => 3,
                 'statut' => 'active',
-                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7]
+                'niveaux_ids' => [1, 2, 3, 4, 5, 7, 9]
             ],
             [
                 'nom' => 'Éducation Physique et Sportive',
                 'code' => 'EPS',
-                'description' => 'Éducation Physique et Sportive',
+                'description' => 'Sport et Éducation Physique',
                 'coefficient' => 1.00,
                 'heures_par_semaine' => 2,
                 'statut' => 'active',
-                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7]
+                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7, 8, 9]
             ],
             [
                 'nom' => 'Arts Plastiques',
                 'code' => 'ARTS',
-                'description' => 'Arts Plastiques',
+                'description' => 'Dessin et Arts visuels',
                 'coefficient' => 1.00,
-                'heures_par_semaine' => 1,
+                'heures_par_semaine' => 2,
                 'statut' => 'active',
                 'niveaux_ids' => [1, 2, 3, 4]
             ],
             [
                 'nom' => 'Éducation Musicale',
                 'code' => 'MUS',
-                'description' => 'Éducation Musicale',
+                'description' => 'Musique et Chant',
                 'coefficient' => 1.00,
-                'heures_par_semaine' => 1,
+                'heures_par_semaine' => 2,
                 'statut' => 'active',
                 'niveaux_ids' => [1, 2, 3, 4]
             ],
             [
                 'nom' => 'Technologie',
                 'code' => 'TECH',
-                'description' => 'Technologie',
-                'coefficient' => 1.00,
-                'heures_par_semaine' => 1,
+                'description' => 'Technologie et Informatique',
+                'coefficient' => 2.00,
+                'heures_par_semaine' => 2,
                 'statut' => 'active',
-                'niveaux_ids' => [1, 2, 3, 4]
+                'niveaux_ids' => [1, 2, 3, 4, 5]
             ],
             [
                 'nom' => 'Philosophie',
                 'code' => 'PHIL',
-                'description' => 'Philosophie',
+                'description' => 'Philosophie et Logique',
                 'coefficient' => 4.00,
                 'heures_par_semaine' => 4,
                 'statut' => 'active',
-                'niveaux_ids' => [6, 7]
+                'niveaux_ids' => [8, 9]
+            ],
+            [
+                'nom' => 'Instruction Civique et Morale',
+                'code' => 'ICM',
+                'description' => 'Éducation civique et valeurs morales',
+                'coefficient' => 1.00,
+                'heures_par_semaine' => 1,
+                'statut' => 'active',
+                'niveaux_ids' => [1, 2, 3, 4, 5, 6, 7, 8, 9]
+            ],
+            [
+                'nom' => 'Sciences Économiques et Sociales',
+                'code' => 'SES',
+                'description' => 'Économie et Sciences Sociales',
+                'coefficient' => 3.00,
+                'heures_par_semaine' => 4,
+                'statut' => 'active',
+                'niveaux_ids' => [5, 6, 8]
             ],
         ];
 

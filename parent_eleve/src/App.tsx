@@ -13,6 +13,7 @@ import MessagerieEleve from "./pages/eleve/Messagerie";
 // Parent
 import DashboardParent from "./pages/parent/Dashboard";
 import MesEnfants from "./pages/parent/MesEnfants";
+import BulletinsParent from "./pages/parent/Bulletins";
 import MessagerieParent from "./pages/parent/Messagerie";
 import MainLayout from "./components/layout/MainLayout";
 import Notifications from "./pages/eleve/Messagerie";
@@ -63,6 +64,10 @@ const AppRoutes = () => {
           {user?.role === "eleve" ? (
             <MainLayout>
               <Bulletins />
+            </MainLayout>
+          ) : user?.role === "parent" ? (
+            <MainLayout>
+              <BulletinsParent />
             </MainLayout>
           ) : <Navigate to="/dashboard" replace />}
         </RouteProtegee>

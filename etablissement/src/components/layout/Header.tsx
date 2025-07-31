@@ -14,9 +14,13 @@ interface Notification {
   date: string;
 }
 
+interface Tenant {
+  nom: string;
+}
+
 interface HeaderProps {
   utilisateur: any;
-  tenant: any;
+  tenant?: Tenant;
   libellesRole: Record<string, string>;
   notifications: Notification[];
   onMenuToggle: () => void;

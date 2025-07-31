@@ -55,42 +55,70 @@ class UserSeeder extends Seeder
             ]);
         }
 
-        // Professeurs
+        // Professeurs avec noms sénégalais
         $professeurs = [
             [
-                'nom' => 'Bernard',
-                'prenom' => 'Sophie',
-                'email' => 'sophie.bernard@isiportal.com',
+                'nom' => 'Diop',
+                'prenom' => 'Aminata',
+                'email' => 'aminata.diop@isiportal.com',
                 'matieres' => [1], // Mathématiques
                 'sections' => ['college', 'lycee'],
+                'telephone' => '77 123 45 67',
+                'adresse' => 'Dakar, Sénégal',
             ],
             [
-                'nom' => 'Leroy',
-                'prenom' => 'Pierre',
-                'email' => 'pierre.leroy@isiportal.com',
+                'nom' => 'Ndiaye',
+                'prenom' => 'Moussa',
+                'email' => 'moussa.ndiaye@isiportal.com',
                 'matieres' => [2], // Français
                 'sections' => ['college', 'lycee'],
+                'telephone' => '77 234 56 78',
+                'adresse' => 'Thiès, Sénégal',
             ],
             [
-                'nom' => 'Moreau',
-                'prenom' => 'Isabelle',
-                'email' => 'isabelle.moreau@isiportal.com',
+                'nom' => 'Fall',
+                'prenom' => 'Fatou',
+                'email' => 'fatou.fall@isiportal.com',
                 'matieres' => [3], // Histoire-Géographie
                 'sections' => ['college', 'lycee'],
+                'telephone' => '77 345 67 89',
+                'adresse' => 'Saint-Louis, Sénégal',
             ],
             [
-                'nom' => 'Petit',
-                'prenom' => 'Michel',
-                'email' => 'michel.petit@isiportal.com',
+                'nom' => 'Sow',
+                'prenom' => 'Ibrahima',
+                'email' => 'ibrahima.sow@isiportal.com',
                 'matieres' => [4], // Anglais
                 'sections' => ['college', 'lycee'],
+                'telephone' => '77 456 78 90',
+                'adresse' => 'Kaolack, Sénégal',
             ],
             [
-                'nom' => 'Roux',
-                'prenom' => 'Catherine',
-                'email' => 'catherine.roux@isiportal.com',
+                'nom' => 'Ba',
+                'prenom' => 'Aissatou',
+                'email' => 'aissatou.ba@isiportal.com',
                 'matieres' => [7], // Physique-Chimie
                 'sections' => ['college', 'lycee'],
+                'telephone' => '77 567 89 01',
+                'adresse' => 'Ziguinchor, Sénégal',
+            ],
+            [
+                'nom' => 'Sarr',
+                'prenom' => 'Ousmane',
+                'email' => 'ousmane.sarr@isiportal.com',
+                'matieres' => [5], // Arabe
+                'sections' => ['college', 'lycee'],
+                'telephone' => '77 678 90 12',
+                'adresse' => 'Tamba, Sénégal',
+            ],
+            [
+                'nom' => 'Gueye',
+                'prenom' => 'Mariama',
+                'email' => 'mariama.gueye@isiportal.com',
+                'matieres' => [8], // SVT
+                'sections' => ['college', 'lycee'],
+                'telephone' => '77 789 01 23',
+                'adresse' => 'Louga, Sénégal',
             ],
         ];
 
@@ -106,6 +134,8 @@ class UserSeeder extends Seeder
                     'doit_changer_mot_de_passe' => false,
                     'matieres' => $professeur['matieres'],
                     'sections' => $professeur['sections'],
+                    'telephone' => $professeur['telephone'],
+                    'adresse' => $professeur['adresse'],
                 ]);
                 
                 // Ajouter les relations dans la table pivot user_matieres
@@ -120,31 +150,47 @@ class UserSeeder extends Seeder
             }
         }
 
-        // Parents
+        // Parents avec noms sénégalais
         $parents = [
             [
-                'nom' => 'Durand',
-                'prenom' => 'François',
-                'email' => 'francois.durand@email.com',
-                'telephone' => '0123456789',
-                'adresse' => '123 Rue de la Paix, 75001 Paris',
-                'profession' => 'Ingénieur',
+                'nom' => 'Diallo',
+                'prenom' => 'Mamadou',
+                'email' => 'mamadou.diallo@email.com',
+                'telephone' => '77 111 22 33',
+                'adresse' => 'Parcelles Assainies, Dakar',
+                'profession' => 'Commerçant',
             ],
             [
-                'nom' => 'Lefevre',
-                'prenom' => 'Anne',
-                'email' => 'anne.lefevre@email.com',
-                'telephone' => '0987654321',
-                'adresse' => '456 Avenue des Champs, 75008 Paris',
-                'profession' => 'Médecin',
+                'nom' => 'Sy',
+                'prenom' => 'Awa',
+                'email' => 'awa.sy@email.com',
+                'telephone' => '77 222 33 44',
+                'adresse' => 'Plateau, Dakar',
+                'profession' => 'Infirmière',
             ],
             [
-                'nom' => 'Garcia',
-                'prenom' => 'Carlos',
-                'email' => 'carlos.garcia@email.com',
-                'telephone' => '0555666777',
-                'adresse' => '789 Boulevard Saint-Germain, 75006 Paris',
-                'profession' => 'Avocat',
+                'nom' => 'Cissé',
+                'prenom' => 'Abdoulaye',
+                'email' => 'abdoulaye.cisse@email.com',
+                'telephone' => '77 333 44 55',
+                'adresse' => 'Guédiawaye, Dakar',
+                'profession' => 'Enseignant',
+            ],
+            [
+                'nom' => 'Toure',
+                'prenom' => 'Khady',
+                'email' => 'khady.toure@email.com',
+                'telephone' => '77 444 55 66',
+                'adresse' => 'Pikine, Dakar',
+                'profession' => 'Couturière',
+            ],
+            [
+                'nom' => 'Kane',
+                'prenom' => 'Cheikh',
+                'email' => 'cheikh.kane@email.com',
+                'telephone' => '77 555 66 77',
+                'adresse' => 'Rufisque, Dakar',
+                'profession' => 'Chauffeur',
             ],
         ];
 

@@ -16,7 +16,7 @@ interface Notification {
 
 interface HeaderProps {
   utilisateur: any;
-  tenant: any;
+  tenant?: any;
   libellesRole: Record<string, string>;
   notifications: Notification[];
   onMenuToggle: () => void;

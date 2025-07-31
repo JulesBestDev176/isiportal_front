@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Award, FileText, TrendingUp, Eye, Download, 
-  Clock, Star, X, Loader2, AlertCircle
+  Clock, Star, X, Loader2, AlertCircle, User, BookOpen
 } from "lucide-react";
 
 interface Note {
@@ -21,7 +21,6 @@ interface Matiere {
   coefficient: number;
   moyenne: number;
   nombre_notes: number;
-  notes: Note[];
 }
 
 interface Bulletin {
@@ -41,27 +40,39 @@ interface Bulletin {
   total_notes: number;
 }
 
-interface ApiResponse {
+interface Enfant {
+  id: number;
+  nom: string;
+  prenom: string;
+  nom_complet: string;
+  classe?: {
+    id: number;
+    nom: string;
+    niveau: {
+      id: number;
+      nom: string;
+    };
+  };
+  moyenne_generale?: number;
   bulletins: Bulletin[];
-  eleve: {
+  statistiques: {
+    total_bulletins: number;
+    bulletins_reussis: number;
+    bulletins_echoues: number;
+  };
+}
+
+interface ApiResponse {
+  enfants: Enfant[];
+  parent: {
     id: number;
     nom: string;
     prenom: string;
     nom_complet: string;
-    classe: {
-      id: number;
-      nom: string;
-      niveau: {
-        id: number;
-        nom: string;
-      };
-    };
   };
   statistiques: {
+    total_enfants: number;
     total_bulletins: number;
-    moyenne_generale?: number;
-    bulletins_reussis: number;
-    bulletins_echoues: number;
   };
 }
 
@@ -88,8 +99,9 @@ const ErrorMessage: React.FC<{ message: string; onRetry: () => void }> = ({ mess
 
 const BulletinCard: React.FC<{
   bulletin: Bulletin;
-  onVoir: (bulletin: Bulletin) => void;
-}> = ({ bulletin, onVoir }) => {
+  enfant: Enfant;
+  onVoir: (bulletin: Bulletin, enfant: Enfant) => void;
+}> = ({ bulletin, enfant, onVoir }) => {
   const getMoyenneColor = (moyenne?: number) => {
     if (!moyenne) return "text-gray-500";
     if (moyenne >= 16) return "text-green-600";
@@ -111,6 +123,9 @@ const BulletinCard: React.FC<{
           </h3>
           <p className="text-sm text-neutral-600 mb-2">
             Année scolaire {bulletin.annee_scolaire.nom}
+          </p>
+          <p className="text-xs text-neutral-500 mb-2">
+            Enfant: {enfant.nom_complet}
           </p>
           <div className="flex items-center gap-2">
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -150,7 +165,7 @@ const BulletinCard: React.FC<{
       </div>
 
       <button
-        onClick={() => onVoir(bulletin)}
+        onClick={() => onVoir(bulletin, enfant)}
         className="w-full py-2 px-3 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center gap-1"
       >
         <Eye className="w-4 h-4" />
@@ -162,9 +177,9 @@ const BulletinCard: React.FC<{
 
 const BulletinModal: React.FC<{
   bulletin: Bulletin;
-  eleve: ApiResponse['eleve'];
+  enfant: Enfant;
   onClose: () => void;
-}> = ({ bulletin, eleve, onClose }) => {
+}> = ({ bulletin, enfant, onClose }) => {
   const getMoyenneColor = (moyenne: number) => {
     if (moyenne >= 16) return "text-green-600";
     if (moyenne >= 12) return "text-blue-600";
@@ -186,7 +201,7 @@ const BulletinModal: React.FC<{
                 Bulletin - {bulletin.semestre === 1 ? "1er Semestre" : "2ème Semestre"}
               </h2>
               <p className="text-neutral-600 mt-1">
-                {eleve.nom_complet} - Classe {eleve.classe.nom} - {bulletin.annee_scolaire.nom}
+                {enfant.nom_complet} - Classe {enfant.classe?.nom} - {bulletin.annee_scolaire.nom}
               </p>
             </div>
             <button onClick={onClose} className="text-neutral-500 hover:text-neutral-700">
@@ -248,37 +263,50 @@ const BulletinModal: React.FC<{
               </tbody>
             </table>
           </div>
-
-          {/* Détail des notes par matière */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-neutral-900">Détail des notes</h3>
-            {bulletin.matieres.map((matiere) => (
-              <div key={matiere.id} className="border border-neutral-200 rounded-lg p-4">
-                <h4 className="font-medium text-neutral-900 mb-3">{matiere.nom}</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {matiere.notes.map((note) => (
-                    <div key={note.id} className="p-3 bg-neutral-50 rounded border">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">{note.type_evaluation}</span>
-                        <span className={`font-bold ${getMoyenneColor(note.note)}`}>
-                          {note.note}/20
-                        </span>
-                      </div>
-                      <div className="text-xs text-neutral-600">
-                        <div>Date: {note.date_evaluation}</div>
-                        <div>Coef: {note.coefficient}</div>
-                        {note.appreciation && (
-                          <div className="mt-1 italic">{note.appreciation}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </motion.div>
+    </div>
+  );
+};
+
+const EnfantCard: React.FC<{ enfant: Enfant }> = ({ enfant }) => {
+  const getMoyenneColor = (moyenne?: number) => {
+    if (!moyenne) return "text-gray-500";
+    if (moyenne >= 16) return "text-green-600";
+    if (moyenne >= 12) return "text-blue-600";
+    if (moyenne >= 10) return "text-orange-600";
+    return "text-red-600";
+  };
+
+  return (
+    <div className="bg-white rounded-lg border border-neutral-200 p-6">
+      <div className="flex items-center gap-4 mb-4">
+        <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
+          <User className="w-6 h-6 text-primary-600" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-neutral-900">{enfant.nom_complet}</h3>
+          <p className="text-sm text-neutral-600">{enfant.classe?.nom || 'Non assigné'}</p>
+          <p className="text-xs text-neutral-500">{enfant.classe?.niveau.nom}</p>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-3 gap-4 text-center">
+        <div className="p-3 bg-green-50 rounded-lg">
+          <p className="text-sm text-neutral-600">Moyenne</p>
+          <p className={`text-lg font-bold ${getMoyenneColor(enfant.moyenne_generale)}`}>
+            {enfant.moyenne_generale?.toFixed(1) || '--'}/20
+          </p>
+        </div>
+        <div className="p-3 bg-blue-50 rounded-lg">
+          <p className="text-sm text-neutral-600">Bulletins</p>
+          <p className="text-lg font-bold text-blue-600">{enfant.statistiques.total_bulletins}</p>
+        </div>
+        <div className="p-3 bg-purple-50 rounded-lg">
+          <p className="text-sm text-neutral-600">Réussis</p>
+          <p className="text-lg font-bold text-purple-600">{enfant.statistiques.bulletins_reussis}</p>
+        </div>
+      </div>
     </div>
   );
 };
@@ -287,15 +315,16 @@ const Bulletins: React.FC = () => {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [bulletinSelectionne, setBulletinSelectionne] = useState<Bulletin | null>(null);
+  const [bulletinSelectionne, setBulletinSelectionne] = useState<{ bulletin: Bulletin; enfant: Enfant } | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [enfantFiltre, setEnfantFiltre] = useState<string>("tous");
 
   const fetchBulletins = async () => {
     try {
       setLoading(true);
       setError(null);
       const token = localStorage.getItem('auth_token');
-      const response = await fetch('http://localhost:8000/api/parent-eleve/mes-bulletins', {
+      const response = await fetch('http://localhost:8000/api/parent-eleve/mes-enfants-bulletins', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -319,8 +348,8 @@ const Bulletins: React.FC = () => {
     fetchBulletins();
   }, []);
 
-  const handleVoirBulletin = (bulletin: Bulletin) => {
-    setBulletinSelectionne(bulletin);
+  const handleVoirBulletin = (bulletin: Bulletin, enfant: Enfant) => {
+    setBulletinSelectionne({ bulletin, enfant });
     setShowModal(true);
   };
 
@@ -328,28 +357,35 @@ const Bulletins: React.FC = () => {
   if (error) return <ErrorMessage message={error} onRetry={fetchBulletins} />;
   if (!data) return <ErrorMessage message="Aucune donnée disponible" onRetry={fetchBulletins} />;
 
+  // Filtrer les bulletins par enfant
+  const bulletinsFiltres = data.enfants.flatMap(enfant => 
+    enfant.bulletins.map(bulletin => ({ bulletin, enfant }))
+  ).filter(item => 
+    enfantFiltre === "tous" || item.enfant.id.toString() === enfantFiltre
+  );
+
   return (
     <div className="space-y-6">
       {/* En-tête */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-neutral-900">Mes Bulletins</h1>
+          <h1 className="text-3xl font-bold text-neutral-900">Bulletins de mes enfants</h1>
           <p className="text-neutral-600 mt-1">
-            {data.eleve.nom_complet} - Classe {data.eleve.classe.nom}
+            Parent: {data.parent.nom_complet}
           </p>
         </div>
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-primary-500 rounded-lg flex items-center justify-center">
-              <FileText className="w-6 h-6 text-white" />
+              <User className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="text-sm text-primary-600">Total bulletins</p>
-              <p className="text-2xl font-bold text-primary-900">{data.statistiques.total_bulletins}</p>
+              <p className="text-sm text-primary-600">Enfants</p>
+              <p className="text-2xl font-bold text-primary-900">{data.statistiques.total_enfants}</p>
             </div>
           </div>
         </div>
@@ -357,13 +393,11 @@ const Bulletins: React.FC = () => {
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-white" />
+              <FileText className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="text-sm text-green-600">Moyenne générale</p>
-              <p className="text-2xl font-bold text-green-900">
-                {data.statistiques.moyenne_generale?.toFixed(1) || '--'}/20
-              </p>
+              <p className="text-sm text-green-600">Total bulletins</p>
+              <p className="text-2xl font-bold text-green-900">{data.statistiques.total_bulletins}</p>
             </div>
           </div>
         </div>
@@ -374,34 +408,60 @@ const Bulletins: React.FC = () => {
               <Award className="w-6 h-6 text-white" />
             </div>
             <div>
-              <p className="text-sm text-blue-600">Réussis</p>
-              <p className="text-2xl font-bold text-blue-900">{data.statistiques.bulletins_reussis}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center">
-              <Star className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="text-sm text-orange-600">Classe</p>
-              <p className="text-lg font-bold text-orange-900">{data.eleve.classe.nom}</p>
-              <p className="text-xs text-orange-600">{data.eleve.classe.niveau.nom}</p>
+              <p className="text-sm text-blue-600">Bulletins réussis</p>
+              <p className="text-2xl font-bold text-blue-900">
+                {data.enfants.reduce((acc, enfant) => acc + enfant.statistiques.bulletins_reussis, 0)}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Cartes des enfants */}
+      <div className="bg-white rounded-lg border border-neutral-200 p-6">
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">Mes enfants</h2>
+        {data.enfants.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {data.enfants.map((enfant) => (
+              <EnfantCard key={enfant.id} enfant={enfant} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-neutral-500 text-center py-4">Aucun enfant trouvé</p>
+        )}
+      </div>
+
+      {/* Filtres */}
+      <div className="bg-white rounded-lg border border-neutral-200 p-4">
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium text-neutral-700">Filtrer par enfant:</label>
+          <select
+            value={enfantFiltre}
+            onChange={(e) => setEnfantFiltre(e.target.value)}
+            className="px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="tous">Tous les enfants</option>
+            {data.enfants.map((enfant) => (
+              <option key={enfant.id} value={enfant.id.toString()}>
+                {enfant.nom_complet}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* Liste des bulletins */}
       <div className="bg-white rounded-lg border border-neutral-200 p-6">
-        {data.bulletins.length > 0 ? (
+        <h2 className="text-lg font-semibold text-neutral-900 mb-4">
+          Bulletins ({bulletinsFiltres.length})
+        </h2>
+        {bulletinsFiltres.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {data.bulletins.map((bulletin, index) => (
+            {bulletinsFiltres.map((item, index) => (
               <BulletinCard
-                key={`${bulletin.annee_scolaire.id}-${bulletin.semestre}`}
-                bulletin={bulletin}
+                key={`${item.enfant.id}-${item.bulletin.annee_scolaire.id}-${item.bulletin.semestre}`}
+                bulletin={item.bulletin}
+                enfant={item.enfant}
                 onVoir={handleVoirBulletin}
               />
             ))}
@@ -411,7 +471,7 @@ const Bulletins: React.FC = () => {
             <FileText className="w-16 h-16 text-neutral-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-neutral-900 mb-2">Aucun bulletin disponible</h3>
             <p className="text-neutral-600">
-              Vos bulletins apparaîtront ici une fois qu'ils seront générés par l'administration.
+              Les bulletins de vos enfants apparaîtront ici une fois qu'ils seront générés.
             </p>
           </div>
         )}
@@ -421,8 +481,8 @@ const Bulletins: React.FC = () => {
       <AnimatePresence>
         {showModal && bulletinSelectionne && (
           <BulletinModal
-            bulletin={bulletinSelectionne}
-            eleve={data.eleve}
+            bulletin={bulletinSelectionne.bulletin}
+            enfant={bulletinSelectionne.enfant}
             onClose={() => {
               setShowModal(false);
               setBulletinSelectionne(null);

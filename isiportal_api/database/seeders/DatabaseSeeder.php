@@ -14,6 +14,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             // 1. Structure de base
             AnneeScolaireSeeder::class,
+
             NiveauxSeeder::class,
             MatieresSeeder::class,
             BatimentsSeeder::class,

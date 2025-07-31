@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useTenant } from "../../contexts/ContexteTenant";
 
 const utilisateursTest = [
-  { label: "Élève", email: "eleve@test.com", motDePasse: "eleve123" },
-  { label: "Parent", email: "parent@test.com", motDePasse: "parent123" }
+  { label: "Parent", email: "parent@test.com", motDePasse: "parent123" },
+  { label: "Élève", email: "eleve@test.com", motDePasse: "eleve123" }
 ];
 
 const Connexion: React.FC = () => {
@@ -47,7 +47,7 @@ const Connexion: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-300">
       <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center text-primary-700">Connexion à l'espace établissement</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center text-primary-700">Connexion - Groupe ISI</h1>
         {/* Utilisateurs de test */}
         <div className="mb-6">
           <div className="text-sm font-semibold mb-2 text-neutral-700">Comptes de test :</div>

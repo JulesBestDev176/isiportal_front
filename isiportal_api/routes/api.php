@@ -28,6 +28,14 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EleveClasseController;
 use App\Http\Controllers\Api\TestController;
+use App\Http\Controllers\Api\EleveCoursController;
+use App\Http\Controllers\Api\EleveBulletinController;
+use App\Http\Controllers\Api\EleveMessagerieController;
+use App\Http\Controllers\Api\EleveDashboardController;
+use App\Http\Controllers\Api\ParentBulletinController;
+use App\Http\Controllers\Api\ParentEnfantController;
+use App\Http\Controllers\Api\ParentDashboardController;
+use App\Http\Controllers\Api\ParentMessagerieController;
 use Illuminate\Support\Facades\Artisan;
 
 /*
@@ -43,6 +51,35 @@ use Illuminate\Support\Facades\Artisan;
 
 // Routes publiques
 Route::post('/auth/login', [AuthController::class, 'login']);
+
+// Routes d'authentification pour parents et élèves
+Route::prefix('parent-eleve')->group(function () {
+    Route::post('/login', [\App\Http\Controllers\Api\ParentEleveAuthController::class, 'login']);
+    Route::get('/check-auth', [\App\Http\Controllers\Api\ParentEleveAuthController::class, 'checkAuth'])->middleware('auth:sanctum');
+    Route::post('/logout', [\App\Http\Controllers\Api\ParentEleveAuthController::class, 'logout'])->middleware('auth:sanctum');
+    Route::get('/dashboard', [\App\Http\Controllers\Api\ParentEleDashboardController::class, 'getDashboardData'])->middleware('auth:sanctum');
+    
+    // Routes pour les cours de l'élève
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('/dashboard', [\App\Http\Controllers\Api\EleveDashboardController::class, 'getDashboard']);
+        Route::get('/mes-cours', [\App\Http\Controllers\Api\EleveCoursController::class, 'getMesCours']);
+        Route::get('/cours/{coursId}/details', [\App\Http\Controllers\Api\EleveCoursController::class, 'getDetailsCours']);
+        Route::get('/mes-bulletins', [\App\Http\Controllers\Api\EleveBulletinController::class, 'getMesBulletins']);
+        Route::get('/mes-messages', [\App\Http\Controllers\Api\EleveMessagerieController::class, 'getMesMessages']);
+        Route::patch('/messages/{messageId}/lire', [\App\Http\Controllers\Api\EleveMessagerieController::class, 'marquerCommeLu']);
+        Route::post('/messages/envoyer', [\App\Http\Controllers\Api\EleveMessagerieController::class, 'envoyerMessage']);
+    });
+    
+    // Routes pour les parents
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('/parent-dashboard', [\App\Http\Controllers\Api\ParentDashboardController::class, 'getDashboard']);
+        Route::get('/mes-enfants', [\App\Http\Controllers\Api\ParentEnfantController::class, 'getMesEnfants']);
+        Route::get('/enfant/{enfantId}/details', [\App\Http\Controllers\Api\ParentEnfantController::class, 'getEnfantDetails']);
+        Route::get('/mes-enfants-bulletins', [\App\Http\Controllers\Api\ParentBulletinController::class, 'getMesEnfantsBulletins']);
+        Route::get('/parent-messages', [\App\Http\Controllers\Api\ParentMessagerieController::class, 'getMesMessages']);
+        Route::patch('/parent-messages/{messageId}/lire', [\App\Http\Controllers\Api\ParentMessagerieController::class, 'marquerCommeLu']);
+    });
+});
 
 // Route publique pour récupérer le niveau d'un élève
 Route::get('/public/eleves/{eleveId}/niveau', [EleveController::class, 'getNiveauEleve']);

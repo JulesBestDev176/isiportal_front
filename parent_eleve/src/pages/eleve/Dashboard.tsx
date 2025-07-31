@@ -3,11 +3,10 @@ import { motion } from "framer-motion";
 import {
   BookOpen, MessageSquare, Calendar, FileText, CheckCircle, Bell, Users,
   Award, Clock, Target, ArrowUpRight, ArrowDownRight, GraduationCap,
-  Edit3, Eye, Download
+  Eye, Loader2, AlertCircle
 } from "lucide-react";
 
-// Définition des props pour DashboardCard amélioré
-interface PropsCarteTableauDeBord {
+interface DashboardCard {
   title: string;
   value: string | number;
   icon: React.ReactNode;
@@ -17,7 +16,113 @@ interface PropsCarteTableauDeBord {
   delay?: number;
 }
 
-const DashboardCard: React.FC<PropsCarteTableauDeBord> = ({ 
+interface Cours {
+  id: number;
+  titre: string;
+  description: string;
+  matiere: {
+    id: number;
+    nom: string;
+    code: string;
+    coefficient: number;
+  };
+  professeur?: {
+    id: number;
+    nom_complet: string;
+  };
+  moyenne?: number;
+  nombre_notes: number;
+  heures_par_semaine: number;
+}
+
+interface Note {
+  id: number;
+  note: number;
+  coefficient: number;
+  type_evaluation: string;
+  date_evaluation: string;
+  appreciation?: string;
+  matiere: {
+    nom: string;
+    code: string;
+  };
+  cours: {
+    titre: string;
+  };
+}
+
+interface Notification {
+  id: number;
+  titre: string;
+  contenu: string;
+  type: string;
+  type_libelle: string;
+  priorite: string;
+  date_creation: string;
+  expediteur?: {
+    nom_complet: string;
+  };
+}
+
+interface ProchainCours {
+  id: number;
+  titre: string;
+  matiere: string;
+  professeur: string;
+  heure: string;
+  salle: string;
+}
+
+interface ApiResponse {
+  eleve: {
+    id: number;
+    nom: string;
+    prenom: string;
+    nom_complet: string;
+    classe: {
+      id: number;
+      nom: string;
+      niveau: {
+        id: number;
+        nom: string;
+      };
+    };
+  };
+  statistiques: {
+    total_cours: number;
+    cours_avec_notes: number;
+    moyenne_generale?: number;
+    total_notes: number;
+    notifications_non_lues: number;
+  };
+  cours_recents: Cours[];
+  notes_recentes: Note[];
+  notifications_recentes: Notification[];
+  prochains_cours: ProchainCours[];
+}
+
+const LoadingSpinner: React.FC = () => (
+  <div className="flex items-center justify-center py-12">
+    <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+    <span className="ml-2 text-neutral-600">Chargement du dashboard...</span>
+  </div>
+);
+
+const ErrorMessage: React.FC<{ message: string; onRetry: () => void }> = ({ message, onRetry }) => (
+  <div className="flex flex-col items-center justify-center py-12">
+    <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+    <h3 className="text-lg font-medium text-neutral-900 mb-2">Erreur</h3>
+    <p className="text-neutral-600 mb-4 text-center">{message}</p>
+    <button
+      onClick={onRetry}
+      className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+    >
+      Réessayer
+    </button>
+  </div>
+);
+
+const StatCard: React.FC<DashboardCard> = ({ 
   title, 
   value, 
   icon, 
@@ -61,38 +166,13 @@ const DashboardCard: React.FC<PropsCarteTableauDeBord> = ({
   </motion.div>
 );
 
-// Interface pour les activités
-interface Activity {
-  type: string;
-  text: string;
-  time: string;
-  user?: string;
-  status?: "success" | "warning" | "error" | "info";
-}
-
-// Composant pour afficher une activité
-const ActivityItem: React.FC<{ activity: Activity; index: number }> = ({ activity, index }) => {
-  const getActivityIcon = (type: string) => {
-    const iconMap = {
-      document: <FileText className="w-5 h-5" />,
-      grade: <Award className="w-5 h-5" />,
-      calendar: <Calendar className="w-5 h-5" />,
-      discussion: <MessageSquare className="w-5 h-5" />,
-      course: <BookOpen className="w-5 h-5" />,
-      homework: <Edit3 className="w-5 h-5" />,
-      notification: <Bell className="w-5 h-5" />
-    };
-    return iconMap[type as keyof typeof iconMap] || <CheckCircle className="w-5 h-5" />;
-  };
-
-  const getStatusColor = (status?: string) => {
-    const colorMap = {
-      success: "bg-green-50 text-green-600",
-      warning: "bg-orange-50 text-orange-600", 
-      error: "bg-red-50 text-red-600",
-      info: "bg-primary-50 text-primary-600"
-    };
-    return colorMap[status as keyof typeof colorMap] || "bg-primary-50 text-primary-600";
+const CoursCard: React.FC<{ cours: Cours; index: number }> = ({ cours, index }) => {
+  const getMoyenneColor = (moyenne?: number) => {
+    if (!moyenne) return "text-gray-500";
+    if (moyenne >= 16) return "text-green-600";
+    if (moyenne >= 12) return "text-blue-600";
+    if (moyenne >= 10) return "text-orange-600";
+    return "text-red-600";
   };
 
   return (
@@ -100,156 +180,133 @@ const ActivityItem: React.FC<{ activity: Activity; index: number }> = ({ activit
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.3, delay: index * 0.1 }}
-      className="flex items-start gap-3 p-3 hover:bg-neutral-50 rounded-lg transition-colors cursor-pointer"
+      className="p-4 border border-neutral-200 rounded-lg hover:shadow-sm transition-shadow"
     >
-      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getStatusColor(activity.status)}`}>
-        {getActivityIcon(activity.type)}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-neutral-900">{activity.text}</p>
-        {activity.user && (
-          <p className="text-xs text-neutral-500 mt-1">Par {activity.user}</p>
+      <div className="flex items-start justify-between mb-2">
+        <div>
+          <h4 className="font-medium text-neutral-900">{cours.titre}</h4>
+          <p className="text-sm text-neutral-600">{cours.matiere.nom}</p>
+          <p className="text-xs text-neutral-500">{cours.professeur?.nom_complet || 'Non assigné'}</p>
+        </div>
+        {cours.moyenne && (
+          <span className={`font-bold ${getMoyenneColor(cours.moyenne)}`}>
+            {cours.moyenne}/20
+          </span>
         )}
-        <p className="text-xs text-neutral-500 mt-1">Il y a {activity.time}</p>
+      </div>
+      <div className="flex justify-between text-xs text-neutral-500">
+        <span>{cours.nombre_notes} note{cours.nombre_notes > 1 ? 's' : ''}</span>
+        <span>{cours.heures_par_semaine}h/sem</span>
       </div>
     </motion.div>
   );
 };
 
-// Interface pour les actions rapides
-interface QuickAction {
-  title: string;
-  icon: React.ReactNode;
-  color: string;
-  description?: string;
-}
-
-// Composant pour les actions rapides
-const QuickActionCard: React.FC<{ action: QuickAction; index: number }> = ({ action, index }) => (
-  <motion.button
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ duration: 0.3, delay: index * 0.1 }}
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
-    className="p-4 bg-white border border-neutral-200 rounded-lg hover:shadow-md transition-all group"
-  >
-    <div className={`w-12 h-12 rounded-lg ${action.color} flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform text-white`}>
-      {action.icon}
-    </div>
-    <p className="text-sm font-medium text-neutral-900">{action.title}</p>
-    {action.description && (
-      <p className="text-xs text-neutral-500 mt-1">{action.description}</p>
-    )}
-  </motion.button>
-);
-
-// Composant pour les sections supplémentaires
-const SectionCard: React.FC<{ title: string; children: React.ReactNode; icon?: React.ReactNode }> = ({ 
-  title, 
-  children, 
-  icon 
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5, delay: 0.9 }}
-    className="bg-white rounded-lg border border-neutral-200"
-  >
-    <div className="p-6 border-b border-neutral-200">
-      <h2 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
-        {icon}
-        {title}
-      </h2>
-    </div>
-    <div className="p-6">
-      {children}
-    </div>
-  </motion.div>
-);
-
-const StudentDashboard: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const stats = {
-    courses: { value: "12", trend: 0 },
-    average: { value: "14.2", trend: 8 },
-    homework: { value: "3", trend: -25 },
-    messages: { value: "2", trend: 0 }
+const NoteCard: React.FC<{ note: Note; index: number }> = ({ note, index }) => {
+  const getNoteColor = (note: number) => {
+    if (note >= 16) return "text-green-600";
+    if (note >= 12) return "text-blue-600";
+    if (note >= 10) return "text-orange-600";
+    return "text-red-600";
   };
 
-  const activities: Activity[] = [
-    { type: "grade", text: "Nouvelle note en Mathématiques : 16/20", time: "2h", status: "success" },
-    { type: "course", text: "Nouveau cours disponible : Les fractions", time: "4h", user: "M. Dubois", status: "info" },
-    { type: "homework", text: "Devoir de français à rendre demain", time: "1j", status: "warning" },
-    { type: "discussion", text: "Message reçu de Mme Leroy", time: "2j", status: "info" }
-  ];
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.1 }}
+      className="p-4 border border-neutral-200 rounded-lg"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <p className="font-medium text-neutral-900">{note.matiere.nom}</p>
+          <p className="text-sm text-neutral-600">{note.type_evaluation}</p>
+        </div>
+        <span className={`font-bold ${getNoteColor(note.note)}`}>
+          {note.note}/20
+        </span>
+      </div>
+      <div className="flex justify-between text-xs text-neutral-500">
+        <span>Coef. {note.coefficient}</span>
+        <span>{note.date_evaluation}</span>
+      </div>
+    </motion.div>
+  );
+};
 
-  const quickActions: QuickAction[] = [
-    { title: "Mes Cours", icon: <BookOpen className="w-6 h-6" />, color: "bg-primary-500", description: "Matières" },
-    { title: "Notes", icon: <Award className="w-6 h-6" />, color: "bg-green-500", description: "Évaluations" },
-    { title: "Messagerie", icon: <MessageSquare className="w-6 h-6" />, color: "bg-green-500", description: "Messages" },
-    { title: "Calendrier", icon: <Calendar className="w-6 h-6" />, color: "bg-purple-500", description: "Planning" }
-  ];
-
-  const nextCourses = [
-    { name: "Mathématiques", teacher: "M. Dubois", time: "Demain 8h00", room: "Salle 101" },
-    { name: "Français", teacher: "Mme Leroy", time: "Demain 10h00", room: "Salle 205" },
-    { name: "Histoire-Géo", teacher: "M. Bernard", time: "Demain 14h00", room: "Salle 301" }
-  ];
-
-  const recentGrades = [
-    { subject: "Mathématiques", type: "Contrôle", grade: 16, max: 20, date: "20/07/2025" },
-    { subject: "Français", type: "Dissertation", grade: 13, max: 20, date: "18/07/2025" },
-    { subject: "Histoire-Géo", type: "Exposé", grade: 15, max: 20, date: "16/07/2025" }
-  ];
-
-  const classInfo = {
-    name: "3ème A",
-    teacher: "Mme Martin",
-    students: 28,
-    room: "Salle 205"
-  };
-
-  const reports = [
-    {
-      period: "2ème Trimestre 2024-2025",
-      date: "15/03/2025",
-      status: "Disponible",
-      average: 15.1,
-      rank: "6/28",
-      available: true
-    },
-    {
-      period: "3ème Trimestre 2024-2025",
-      date: "20/06/2025",
-      status: "En cours",
-      available: false
+const NotificationCard: React.FC<{ notification: Notification; index: number }> = ({ notification, index }) => {
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case "warning": return "text-orange-600 bg-orange-50";
+      case "error": return "text-red-600 bg-red-50";
+      case "success": return "text-green-600 bg-green-50";
+      default: return "text-blue-600 bg-blue-50";
     }
-  ];
-
-  const getGradeColor = (grade: number, max: number = 20) => {
-    const percentage = (grade / max) * 100;
-    if (percentage >= 80) return "text-green-600";
-    if (percentage >= 60) return "text-orange-500";
-    return "text-red-500";
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-neutral-600">Chargement du tableau de bord...</p>
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.1 }}
+      className="p-4 border border-neutral-200 rounded-lg"
+    >
+      <div className="flex items-start gap-3">
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getTypeColor(notification.type)}`}>
+          <Bell className="w-4 h-4" />
+        </div>
+        <div className="flex-1">
+          <h4 className="font-medium text-neutral-900 text-sm">{notification.titre}</h4>
+          <p className="text-xs text-neutral-600 mt-1">{notification.contenu}</p>
+          <div className="flex justify-between items-center mt-2">
+            <span className="text-xs text-neutral-500">
+              {notification.expediteur?.nom_complet || 'Système'}
+            </span>
+            <span className="text-xs text-neutral-500">{notification.date_creation}</span>
+          </div>
         </div>
       </div>
-    );
-  }
+    </motion.div>
+  );
+};
+
+const Dashboard: React.FC = () => {
+  const [data, setData] = useState<ApiResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDashboard = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('http://localhost:8000/api/parent-eleve/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors du chargement');
+      }
+
+      const result = await response.json();
+      setData(result.data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+  }, []);
+
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage message={error} onRetry={fetchDashboard} />;
+  if (!data) return <ErrorMessage message="Aucune donnée disponible" onRetry={fetchDashboard} />;
 
   return (
     <div className="space-y-6">
@@ -261,7 +318,7 @@ const StudentDashboard: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-2xl font-bold text-neutral-900"
           >
-            Bienvenue Alexandre, Élève
+            Bienvenue {data.eleve.nom_complet}
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0, y: -10 }}
@@ -269,7 +326,7 @@ const StudentDashboard: React.FC = () => {
             transition={{ delay: 0.1 }}
             className="text-neutral-600 mt-1"
           >
-            Établissement: Collège Victor Hugo
+            Classe {data.eleve.classe.nom} - {data.eleve.classe.niveau.nom}
           </motion.p>
         </div>
         <motion.div 
@@ -285,64 +342,98 @@ const StudentDashboard: React.FC = () => {
 
       {/* Cartes statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <DashboardCard 
+        <StatCard 
           title="Cours" 
-          value={stats.courses.value} 
+          value={data.statistiques.total_cours} 
           icon={<BookOpen className="w-6 h-6" />} 
           color="bg-primary-500" 
-          description="Disponibles" 
-          trend={stats.courses.trend} 
+          description="Assignés" 
           delay={0.1} 
         />
-        <DashboardCard 
-          title="Matières" 
-          value="8" 
-          icon={<GraduationCap className="w-6 h-6" />} 
+        <StatCard 
+          title="Moyenne générale" 
+          value={data.statistiques.moyenne_generale?.toFixed(1) || '--'} 
+          icon={<Award className="w-6 h-6" />} 
           color="bg-green-500" 
-          description="Inscrit" 
-          trend={5} 
+          description="Sur 20" 
           delay={0.2} 
         />
-        <DashboardCard 
-          title="Progression" 
-          value="65%" 
+        <StatCard 
+          title="Notes" 
+          value={data.statistiques.total_notes} 
           icon={<Target className="w-6 h-6" />} 
           color="bg-purple-500" 
-          description="Compétences" 
-          trend={12} 
+          description="Total" 
           delay={0.3} 
         />
-        <DashboardCard 
+        <StatCard 
           title="Messages" 
-          value={stats.messages.value} 
+          value={data.statistiques.notifications_non_lues} 
           icon={<MessageSquare className="w-6 h-6" />} 
           color="bg-orange-500" 
           description="Non lus" 
-          trend={stats.messages.trend} 
           delay={0.4} 
         />
       </div>
 
       {/* Contenu principal */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Activités récentes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Cours récents */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.5 }}
-          className="lg:col-span-2 bg-white rounded-lg border border-neutral-200"
+          className="bg-white rounded-lg border border-neutral-200"
         >
           <div className="p-6 border-b border-neutral-200">
-            <h2 className="text-lg font-semibold text-neutral-900">Activités récentes</h2>
+            <h2 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+              <BookOpen className="w-5 h-5" />
+              Mes cours
+            </h2>
           </div>
-          <div className="p-3">
-            {activities.map((activity, index) => (
-              <ActivityItem key={index} activity={activity} index={index} />
-            ))}
+          <div className="p-6">
+            {data.cours_recents.length > 0 ? (
+              <div className="space-y-4">
+                {data.cours_recents.map((cours, index) => (
+                  <CoursCard key={cours.id} cours={cours} index={index} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-neutral-500 text-center py-4">Aucun cours assigné</p>
+            )}
           </div>
         </motion.div>
 
-        {/* Accès rapide */}
+        {/* Notes récentes */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+          className="bg-white rounded-lg border border-neutral-200"
+        >
+          <div className="p-6 border-b border-neutral-200">
+            <h2 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+              <Award className="w-5 h-5" />
+              Notes récentes
+            </h2>
+          </div>
+          <div className="p-6">
+            {data.notes_recentes.length > 0 ? (
+              <div className="space-y-4">
+                {data.notes_recentes.map((note, index) => (
+                  <NoteCard key={note.id} note={note} index={index} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-neutral-500 text-center py-4">Aucune note récente</p>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Sections supplémentaires */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Prochains cours */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -350,133 +441,61 @@ const StudentDashboard: React.FC = () => {
           className="bg-white rounded-lg border border-neutral-200"
         >
           <div className="p-6 border-b border-neutral-200">
-            <h2 className="text-lg font-semibold text-neutral-900">Accès rapide</h2>
+            <h2 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Prochains cours
+            </h2>
           </div>
           <div className="p-6">
-            <div className="grid grid-cols-2 gap-4">
-              {quickActions.map((action, index) => (
-                <QuickActionCard key={index} action={action} index={index} />
-              ))}
-            </div>
+            {data.prochains_cours.length > 0 ? (
+              <div className="space-y-3">
+                {data.prochains_cours.map((cours, index) => (
+                  <div key={cours.id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
+                    <div>
+                      <p className="font-medium text-neutral-900">{cours.titre}</p>
+                      <p className="text-sm text-neutral-600">{cours.professeur}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-neutral-900">{cours.heure}</p>
+                      <p className="text-xs text-neutral-500">{cours.salle}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-neutral-500 text-center py-4">Aucun cours programmé</p>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Notifications récentes */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.8 }}
+          className="bg-white rounded-lg border border-neutral-200"
+        >
+          <div className="p-6 border-b border-neutral-200">
+            <h2 className="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Notifications récentes
+            </h2>
+          </div>
+          <div className="p-6">
+            {data.notifications_recentes.length > 0 ? (
+              <div className="space-y-4">
+                {data.notifications_recentes.map((notification, index) => (
+                  <NotificationCard key={notification.id} notification={notification} index={index} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-neutral-500 text-center py-4">Aucune notification récente</p>
+            )}
           </div>
         </motion.div>
       </div>
-
-      {/* Sections supplémentaires */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Ma classe */}
-        <SectionCard title="Ma classe" icon={<Users className="w-5 h-5 text-neutral-600" />}>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-3 bg-primary-50 rounded-lg">
-                <p className="text-sm text-neutral-600">Classe</p>
-                <p className="text-lg font-bold text-primary-600">{classInfo.name}</p>
-              </div>
-              <div className="text-center p-3 bg-green-50 rounded-lg">
-                <p className="text-sm text-neutral-600">Élèves</p>
-                <p className="text-lg font-bold text-green-600">{classInfo.students}</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <p><span className="font-medium">Professeur principal:</span> {classInfo.teacher}</p>
-              <p><span className="font-medium">Salle:</span> {classInfo.room}</p>
-            </div>
-          </div>
-        </SectionCard>
-
-        {/* Prochains cours */}
-        <SectionCard title="Prochains cours" icon={<Calendar className="w-5 h-5 text-neutral-600" />}>
-          <div className="space-y-3">
-            {nextCourses.map((course, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-neutral-900">{course.name}</p>
-                  <p className="text-sm text-neutral-600">{course.teacher}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-neutral-900">{course.time}</p>
-                  <p className="text-xs text-neutral-500">{course.room}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </SectionCard>
-      </div>
-
-      {/* Notes récentes */}
-      <SectionCard title="Notes récentes" icon={<Award className="w-5 h-5 text-neutral-600" />}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {recentGrades.map((grade, index) => (
-            <div key={index} className="p-4 border border-neutral-200 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <p className="font-medium text-neutral-900">{grade.subject}</p>
-                <span className={`font-bold ${getGradeColor(grade.grade, grade.max)}`}>
-                  {grade.grade}/{grade.max}
-                </span>
-              </div>
-              <p className="text-sm text-neutral-600">{grade.type}</p>
-              <p className="text-xs text-neutral-500">{grade.date}</p>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
-
-      {/* Bulletins */}
-      <SectionCard title="Mes bulletins" icon={<FileText className="w-5 h-5 text-neutral-600" />}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {reports.map((report, index) => (
-            <div key={index} className="p-4 border border-neutral-200 rounded-lg">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <p className="font-medium text-neutral-900">{report.period}</p>
-                  <p className="text-sm text-neutral-600">Publié le {report.date}</p>
-                </div>
-                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                  report.available 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {report.status}
-                </span>
-              </div>
-              
-              {report.available && (
-                <div className="space-y-2 mb-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-neutral-600">Moyenne:</span>
-                    <span className="font-medium text-green-600">{report.average}/20</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-neutral-600">Rang:</span>
-                    <span className="font-medium text-neutral-900">{report.rank}</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                {report.available ? (
-                  <>
-                    <button className="flex-1 flex items-center justify-center gap-2 bg-primary-600 text-white py-2 px-3 rounded text-sm hover:bg-primary-700">
-                      <Eye className="w-4 h-4" />
-                      Voir
-                    </button>
-                    <button className="flex items-center justify-center gap-2 bg-neutral-100 text-neutral-700 py-2 px-3 rounded text-sm hover:bg-neutral-200">
-                      <Download className="w-4 h-4" />
-                      PDF
-                    </button>
-                  </>
-                ) : (
-                  <button disabled className="w-full py-2 px-3 bg-neutral-100 text-neutral-500 rounded text-sm cursor-not-allowed">
-                    Non disponible
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </SectionCard>
     </div>
   );
 };
 
-export default StudentDashboard;
+export default Dashboard;

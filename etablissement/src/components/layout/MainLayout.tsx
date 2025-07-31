@@ -93,14 +93,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <div className="sticky top-0 z-30">
           <Header
             utilisateur={utilisateur}
-            tenant={{ nom: 'Établissement Scolaire' }}
             libellesRole={libellesRole}
             notifications={notifications}
+            onMenuToggle={() => {}}
+            showMobileMenu={false}
             deconnexion={handleDeconnexion}
             sidebarRéduite={sidebarReduite}
             onToggleSidebar={() => setSidebarReduite((v) => !v)}
-            onMenuToggle={() => {}}
-            showMobileMenu={false}
           />
         </div>
         
