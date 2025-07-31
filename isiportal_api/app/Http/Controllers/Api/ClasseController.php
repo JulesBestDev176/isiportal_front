@@ -16,7 +16,7 @@ class ClasseController extends Controller
     public function index(Request $request): JsonResponse
     {
         $currentUser = auth()->user();
-        $query = Classe::with(['niveau']);
+        $query = Classe::with(['niveau', 'professeurPrincipal']);
 
         // Filtrage selon le rôle de l'utilisateur connecté
         if ($currentUser->role === 'gestionnaire') {

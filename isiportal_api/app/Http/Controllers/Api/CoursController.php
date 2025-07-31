@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cours;
+use App\Models\CoursClasseProfesseur;
+use App\Models\Creneau;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class CoursController extends Controller
 {
@@ -15,7 +18,28 @@ class CoursController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Cours::with(['matiere', 'niveau', 'anneeScolaire', 'classes']);
+        $user = auth()->user();
+        $query = Cours::with([
+            'matiere', 
+            'niveau', 
+            'anneeScolaire', 
+            'classes', 
+            'professeurs', 
+            'assignationsProfesseurs.professeur', 
+            'assignationsProfesseurs.classe', 
+            'creneaux.classe',
+            'creneaux.professeur',
+            'creneaux.salle'
+        ]);
+
+        // Filtrage par rôle utilisateur
+        if ($user->role === 'professeur') {
+            // Les professeurs ne voient que leurs cours assignés
+            $query->whereHas('professeurs', function($q) use ($user) {
+                $q->where('professeur_id', $user->id);
+            });
+        }
+        // Les administrateurs et gestionnaires voient tous les cours
 
         // Filtrage par matière
         if ($request->has('matiere_id')) {
@@ -43,7 +67,7 @@ class CoursController extends Controller
             $query->where('titre', 'like', "%{$search}%");
         }
 
-        $cours = $query->paginate($request->get('per_page', 15));
+        $cours = $query->get();
 
         return response()->json([
             'success' => true,
@@ -68,8 +92,14 @@ class CoursController extends Controller
             'statut' => 'sometimes|in:planifie,en_cours,termine,annule',
             'coefficient' => 'required|numeric|min:0|max:10',
             'heures_par_semaine' => 'required|integer|min:0',
-            'ressources' => 'nullable|array',
+            'assignations' => 'required|array|min:1',
+            'assignations.*.classeId' => 'required|exists:classes,id',
+            'assignations.*.professeurId' => 'required|exists:users,id',
             'creneaux' => 'nullable|array',
+            'creneaux.*.jour' => 'required|in:lundi,mardi,mercredi,jeudi,vendredi,samedi',
+            'creneaux.*.heureDebut' => 'required|date_format:H:i',
+            'creneaux.*.heureFin' => 'required|date_format:H:i',
+            'creneaux.*.classeId' => 'required|exists:classes,id',
         ]);
 
         if ($validator->fails()) {
@@ -80,13 +110,58 @@ class CoursController extends Controller
             ], 422);
         }
 
-        $cours = Cours::create($request->all());
+        DB::beginTransaction();
+        try {
+            // Créer le cours
+            $coursData = $request->except(['assignations', 'creneaux']);
+            $cours = Cours::create($coursData);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cours créé avec succès',
-            'data' => $cours->load(['matiere', 'niveau', 'anneeScolaire'])
-        ], 201);
+            // Créer les assignations professeur-classe
+            foreach ($request->assignations as $assignation) {
+                CoursClasseProfesseur::create([
+                    'cours_id' => $cours->id,
+                    'classe_id' => $assignation['classeId'],
+                    'professeur_id' => $assignation['professeurId'],
+                    'annee_scolaire_id' => $request->annee_scolaire_id,
+                    'statut' => 'active'
+                ]);
+            }
+
+            // Créer les créneaux
+            if ($request->has('creneaux')) {
+                foreach ($request->creneaux as $creneau) {
+                    // Trouver le professeur assigné à cette classe
+                    $assignation = collect($request->assignations)
+                        ->firstWhere('classeId', $creneau['classeId']);
+                    
+                    Creneau::create([
+                        'cours_id' => $cours->id,
+                        'classe_id' => $creneau['classeId'],
+                        'professeur_id' => $assignation['professeurId'],
+                        'jour' => $creneau['jour'],
+                        'heure_debut' => $creneau['heureDebut'],
+                        'heure_fin' => $creneau['heureFin'],
+                        'salle_id' => $creneau['salleId'] ?? 1,
+                        'statut' => 'planifie'
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cours créé avec succès',
+                'data' => $cours->load(['matiere', 'niveau', 'anneeScolaire', 'assignationsProfesseurs', 'creneaux'])
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la création du cours',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

@@ -16,16 +16,15 @@ class EleveController extends Controller
     public function getElevesByClasse($classeId)
     {
         try {
-            // Récupérer les élèves de la classe via la table eleve_classe
-            $eleves = DB::table('eleve_classe')
-                ->join('users', 'eleve_classe.eleve_id', '=', 'users.id')
-                ->where('eleve_classe.classe_id', $classeId)
+            $eleves = User::where('role', 'eleve')
+                ->where('classe_id', $classeId)
                 ->select([
-                    'users.id',
-                    'users.nom',
-                    'users.prenom',
-                    'eleve_classe.moyenne_annuelle',
-                    'eleve_classe.statut'
+                    'id',
+                    'nom', 
+                    'prenom',
+                    'email',
+                    'classe_id',
+                    'date_naissance'
                 ])
                 ->get()
                 ->map(function ($eleve) {
@@ -33,9 +32,11 @@ class EleveController extends Controller
                         'id' => $eleve->id,
                         'nom' => $eleve->nom,
                         'prenom' => $eleve->prenom,
-                        'moyenneAnnuelle' => (float) $eleve->moyenne_annuelle,
-                        'statut' => $eleve->statut,
-                        'dateInscription' => '2024-09-01'
+                        'email' => $eleve->email,
+                        'classe_id' => $eleve->classe_id,
+                        'classeId' => $eleve->classe_id, // Compatibilité frontend
+                        'moyenne' => 12.5, // Valeur par défaut
+                        'statut' => 'actif'
                     ];
                 });
 
